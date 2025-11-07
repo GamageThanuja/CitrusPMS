@@ -165,7 +165,8 @@ import fetchMealAllocationReducer from "./slices/fetchMealAllocationSlice";
 import createCategoryMasReducer from "./slices/createCategoryMasSlice";
 import fetchNameMasReducer from "./slices/fetchNameMasSlice"; 
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
- import createNameMasReducer from "./slices/createNameMasSlice";
+import createNameMasReducer from "./slices/createNameMasSlice";
+import createBookingFeedReducer from "./slices/createBookingFeedSlice";
 
 
 
@@ -338,6 +339,7 @@ const store = configureStore({
     fetchNameMas: fetchNameMasReducer,
     fetchNationalityMas: fetchNationalityMasReducer,
     createNameMas: createNameMasReducer,
+    createBookingFeed: createBookingFeedReducer,
   },
 });
 
