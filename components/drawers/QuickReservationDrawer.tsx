@@ -49,25 +49,66 @@ import {
   parseISO,
 } from "date-fns";
 
-import {
-  checkInReservationDetail,
-  createBookingViaFeed,
-} from "@/controllers/reservationController";
-import { createGuestProfile } from "@/controllers/guestProfileMasterController";
-import { getHotelRatePlans } from "@/controllers/hotelRatePlanController";
-import { getHotelRoomTypes } from "@/controllers/hotelRoomTypeController";
+// New Redux imports
+import { 
+  createGuestProfileCheckIn,
+  selectCreateCheckInLoading,
+  selectCreateCheckInError,
+  selectCreateCheckInData,
+} from "@/redux/slices/createCheckInSlice";
+// Keep existing controller for check-in since no equivalent slice exists
+import { checkInReservationDetail } from "@/controllers/reservationController";
+import { 
+  fetchAvailableRoomTypes,
+  selectAvailableRoomTypesItems,
+  selectAvailableRoomTypesLoading,
+} from "@/redux/slices/fetchAvailableRoomTypesSlice";
+import { 
+  fetchCountryMas,
+  selectCountryMas,
+  selectCountryMasLoading,
+} from "@/redux/slices/fetchCountryMasSlice";
+import { 
+  fetchNameMas,
+  selectFetchNameMasItems,
+  selectFetchNameMasLoading,
+} from "@/redux/slices/fetchNameMasSlice";
+import { 
+  fetchGuestMas,
+  selectGuestMasItems,
+  selectGuestMasLoading,
+} from "@/redux/slices/fetchGuestMasSlice";
+import { 
+  fetchRoomTypeMas,
+  selectRoomTypeMas,
+  selectRoomTypeMasLoading,
+} from "@/redux/slices/roomTypeMasSlice";
+import { 
+  fetchBasisMas,
+  selectBasisMasItems,
+  selectBasisMasLoading,
+} from "@/redux/slices/fetchBasisMasSlice";
+import { 
+  fetchReservationDetailsById,
+  selectReservationDetailsItems,
+  selectReservationDetailsLoading,
+} from "@/redux/slices/fetchreservtaionByIdSlice";
+import { 
+  createBookingFeed,
+  selectCreateBookingFeedLoading,
+  selectCreateBookingFeedError,
+  selectCreateBookingFeedSuccess,
+} from "@/redux/slices/createBookingFeedSlice";
+
 import { RateCode } from "@/types/rateCode";
 import { HotelRatePlan } from "@/types/hotelRatePlan";
 import { HotelRoomNumber } from "@/types/hotelRoomNumber";
 import { HotelRoomType } from "@/types/hotelRoomType";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAvailableRooms } from "@/redux/slices/availableRoomsSlice"; // adjust path
 import { AppDispatch, RootState } from "@/redux/store";
-import { getAllCountries } from "@/controllers/AllCountriesController";
 import { Label } from "../ui/label";
 import { createPortal } from "react-dom";
 import YoutubeIcon from "../../assets/icons/youtube.png";
-
 import {
   Popover,
   PopoverTrigger,
@@ -77,23 +118,18 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DatePicker from "react-date-picker";
 import TimePicker from "react-time-picker";
-
 import "react-date-picker/dist/DatePicker.css";
 import "react-calendar/dist/Calendar.css";
 import "react-time-picker/dist/TimePicker.css";
-import { checkInReservation } from "@/redux/slices/checkInSlice";
+// import { checkInReservation } from "@/redux/slices/checkInSlice";
 import { fetchReservationById } from "@/redux/slices/reservationSlice";
 import { toast } from "sonner";
-import { fetchHotelRoomTypes } from "@/redux/slices/hotelRoomTypesSlice";
+// import { fetchHotelRoomTypes } from "@/redux/slices/hotelRoomTypesSlice";
 import { log } from "node:console";
 import { useAppSelector } from "@/redux/hooks";
 import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
-import { fetchGuestProfiles } from "@/redux/slices/fetchGuestProfileSlice";
 import { set } from "lodash";
-import { getNameMasters } from "@/controllers/nameMasterController";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
-import { fetchMealPlans } from "@/redux/slices/mealPlanSlice";
-import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
 import { AddTravelAgentDrawer } from "./add-travel-agent-drawer";
 import {
   fetchCalculatedRate,
@@ -375,16 +411,17 @@ export default function QuickReservationDrawer({
 
   const [travelAgents, setTravelAgents] = useState<TravelAgent[]>([]);
 
-  const { data } = useSelector((state) => state.nameMaster);
+  const nameMasItems = useSelector(selectFetchNameMasItems);
+  const nameMasLoading = useSelector(selectFetchNameMasLoading);
 
-  console.log("data : ", data);
+  console.log("nameMasItems : ", nameMasItems);
 
   useEffect(() => {
-    dispatch(fetchNameMasterByHotel());
+    dispatch(fetchNameMas({ nameType: "customer" }));
   }, [dispatch]);
 
   const travelAgentOptions = useMemo(() => {
-    const list = Array.isArray(data) ? data : [];
+    const list = Array.isArray(nameMasItems) ? nameMasItems : [];
     return list
       .filter((n: any) => {
         const t = String(n?.nameType || "").toLowerCase();
@@ -401,7 +438,7 @@ export default function QuickReservationDrawer({
         taType: n.taType || "",
         nameType: n.nameType || "",
       }));
-  }, [data]);
+  }, [nameMasItems]);
 
   const [selectedRatePlan, setSelectedRatePlan] = useState<number | null>(null);
   // Store selected rate plan details
@@ -465,11 +502,9 @@ export default function QuickReservationDrawer({
   const [checkInTime, setCheckInTime] = useState("12:00");
   const [title, setTitle] = useState<string>("Mr");
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const {
-    data: fetchedroomTypes,
-    loading,
-    error,
-  } = useSelector((state: RootState) => state.hotelRoomTypes);
+  const fetchedroomTypes = useSelector(selectRoomTypeMas);
+  const roomTypesLoading = useSelector(selectRoomTypeMasLoading);
+  
   const [selectedMealPlan, setSelectedMealPlan] = useState<string>("");
   const [mealPlanName, setMealPlanName] = useState<string>("");
 
@@ -480,7 +515,7 @@ export default function QuickReservationDrawer({
   console.log("checked in clicked:", isCheckedIn);
 
   useEffect(() => {
-    dispatch(fetchHotelRoomTypes());
+    dispatch(fetchRoomTypeMas());
   }, [dispatch]);
 
   const fallbackCountries = [
@@ -497,17 +532,18 @@ export default function QuickReservationDrawer({
   ];
   // Fetch hotel rate plans on mount
 
-  const { data: hotelGuestProfile } = useSelector(
-    (state: RootState) => state.hotelGuestProfile
-  );
+  const hotelGuestProfile = useSelector(selectGuestMasItems);
+  const guestProfilesLoading = useSelector(selectGuestMasLoading);
+
+  const mealPlans = useSelector(selectBasisMasItems);
+  const mealPlansLoading = useSelector(selectBasisMasLoading);
 
   useEffect(() => {
-    dispatch(fetchMealPlans());
+    dispatch(fetchBasisMas());
   }, [dispatch]);
 
-  const { data: mealPlans } = useAppSelector((state) => state.mealPlan);
-
-  console.log("mealPlans : ", mealPlans);
+  console.log("mealPlans (BasisMas): ", mealPlans);
+  console.log("mealPlans sample item: ", mealPlans[0]);
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -517,7 +553,8 @@ export default function QuickReservationDrawer({
   >(null);
 
   useEffect(() => {
-    dispatch(fetchGuestProfiles());
+    const hotelCode = localStorage.getItem("hotelCode") || "1097";
+    dispatch(fetchGuestMas({ hotelCode }));
   }, [dispatch]);
 
   const filteredNameSuggestions = useMemo(() => {
@@ -546,7 +583,7 @@ export default function QuickReservationDrawer({
     const onlyDigits = (s: string = "") => s.replace(/\D+/g, "");
     const nd = onlyDigits(needle);
     return hotelGuestProfile
-      .filter((g) => onlyDigits(g.phone || "").includes(nd))
+      .filter((g) => onlyDigits(g.phoneNo || "").includes(nd))
       .slice(0, 10);
   }, [mobile, hotelGuestProfile]);
 
@@ -554,9 +591,9 @@ export default function QuickReservationDrawer({
     setGuestEmail(email);
     const matchedGuest = hotelGuestProfile.find((g) => g.email === email);
     setGuestName(matchedGuest?.guestName || "");
-    setMobile(matchedGuest?.phone || "");
-    setGuestPassport(matchedGuest?.ppNo || "");
-    setSelectedGuestProfileId(matchedGuest?.guestProfileId ?? null); // 👈
+    setMobile(matchedGuest?.phoneNo || "");
+    setGuestPassport(matchedGuest?.ppurl || "");
+    setSelectedGuestProfileId(matchedGuest?.guestID ?? null); // 👈
     setRepeatGuest(!!matchedGuest); // 👈
   };
 
@@ -823,6 +860,7 @@ export default function QuickReservationDrawer({
   };
 
   const handleRoomChange = (idx: number, field: string, value: any) => {
+    console.log(`handleRoomChange: idx=${idx}, field=${field}, value=${value}`);
     setRooms((prev) =>
       prev.map((row, i) => {
         if (i !== idx) return row;
@@ -862,7 +900,11 @@ export default function QuickReservationDrawer({
         const drivers = new Set(["roomType", "adult", "child"]);
         let next: any = { ...row, [field]: value };
         if (drivers.has(field)) {
-          if (field === "roomType") next.room = ""; // keep your current behavior
+          if (field === "roomType") {
+            next.room = ""; // clear room selection when room type changes
+            next.rate = 0; // reset rate when room type changes
+            next.rateMissing = true; // show "Type rate" placeholder
+          }
           if (field === "adult") next.adult = Number(value || 1);
           next.userEditedRate = false; // allow new API value to apply
         }
@@ -1034,11 +1076,21 @@ export default function QuickReservationDrawer({
       };
 
       try {
-        const guestData = await createGuestProfile({
-          token: accessToken,
-          payload: guestProfilePayload,
-        });
-        guestProfileId = guestData?.profileId ?? null;
+        const guestResult = await dispatch(createGuestProfileCheckIn({
+          hotelCode: localStorage.getItem("hotelCode") || "1097",
+          guestName: guestName || "",
+          phoneNo: mobile,
+          email: guestEmail,
+          country: selectedCountry || "",
+          createdBy: fullName || "system",
+        }));
+        
+        if (createGuestProfileCheckIn.fulfilled.match(guestResult)) {
+          guestProfileId = guestResult.payload?.guestID ?? null;
+        } else {
+          console.error("Failed to create guest profile", guestResult.payload);
+          return;
+        }
       } catch (error) {
         console.error("Failed to create guest profile", error);
         return;
@@ -1431,20 +1483,18 @@ export default function QuickReservationDrawer({
     );
 
     try {
-      const result = await createBookingViaFeed({
-        token: accessToken,
-        payload: bookingPayload,
-      });
+      const result = await dispatch(createBookingFeed(bookingPayload));
 
       console.log("Booking creation result:", result);
 
-      if (result.success) {
-        const reservationID = Number(result.reservationID || 0);
+      if (createBookingFeed.fulfilled.match(result)) {
+        const bookingData = result.payload;
+        const reservationID = Number(bookingData?.reservationID || 0);
 
         // Try our best to have a reservation number for the log
         const reservationNoForLog = String(
-          result.reservationNo ||
-            result.bookingNo ||
+          bookingData?.reservationNo ||
+            bookingData?.bookingNo ||
             refNo || // your user-entered reference
             `RES-${reservationID || Date.now()}`
         );
@@ -1526,14 +1576,13 @@ export default function QuickReservationDrawer({
             console.log("hi9");
             if (isCheckedIn) {
               try {
-                const checkInResult = await dispatch(
-                  checkInReservation({
-                    reservationDetailId: reservationDetailID,
-                    payload: checkInPayload,
-                  })
-                );
+                const checkInResult = await checkInReservationDetail({
+                  token: accessToken,
+                  reservationDetailId: reservationDetailID,
+                  payload: checkInPayload,
+                });
 
-                if (checkInReservation.fulfilled.match(checkInResult)) {
+                if (checkInResult?.success) {
                   console.log(
                     "✅ Check-in success for Room ID:",
                     reservationDetailID
@@ -1552,7 +1601,7 @@ export default function QuickReservationDrawer({
                   console.error(
                     "❌ Check-in failed for Room ID:",
                     reservationDetailID,
-                    checkInResult.payload
+                    checkInResult?.error || checkInResult
                   );
                   await createLogSafe("Check-in failed", {
                     reservationId: Number(
@@ -1812,22 +1861,26 @@ export default function QuickReservationDrawer({
     }
   }, [nights, checkInDate]);
 
-  const { data: availableRooms, loading: availableLoading } = useSelector(
-    (state: RootState) => state.availableRooms
-  );
+  const availableRooms = useSelector(selectAvailableRoomTypesItems);
+  const availableLoading = useSelector(selectAvailableRoomTypesLoading);
 
   console.log("Available Rooms.⚽⚽⚽⚽ :", availableRooms);
+  console.log("Available Rooms Type:", typeof availableRooms, Array.isArray(availableRooms));
   console.log("Fetched Room Types:🎾🎾🎾", fetchedroomTypes);
+  console.log("Current rooms state:", rooms);
+  console.log("Room type values:", rooms.map(r => ({ idx: rooms.indexOf(r), roomType: r.roomType, room: r.room })));
 
   useEffect(() => {
     rooms.forEach((room, idx) => {
       if (room.roomType && checkInDate && checkOutDate) {
+        const hotelCode = localStorage.getItem("hotelCode") || "1097";
         dispatch(
-          fetchAvailableRooms({
+          fetchAvailableRoomTypes({
+            hotelCode,
             hotelRoomTypeId: parseInt(room.roomType),
-            checkInDate: checkInDate.toISOString().split("T")[0],
-            checkOutDate: checkOutDate.toISOString().split("T")[0],
-          }) as any
+            checkInDate: checkInDate.toISOString(),
+            checkOutDate: checkOutDate.toISOString(),
+          })
         );
       }
     });
@@ -1837,35 +1890,28 @@ export default function QuickReservationDrawer({
     checkOutDate?.toISOString(),
   ]);
 
+  const countriesData = useSelector(selectCountryMas);
+  const countriesLoading = useSelector(selectCountryMasLoading);
+
   useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        // Get countries from API
-        const data = await getAllCountries();
+    dispatch(fetchCountryMas());
+  }, [dispatch]);
 
-        // Check if we received valid countries data
-        if (Array.isArray(data) && data.length > 0) {
-          // Map the API response to the format expected by the component
-          const formattedCountries = data.map((country) => ({
-            name: country.country,
-            code: country.flagCode,
-            phoneCode: country.dialCode,
-            currency: "", // Currency not provided in this API
-          }));
-          setCountries(formattedCountries);
-        } else {
-          // Use fallback countries if response is empty
-          setCountries(fallbackCountries);
-        }
-      } catch (error) {
-        console.error("Failed to fetch countries", error);
-        // Use fallback countries on error
-        setCountries(fallbackCountries);
-      }
-    };
-
-    fetchCountries();
-  }, []);
+  useEffect(() => {
+    if (Array.isArray(countriesData) && countriesData.length > 0) {
+      // Map the API response to the format expected by the component
+      const formattedCountries = countriesData.map((country) => ({
+        name: country.country,
+        code: country.countryCode,
+        phoneCode: "", // This data isn't available in CountryMas
+        currency: "", // Currency not provided in this API
+      }));
+      setCountries(formattedCountries);
+    } else {
+      // Use fallback countries if response is empty
+      setCountries(fallbackCountries);
+    }
+  }, [countriesData]);
 
   // replace your current recomputeRowFromPlan with this
   const recomputeRowFromPlan = (
@@ -2864,9 +2910,9 @@ export default function QuickReservationDrawer({
                       onValueChange={(value) => {
                         setSelectedMealPlan(value);
                         const plan = mealPlans.find(
-                          (p) => p.mealPlanID.toString() === value
+                          (p) => p.basisID.toString() === value
                         );
-                        setMealPlanName(plan?.shortCode || "");
+                        setMealPlanName(plan?.basis || "");
                         resetRatesForAllRows(); // 👈 clear immediately
                       }}
                       value={selectedMealPlan}
@@ -2877,10 +2923,10 @@ export default function QuickReservationDrawer({
                       <SelectContent>
                         {mealPlans.map((plan) => (
                           <SelectItem
-                            key={plan.mealPlanID}
-                            value={plan.mealPlanID.toString()}
+                            key={plan.basisID}
+                            value={plan.basisID.toString()}
                           >
-                            {plan.mealPlan}
+                            {plan.basis}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2909,19 +2955,24 @@ export default function QuickReservationDrawer({
                       <TableRow key={idx}>
                         <TableCell colSpan={2}>
                           <Select
-                            value={row.roomType}
+                            value={row.roomType || ""}
                             onValueChange={(val) =>
                               handleRoomChange(idx, "roomType", val)
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="-Select-" />
+                              <SelectValue placeholder="-Select-">
+                                {row.roomType ? 
+                                  fetchedroomTypes.find(rt => String(rt.roomTypeID) === row.roomType)?.roomType || "-Select-"
+                                  : "-Select-"
+                                }
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {fetchedroomTypes.map((rt) => (
                                 <SelectItem
-                                  key={rt.hotelRoomTypeID}
-                                  value={String(rt.hotelRoomTypeID)}
+                                  key={rt.roomTypeID}
+                                  value={String(rt.roomTypeID)}
                                 >
                                   {rt.roomType}
                                 </SelectItem>
@@ -2940,13 +2991,13 @@ export default function QuickReservationDrawer({
                             <SelectTrigger>
                               <SelectValue placeholder="-Select-">
                                 {(
-                                  availableRooms.flat().filter(Boolean) as any[]
+                                  availableRooms.filter(Boolean) as any[]
                                 ).find((r) => String(r.roomId) === row.room)
                                   ?.roomNo || "-Select-"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              {(availableRooms.flat().filter(Boolean) as any[])
+                              {(availableRooms.filter(Boolean) as any[])
                                 .filter((r) => {
                                   const isSameType =
                                     String(r.roomTypeID) === row.roomType;
@@ -3425,7 +3476,7 @@ export default function QuickReservationDrawer({
           setSelectedTravelAgent(String(agent.nameID || ""));
 
           // Refresh list so it appears in the options (no page reload)
-          dispatch(fetchNameMasterByHotel());
+          dispatch(fetchNameMas({ nameType: "customer" }));
         }}
       />
       <AddRateDrawer

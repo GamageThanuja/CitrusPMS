@@ -1,3 +1,4 @@
+import fetchReservationDetailsByIdReducer from "./slices/fetchreservtaionByIdSlice";
 import fetchAvailableRoomTypesReducer from "./slices/fetchAvailableRoomTypesSlice";
 import userMasAuthReducer from "./slices/userMasAuthSlice";
 import frontdeskReducer from "./slices/frontdeskSlice";
@@ -342,6 +343,7 @@ const store = configureStore({
     fetchAvailableRoomTypes: fetchAvailableRoomTypesReducer,
     createNameMas: createNameMasReducer,
     createBookingFeed: createBookingFeedReducer,
+    fetchReservationDetailsById: fetchReservationDetailsByIdReducer,
   },
 });
 
