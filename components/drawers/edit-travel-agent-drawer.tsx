@@ -205,7 +205,6 @@ export function EditTravelAgentDrawer({
 
     try {
       await updateNameMas({
-        token: 'test',
         nameID: formData.nameID,
         payload,
       });

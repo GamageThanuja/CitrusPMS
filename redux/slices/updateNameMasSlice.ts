@@ -90,7 +90,6 @@ interface NameMasPayload {
 }
 
 interface UpdateNameMasArgs {
-  token: string;
   nameID: number;
   payload: NameMasPayload;
 }
@@ -98,14 +97,13 @@ interface UpdateNameMasArgs {
 // 🔹 Async Thunk
 export const updateNameMas = createAsyncThunk(
   "nameMas/updateNameMas",
-  async ({ token, nameID, payload }: UpdateNameMasArgs, { rejectWithValue }) => {
+  async ({nameID, payload }: UpdateNameMasArgs, { rejectWithValue }) => {
     try {
       const response = await axios.put(
         `/api/NameMas/${nameID}`,
         payload,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         }
