@@ -168,7 +168,7 @@ import createCategoryMasReducer from "./slices/createCategoryMasSlice";
 import fetchNameMasReducer from "./slices/fetchNameMasSlice"; 
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
-import createBookingFeedReducer from "./slices/createBookingFeedSlice";
+import updateNameMasReducer from "./slices/updateNameMasSlice";
 
 
 
@@ -342,8 +342,7 @@ const store = configureStore({
     fetchNationalityMas: fetchNationalityMasReducer,
     fetchAvailableRoomTypes: fetchAvailableRoomTypesReducer,
     createNameMas: createNameMasReducer,
-    createBookingFeed: createBookingFeedReducer,
-    fetchReservationDetailsById: fetchReservationDetailsByIdReducer,
+    updateNameMas: updateNameMasReducer,
   },
 });
 

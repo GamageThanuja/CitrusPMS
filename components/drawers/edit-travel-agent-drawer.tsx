@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -20,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTranslatedText } from "@/lib/translation";
-import { updateNameMaster } from "@/controllers/nameMasterController";
+import { updateNameMas } from "@/redux/slices/updateNameMasSlice";
 
 interface EditTravelAgentDrawerProps {
   isOpen: boolean;
@@ -48,7 +47,7 @@ export function EditTravelAgentDrawer({
     hotelID: 0,
     hotelCode: 0,
     tranCode: "",
-    createdOn: ""
+    createdOn: "",
   });
 
   const editAgent = useTranslatedText("Edit Travel Agent");
@@ -59,10 +58,8 @@ export function EditTravelAgentDrawer({
   const statusLabel = useTranslatedText("Status");
   const saveLabel = useTranslatedText("Save");
 
-
   useEffect(() => {
     if (agentData) {
-      console.log("Loaded agentData into form:", agentData);
       setFormData({
         name: agentData.name ?? "",
         email: agentData.email ?? "",
@@ -76,7 +73,7 @@ export function EditTravelAgentDrawer({
         hotelID: agentData.hotelID ?? 0,
         hotelCode: agentData.hotelCode ?? 0,
         tranCode: agentData.tranCode ?? "",
-        createdOn: agentData.createdOn ?? ""
+        createdOn: agentData.createdOn ?? "",
       });
     }
   }, [agentData]);
@@ -93,49 +90,123 @@ export function EditTravelAgentDrawer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-  
-    const tokenData = localStorage.getItem("hotelmateTokens");
-    const selectedProperty = localStorage.getItem("selectedProperty");
+    // const tokenData = localStorage.getItem("hotelmateTokens");
+    // const selectedProperty = localStorage.getItem("selectedProperty");
 
-    if (!tokenData || !selectedProperty) {
-      console.error("Missing token or hotel info");
-      return;
-    }
+    // if (!tokenData || !selectedProperty) {
+    //   console.error("Missing token or hotel info");
+    //   return;
+    // }
 
-    const accessToken = JSON.parse(tokenData).accessToken;
-    const hotel = JSON.parse(selectedProperty);
+    // const accessToken = JSON.parse(tokenData).accessToken;
     const now = new Date().toISOString();
 
-    console.log("accessToken in the edit drawer:", accessToken);
-
+    // ✅ Fully expanded payload matching NameMasPayload type
     const payload = {
-      nameID: formData.nameID,
-      hotelID: formData.hotelID,
-      code: formData.code || "",
-      name: formData.name,
-      nameType: "Customer",
-      taType: "Online Travel Agent",
       finAct: formData.status === "Active" ? false : true,
-      createdBy: "Web",
+      nameID: formData.nameID,
+      nameType: "Customer",
+      code: formData.code || "",
+      name: formData.name || "",
+      companyName: formData.name || "",
+      title: "",
+      firstName: "",
+      lastName: "",
+      email: formData.email || "",
+      phone: formData.phoneNo || "",
+      fax: "",
+      customerType: "",
+      priceGroupID: 0,
+      discount: 0,
+      vatNo: formData.vatNo || "",
+      creditLimit: 0,
       createdOn: agentData.createdOn || now,
-      updatedOn: now,
-      updatedBy: "Web",
+      createdBy: "Web",
+      lastModOn: now,
+      lastModBy: "Web",
+      nic: "",
+      warehouseID: 0,
+      cpForDelivery: "",
+      cpForDeliveryPhone: "",
+      cpForPayments: "",
+      cpForPaymentPhone: "",
+      creditPeriod: 0,
+      buid: 0,
+      address1: formData.address || "",
+      address2: "",
+      address3: "",
+      city: "",
+      countryID: 0,
+      customerMasterType: "",
+      repID: 0,
+      purPriceGroupID: 0,
+      epfNo: "",
+      initials: "",
+      gender: "",
+      dob: "", //  string instead of null
+      nationality: "",
+      maritalStatus: "",
+      passportNo: "",
+      jobCategoryID: 0,
+      designationID: 0,
+      agencyID: 0,
+      quotaID: 0,
+      insurance: 0,
+      wpCategoryID: 0,
+      wpNo: 0,
+      siteCategoryID: 0,
+      basicSalary: 0,
+      allowance1: 0,
+      allowance2: 0,
+      allowance3: 0,
+      dateOfJoined: "", //  string
+      dateOfPermanent: "", //  string
+      dateOfResigned: "", //  string
+      empPicturePath: "",
+      pin: 0,
+      perDaySalary: false,
+      priceGroupApproved: false,
+      currencyID: 0,
+      distance: 0,
+      mobileNo: "",
+      shortCode: "",
+      notes: "",
+      bankAccNo: "",
+      bankName: "",
+      nAmeOnCheque: "",
+      phoneRes: "",
+      opBal: 0,
+      opBalAsAt: "", //  string
+      routeID: 0,
+      joinedDate: "", //  string
+      isAllowCredit: false,
+      cmTaxRate: 0,
+      cmChannelID: "",
+      isFullPaymentNeededForCheckIn: false,
+      isResigned: false,
+      departmentID: 0,
+      empCategoryID: 0,
+      serviceChargePercentage: 0,
+      tranCode: formData.tranCode || "",
+
+      // Additional local or required
+      hotelID: formData.hotelID,
       hotelCode: formData.hotelCode,
-      tranCode: formData.tranCode || "44",
-      phoneNo: formData.phoneNo,
-      email: formData.email,
-      address: formData.address,
-      vatNo: formData.vatNo,
+      taType: "Online Travel Agent",
+      status: formData.status,
+      customField1: "",
+      customField2: "",
+      customField3: "",
+      customField4: "",
+      customField5: "",
     };
 
-    console.log("Payload being sent:", payload);
-    console.log("Token:", accessToken);
-    console.log("AgentData:", agentData);
+    console.log(" Payload being sent:", payload);
 
     try {
-      await updateNameMaster({
-        token: accessToken,
-        id: formData.nameID,
+      await updateNameMas({
+        token: 'test',
+        nameID: formData.nameID,
         payload,
       });
       onSubmit(payload);
@@ -156,6 +227,7 @@ export function EditTravelAgentDrawer({
           <SheetTitle>{editAgent}</SheetTitle>
           <div className="border-b border-border my-2" />
         </SheetHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">{nameLabel}</Label>
