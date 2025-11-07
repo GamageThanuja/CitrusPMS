@@ -28,7 +28,8 @@ import {
 } from "@/redux/slices/createNameMasSlice";
 
 
-import { updateNameMaster } from "@/redux/slices/updateNameMasterSlice"; // the PUT slice from the previous answer
+// import { updateNameMaster } from "@/redux/slices/updateNameMasterSlice"; // the PUT slice from the previous answer
+import { updateNameMas } from "@/redux/slices/updateNameMasSlice";
 
 import {
   fetchNameMas,
@@ -362,70 +363,158 @@ const nameMasError = useSelector(selectFetchNameMasError);
 
   // === Handlers =========================================
 
-  // Add agent via slice (POST)
-  const handleAddAgent = async (form: any) => {
-    try {
-      // Map your drawer form fields to API fields
-      const payload = {
-        code: form.code || "",
-        name: form.name || "",
-        nameType: form.Type || "Customer", // or "Agent" depending on your UI
-        taType: form.taType || "",
-        finAct: form.status === "Inactive" ? true : false, // your UI uses finAct === false => Active
-        createdBy: form.createdBy || "System",
-        updatedBy: form.updatedBy || "System",
-        hotelCode: Number(form.hotelCode) || 0,
-        tranCode: form.tranCode || "",
-        phoneNo: form.phoneNo || "",
-        email: form.email || "",
-        address: form.address || "",
-        vatNo: form.vatNo || "",
-        commissionPercentage: Number(form.commission) || 0,
-      };
+// --- Add agent via slice (POST) ---
+const handleAddAgent = async (form: any) => {
+  try {
+    const baseFields = getBaseFields(form, "create");
+    const payload = {
+      ...baseFields,
+      name: form.name || "",
+      code: form.code || "",
+      nameType: form.Type || "Customer",
+      taType: form.taType || "Online Travel Agent",
+      finAct: form.status === "Inactive" ? true : false,
+      hotelCode: Number(form.hotelCode) || 0,
+      phoneNo: form.phoneNo || "",
+      email: form.email || "",
+      address: form.address || "",
+      vatNo: form.vatNo || "",
+      commissionPercentage: Number(form.commission) || 0,
+    };
 
-      // await dispatch(createNameMaster(payload)).unwrap();
-      // // await dispatch(fetchNameMasterByHotel());
-      // await dispatch(fetchNameMas({ nameType: "Customer" }));
-      await dispatch(createNameMas(payload)).unwrap();
-      await dispatch(fetchNameMas({ nameType: "Customer" }));
+    await dispatch(createNameMas(payload)).unwrap();
+    await dispatch(fetchNameMas({ nameType: "Customer" }));
+    setIsAddDrawerOpen(false);
+  } catch (e) {
+    console.error("Create agent failed:", e);
+  }
+};
 
+  // Base field generator for NameMasPayload
+const getBaseFields = (data: any = {}, mode: "create" | "update" = "create") => {
+  const now = new Date().toISOString();
 
-      setIsAddDrawerOpen(false);
-    } catch (e) {
-      console.error("Create agent failed:", e);
-      // show toast if you have one
-    }
+  return {
+    nameID: data?.nameID || 0,
+    companyName: data?.companyName || "",
+    title: data?.title || "",
+    firstName: data?.firstName || "",
+    lastName: data?.lastName || "",
+    email: data?.email || "",
+    phone: data?.phone || "",
+    fax: data?.fax || "",
+    customerType: data?.customerType || "",
+    priceGroupID: data?.priceGroupID || 0,
+    discount: data?.discount || 0,
+    vatNo: data?.vatNo || "",
+    creditLimit: data?.creditLimit || 0,
+    createdOn: mode === "create" ? now : data?.createdOn || now,
+    createdBy: mode === "create" ? "Web" : data?.createdBy || "Web",
+    lastModOn: now,
+    lastModBy: "Web",
+    nic: data?.nic || "",
+    warehouseID: data?.warehouseID || 0,
+    cpForDelivery: data?.cpForDelivery || "",
+    cpForDeliveryPhone: data?.cpForDeliveryPhone || "",
+    cpForPayments: data?.cpForPayments || "",
+    cpForPaymentPhone: data?.cpForPaymentPhone || "",
+    creditPeriod: data?.creditPeriod || 0,
+    buid: data?.buid || 0,
+    address1: data?.address || "",
+    address2: data?.address2 || "",
+    address3: data?.address3 || "",
+    city: data?.city || "",
+    countryID: data?.countryID || 0,
+    customerMasterType: data?.customerMasterType || "",
+    repID: data?.repID || 0,
+    purPriceGroupID: data?.purPriceGroupID || 0,
+    epfNo: data?.epfNo || "",
+    initials: data?.initials || "",
+    gender: data?.gender || "",
+    dob: data?.dob || now,
+    nationality: data?.nationality || "",
+    maritalStatus: data?.maritalStatus || "",
+    passportNo: data?.passportNo || "",
+    jobCategoryID: data?.jobCategoryID || 0,
+    designationID: data?.designationID || 0,
+    agencyID: data?.agencyID || 0,
+    quotaID: data?.quotaID || 0,
+    insurance: data?.insurance || 0,
+    wpCategoryID: data?.wpCategoryID || 0,
+    wpNo: data?.wpNo || 0,
+    siteCategoryID: data?.siteCategoryID || 0,
+    basicSalary: data?.basicSalary || 0,
+    allowance1: data?.allowance1 || 0,
+    allowance2: data?.allowance2 || 0,
+    allowance3: data?.allowance3 || 0,
+    dateOfJoined: data?.dateOfJoined || now,
+    dateOfPermanent: data?.dateOfPermanent || now,
+    dateOfResigned: data?.dateOfResigned || now,
+    empPicturePath: data?.empPicturePath || "",
+    pin: data?.pin || 0,
+    perDaySalary: data?.perDaySalary || false,
+    priceGroupApproved: data?.priceGroupApproved || false,
+    currencyID: data?.currencyID || 0,
+    distance: data?.distance || 0,
+    mobileNo: data?.mobileNo || "",
+    shortCode: data?.shortCode || "",
+    notes: data?.notes || "",
+    bankAccNo: data?.bankAccNo || "",
+    bankName: data?.bankName || "",
+    nAmeOnCheque: data?.nAmeOnCheque || "",
+    phoneRes: data?.phoneRes || "",
+    opBal: data?.opBal || 0,
+    opBalAsAt: data?.opBalAsAt || now,
+    routeID: data?.routeID || 0,
+    joinedDate: data?.joinedDate || now,
+    isAllowCredit: data?.isAllowCredit ?? true,
+    cmTaxRate: data?.cmTaxRate || 0,
+    cmChannelID: data?.cmChannelID || "",
+    isFullPaymentNeededForCheckIn: data?.isFullPaymentNeededForCheckIn ?? false,
+    isResigned: data?.isResigned ?? false,
+    departmentID: data?.departmentID || 0,
+    empCategoryID: data?.empCategoryID || 0,
+    serviceChargePercentage: data?.serviceChargePercentage || 0,
+    tranCode: data?.tranCode || "",
   };
+};
 
-  // Edit agent via slice (PUT)
-  const handleEditAgent = async (updatedAgent: any) => {
-    try {
-      const id = Number(updatedAgent?.nameID ?? updatedAgent?.id);
-      const payload = {
-        code: updatedAgent.code || "",
-        name: updatedAgent.name || "",
-        nameType: updatedAgent.Type || updatedAgent.nameType || "Customer",
-        taType: updatedAgent.taType || "",
-        finAct: updatedAgent.status === "Inactive" ? true : false,
-        updatedBy: updatedAgent.updatedBy || "System",
-        phoneNo: updatedAgent.phoneNo || "",
-        email: updatedAgent.email || "",
-        address: updatedAgent.address || "",
-        vatNo: updatedAgent.vatNo || "",
-        commissionPercentage: Number(updatedAgent.commission) || 0,
-        tranCode: updatedAgent.tranCode || "",
-        hotelCode: Number(updatedAgent.hotelCode) || 0,
-      };
+// --- Edit agent via slice (PUT) ---
+const handleEditAgent = async (updatedAgent: any) => {
+  try {
+    const id = Number(updatedAgent?.nameID ?? updatedAgent?.id);
+    const baseFields = getBaseFields(updatedAgent, "update");
+    const payload = {
+      ...baseFields,
+      nameID: id,
+      name: updatedAgent.name || "",
+      code: updatedAgent.code || "",
+      nameType: updatedAgent.Type || updatedAgent.nameType || "Customer",
+      taType: updatedAgent.taType || "Online Travel Agent",
+      finAct: updatedAgent.status === "Inactive" ? true : false,
+      phoneNo: updatedAgent.phoneNo || "",
+      email: updatedAgent.email || "",
+      address: updatedAgent.address || "",
+      vatNo: updatedAgent.vatNo || "",
+      commissionPercentage: Number(updatedAgent.commission) || 0,
+      tranCode: updatedAgent.tranCode || "",
+      hotelCode: Number(updatedAgent.hotelCode) || 0,
+    };
 
-      await dispatch(updateNameMaster({ id, payload })).unwrap();
-      // await dispatch(fetchNameMasterByHotel());
-      await dispatch(fetchNameMas({ nameType: "Customer" }));
+    // Add token here
+    const token =
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token") ||
+      "";
 
-      setIsEditDrawerOpen(false);
-    } catch (e) {
-      console.error("Update agent failed:", e);
-    }
-  };
+    await dispatch(updateNameMas({ nameID: id, payload, token })).unwrap();
+    await dispatch(fetchNameMas({ nameType: "Customer" }));
+    setIsEditDrawerOpen(false);
+  } catch (e) {
+    console.error("Update agent failed:", e);
+  }
+};
+
 
   // =======================================================
 
