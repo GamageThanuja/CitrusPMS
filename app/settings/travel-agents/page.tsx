@@ -507,7 +507,7 @@ const handleEditAgent = async (updatedAgent: any) => {
       sessionStorage.getItem("token") ||
       "";
 
-    await dispatch(updateNameMas({ nameID: id, payload, token })).unwrap();
+    await dispatch(updateNameMas({ nameID: id, payload })).unwrap();
     await dispatch(fetchNameMas({ nameType: "Customer" }));
     setIsEditDrawerOpen(false);
   } catch (e) {
