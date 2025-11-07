@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Invoice</title>
+  <style>
+    /* Hide floating action buttons in the print output */
+    @media print {
+      #floating-actions {
+        display: none !important;
+      }
+
+      body {
+        background: #ffffff !important;
+      }
+    }
+
+    /* Policy editable cards */
+    .policy-sections {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .policy-card {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .policy-title {
+      background: #f3f9ff;
+      font-weight: 600;
+      padding: 8px 10px;
+      font-size: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .policy-body {
+      min-height: 64px;
+      padding: 10px;
+      font-size: 11px;
+      line-height: 1.5;
+      outline: none;
+    }
+
+    .policy-body[contenteditable="true"] {
+      cursor: text;
+    }
+
+    .policy-body[data-placeholder]:empty::before {
+      content: attr(data-placeholder);
+      color: #9ca3af;
+    }
+
+    @media print {
+      .policy-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+  <!-- html2canvas and jsPDF for PDF generation -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; font-size: 12px; background-color: #f5f5f5;">
+  <div id="floating-actions"
+            style="position:absolute; right:360px; top:20px; display:flex; flex-direction:column; z-index:9999; background-color:#ffffff; gap: 3px; border-radius:12px;">
+            <button id="printBtn" aria-label="Print invoice" title="Print"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eef5ff; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+            </button>
+
+            <button id="downloadBtn" aria-label="Download invoice" title="Download"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eafff0; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+            </button>
+
+            <button id="emailBtn" aria-label="Email invoice" title="Email"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#fff5f5; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+            </button>
+            <button id="updateBtn" aria-label="Update Policies" title="Update Policies"
+                style="width: 40px; height: 40px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fefce8; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: pointer;">
+                <!-- Lucide: update-cw -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-save-icon lucide-save">
+                    <path
+                        d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                    <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                    <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+                </svg>
+            </button>
+        </div>
+    <center>
+      <table style="width: 650px; background-color: white; border: 1px solid #ccc; padding: 20px;">
+        <tr>
+          <td>
+            <!-- Header Section -->
+            <table style="width: 100%; margin-bottom: 20px;">
+              <tr>
+                <td style="width: 70px; vertical-align: top;">
+                  <img id="hotelLogo" src="" alt="logo"
+                    style="width: 50px; height: 50px; object-fit: cover; background:#f3f4f6; border:1px solid #e5e7eb;">
+                </td>
+                <td style="text-align: right; vertical-align: top;">
+                  <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;"><span id="hotelName">—</span>
+                  </div>
+                  <div style="font-size: 10px; line-height: 1.3;">
+                    T: <span id="hotelPhone">—</span><br>
+                    E: <span id="hotelEmail">—</span><br>
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Reservation Details Table -->
+            <div style="font-weight: bold; margin-bottom: 10px;">RESERVATION DETAIL:</div>
+            <table style="width: 100%; margin-bottom: 20px; border-collapse: collapse; border: 1px solid #000;">
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff; width: 160px;">
+                  Company/Agent Name</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="agent" colspan="3">—</td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Date of Reservation</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="reservationDate">—</td>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Reservation No</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="bookingRef">—</td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Lead Guest Name / Group</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="bookerName" colspan="3">—</td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Check-in</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="checkIn">—</td>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Check-out</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="dept">—</td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Nationality</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;" id="nationality">N/A</td>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  No of Nights</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;">1</td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  No of Rooms</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;">1</td>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Tour No</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;"><span id="tourNo">—</span></td>
+              </tr>
+              <tr>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  No of Guests</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;">A:<span id="adults">—</span> C:<span
+                    id="children">0</span></td>
+                <td
+                  style="border: 1px solid #000; padding: 6px; font-size: 11px; font-weight: bold; background-color: #ffffff;">
+                  Group Name</td>
+                <td style="border: 1px solid #000; padding: 6px; font-size: 11px;"><span id="groupName">—</span></td>
+              </tr>
+            </table>
+
+
+            <!-- Booking Confirmation Detail -->
+            <div style="font-weight: bold; margin: 18px 0 10px;">Booking Confirmation Detail:</div>
+            <div id="bconf-container"></div>
+
+            <!-- Editable policy sections -->
+            <div class="policy-sections" id="policy-sections">
+              <div class="policy-card" id="cancellation-policy-card">
+                <div class="policy-title">Cancellation Policy</div>
+                <div class="policy-body" id="cancellationPolicy" contenteditable="true" spellcheck="true"
+                  data-placeholder="Type cancellation policy here…">
+                </div>
+              </div>
+
+              <div class="policy-card" id="child-policy-card">
+                <div class="policy-title">Child Policy</div>
+                <div class="policy-body" id="childPolicy" contenteditable="true" spellcheck="true"
+                  data-placeholder="Type child policy here…">
+                </div>
+              </div>
+
+              <div class="policy-card" id="taxation-card">
+                <div class="policy-title">Taxation</div>
+                <div class="policy-body" id="taxationPolicy" contenteditable="true" spellcheck="true"
+                  data-placeholder="Type taxation details here…">
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="font-size: 10px; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px;">
+              This is an electronically generated report, hence does not require signature
+            </div>
+
+            <table style="width: 100%; margin-top: 10px;">
+              <tr>
+                <td style="font-size: 9px;">Powered by: HOTEL MATE - https://hotelmate.co.uk</td>
+                <td style="text-align: right; font-size: 9px;">9/25/2025 17:14:59 PM13</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </center>
+    <script>
+      // Render a single consolidated table for all rooms
+      window.addEventListener('message', (e) => {
+        if (!e?.data || e.data.type !== 'BCONF_ITEMS') return;
+        const { items = [] } = e.data.payload || {};
+        const container = document.getElementById('bconf-container');
+        if (!container) return;
+
+        if (!Array.isArray(items) || items.length === 0) {
+          container.innerHTML = '<div style="text-align:center;font-size:12px;padding:8px;border:1px dashed #ddd;">No rooms found.</div>';
+          return;
+        }
+
+        const safe = (v) => (v === null || v === undefined || v === '' ? '-' : String(v));
+        const fmt = (d) => {
+          try { const dt = new Date(d); return isNaN(dt) ? safe(d) : dt.toLocaleDateString(); } catch { return safe(d); }
+        };
+
+        const header = `
+      <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+        <thead>
+          <tr style="background-color:#f7f7f7;">
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:left;">Room</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:left;">Room Type</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:left;">Occupancy</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:left;">Basis</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">Adult Count</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">Child Count</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">Extra Bed</th>
+            <th style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:left;">FOC</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((it, i) => `
+            <tr>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${i + 1}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${safe(it.roomType)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${safe(it.occupancy)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${safe(it.basis)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${safe(it.adultCount)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${safe(it.childCount)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${safe(it.extraBed)}</td>
+              <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${safe(it.foc)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+        container.innerHTML = header;
+      }, false);
+    </script>
+    <script>
+      function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = (val ?? '—');
+      }
+      function stripQuery(u) {
+        try { if (!u || typeof u !== 'string') return ''; var i = u.indexOf('?'); return i === -1 ? u : u.slice(0, i); } catch { return '' }
+      }
+      function setSrc(id, val) {
+        try {
+          var el = document.getElementById(id);
+          var clean = stripQuery(val);
+          if (el && clean && typeof clean === 'string') { el.setAttribute('src', clean); }
+        } catch { }
+      }
+      function fmt(d) {
+        try { const dt = new Date(d); return isNaN(dt) ? '—' : dt.toLocaleDateString(); } catch { return '—'; }
+      }
+
+      // Reservation/Header payload (RES_HEADER)
+      window.addEventListener('message', (e) => {
+        if (!e?.data || e.data.type !== 'RES_HEADER') return;
+        const p = e.data.payload || {};
+
+        // Hotel header
+        setText('hotelName', p.hotelName || '—');
+        setText('hotelPhone', p.hotelPhone || '—');
+        setText('hotelEmail', p.hotelEmail || '—');
+        if (p.hotelLogo) setSrc('hotelLogo', p.hotelLogo);
+
+        setText('roomType', p.roomType);
+        setText('roomNo', p.roomNo);
+        setText('checkIn', fmt(p.checkIn));
+        setText('bookingRef', p.bookingRef);
+        setText('agent', p.agent);
+
+        setText('reservationNo', p.reservationNo);
+        setText('reservationDate', fmt(p.reservationDate));
+
+        setText('adults', p.adults);
+        setText('children', p.children);
+        setText('arrival', fmt(p.arrival));
+        setText('dept', fmt(p.dept));
+        setText('mealPlan', p.mealPlan);
+
+        setText('bookerName', p.bookerName);
+        setText('bookerName2', p.bookerName); // Duplicate for guest info table
+        setText('nationality', p.nationality || 'N/A');
+        setText('nationality2', p.nationality || 'N/A'); // Duplicate for guest info table
+        setText('phone', p.phone);
+        setText('email', p.email);
+
+        setText('tourNo', p.tourNo ?? '—');
+        setText('groupName', (p.groupName && p.groupName.trim()) ? p.groupName : '—');
+
+        const setHTML = (id, html) => {
+          try {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (typeof html === 'string' && html.trim()) {
+              el.innerHTML = html;
+            }
+          } catch { }
+        };
+
+        // preload editable policies if provided
+        setHTML('cancellationPolicy', p.ibE_CancellationPolicy);
+        setHTML('childPolicy', p.ibE_ChildPolicy);
+        setHTML('taxationPolicy', p.ibE_TaxPolicy);
+      }, false);
+
+      // Listen for UPDATE_POLICIES_RESULT from parent
+      window.addEventListener('message', (e) => {
+        if (!e?.data || e.data.type !== 'UPDATE_POLICIES_RESULT') return;
+        const { ok, error } = e.data;
+
+        if (ok) {
+          console.log('Policies updated successfully');
+        } else {
+          console.error('Update failed:', error);
+        }
+      }, false);
+    </script>
+    <script>
+      // Floating action buttons logic
+      (function () {
+        var printBtn = document.getElementById('printBtn');
+        var downloadBtn = document.getElementById('downloadBtn');
+        var emailBtn = document.getElementById('emailBtn');
+
+        if (printBtn) {
+          printBtn.addEventListener('click', function () {
+            window.print();
+          });
+        }
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', function () {
+            try {
+              // Generate a PDF of the main invoice table using html2canvas + jsPDF
+              var { jsPDF } = window.jspdf || {};
+              if (!jsPDF || !window.html2canvas) {
+                console.error('PDF libs not loaded');
+                return;
+              }
+              var target = document.querySelector('center');
+              window.html2canvas(target, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+                var imgData = canvas.toDataURL('image/png');
+                var pdf = new jsPDF('p', 'pt', 'a4');
+                var pageWidth = pdf.internal.pageSize.getWidth();
+                var pageHeight = pdf.internal.pageSize.getHeight();
+
+                var imgWidth = pageWidth - 60; // margins
+                var imgHeight = canvas.height * imgWidth / canvas.width;
+
+                var y = 30;
+                if (imgHeight < pageHeight - 60) {
+                  pdf.addImage(imgData, 'PNG', 30, y, imgWidth, imgHeight, undefined, 'FAST');
+                } else {
+                  // multi-page if content is long
+                  var position = y;
+                  var heightLeft = imgHeight;
+                  while (heightLeft > 0) {
+                    pdf.addImage(imgData, 'PNG', 30, position, imgWidth, imgHeight, undefined, 'FAST');
+                    heightLeft -= (pageHeight - 60);
+                    if (heightLeft > 0) {
+                      pdf.addPage();
+                      position = 30 - (imgHeight - heightLeft);
+                    }
+                  }
+                }
+                pdf.save('invoice.pdf');
+              });
+            } catch (err) {
+              console.error('Download failed:', err);
+            }
+          });
+        }
+        if (emailBtn) {
+          emailBtn.addEventListener('click', function () {
+            try {
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'EMAIL_CLICK' }, '*');
+              }
+            } catch (err) {
+              console.error('Email action failed:', err);
+            }
+          });
+        }
+
+        var updateBtn = document.getElementById('updateBtn');
+        if (updateBtn) {
+          updateBtn.addEventListener('click', function () {
+            try {
+              // Get current policy content from editable divs
+              var cancellationPolicy = document.getElementById('cancellationPolicy');
+              var childPolicy = document.getElementById('childPolicy');
+              var taxationPolicy = document.getElementById('taxationPolicy');
+
+              var policies = {
+                ibE_CancellationPolicy: cancellationPolicy ? cancellationPolicy.innerHTML : '',
+                ibE_ChildPolicy: childPolicy ? childPolicy.innerHTML : '',
+                ibE_TaxPolicy: taxationPolicy ? taxationPolicy.innerHTML : ''
+              };
+
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                  type: 'UPDATE_POLICIES',
+                  payload: policies
+                }, '*');
+              }
+            } catch (err) {
+              console.error('Update policies failed:', err);
+            }
+          });
+        }
+      })();
+    </script>
+</body>
+
+</html>

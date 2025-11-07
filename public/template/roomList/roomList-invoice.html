@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Invoice</title>
+    <style>
+        /* Hide floating action buttons in the print output */
+        @media print {
+            #floating-actions {
+                display: none !important;
+            }
+
+            body {
+                background: #ffffff !important;
+            }
+        }
+    </style>
+    <!-- html2canvas and jsPDF for PDF generation -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; font-size: 12px; background-color: #f5f5f5;">
+    <div id="floating-actions"
+        style="position:absolute; right:360px; top:20px; display:flex; flex-direction:column; z-index:9999; background-color:#ffffff; gap: 3px; border-radius:12px;">
+        <button id="printBtn" aria-label="Print invoice" title="Print"
+            style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eef5ff; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+        </button>
+
+        <button id="downloadBtn" aria-label="Download invoice" title="Download"
+            style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eafff0; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+        </button>
+
+        <button id="emailBtn" aria-label="Email invoice" title="Email"
+            style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#fff5f5; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+        </button>
+
+        <button id="updateBtn" aria-label="Update Bank Details" title="Update Bank Details"
+            style="width: 40px; height: 40px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fefce8; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-save-icon lucide-save">
+                <path
+                    d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+            </svg>
+        </button>
+        <button id="viewToggleBtn" aria-label="Toggle view" title="View"
+            style="width: 40px; height: 40px; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-list-chevrons-down-up-icon lucide-list-chevrons-down-up">
+                <path d="M3 5h8" />
+                <path d="M3 12h8" />
+                <path d="M3 19h8" />
+                <path d="m15 5 3 3 3-3" />
+                <path d="m15 19 3-3 3 3" />
+            </svg>
+        </button>
+    </div>
+    <center>
+        <table style="width: 660px; background-color: white; border: 1px solid #ccc; padding: 20px;">
+            <tr>
+                <td>
+                    <!-- Header Section -->
+                    <table style="width: 100%; margin-bottom: 20px;">
+                        <tr>
+                            <td style="width: 70px; vertical-align: top;">
+                                <img id="hotelLogo" src="" alt="logo"
+                                    style="width: 50px; height: 50px; object-fit: cover; background:#f3f4f6; border:1px solid #e5e7eb;">
+                            </td>
+                            <td style="text-align: right; vertical-align: top;">
+                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;"><span
+                                        id="hotelName">—</span></div>
+                                <div style="font-size: 10px; line-height: 1.3;">
+                                    T: <span id="hotelPhone">—</span><br>
+                                    E: <span id="hotelEmail">—</span><br>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Invoice Title -->
+                    <center>
+                        <div style="font-size: 14px; font-weight: bold; margin: 20px 0; text-align: right;">INVOICE
+                        </div>
+                    </center>
+
+                    <!-- Reservation Details -->
+                    <table style="width: 100%; margin-bottom: 20px;">
+                        <tr>
+                            <td style="width: 50%; vertical-align: top;">
+                                <div style="font-weight: bold; margin-bottom: 10px;">RESERVATION DETAIL:</div>
+                                <div style="line-height: 1.5; font-size: 11px;">
+                                    ROOM: <span id="roomType">—</span> - <span id="roomNo">—</span><br>
+                                    CHECK-IN DATE: <span id="checkIn">—</span><br>
+                                    BOOKING REF.: <span id="bookingRef">—</span><br>
+                                    AGENT: <span id="agent">—</span>
+                                </div>
+                            </td>
+                            <td style="text-align: right; vertical-align: top; font-size: 11px;">
+                                <div>Reservation No: <strong><span id="reservationNo">—</span></strong> &nbsp;&nbsp;
+                                    Date: <strong><span id="reservationDate">—</span></strong></div>
+                                <br>
+                                <div style="line-height: 1.5;">
+                                    OCCUPANCY: Adult: <span id="adults">—</span> Child: <span id="children">—</span><br>
+                                    ARRIVAL: <span id="arrival">—</span><br>
+                                    DEPT: <span id="dept">—</span><br>
+                                    MEAL PLAN: <span id="mealPlan">—</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Guest Info -->
+                    <table style="width: 100%; margin-bottom: 20px;">
+                        <tr>
+                            <td>
+                                <div style="font-weight: bold; margin-bottom: 10px;">GUEST INFO:</div>
+                                <div style="line-height: 1.5; font-size: 11px;">
+                                    BOOKER: <span id="bookerName">—</span><br>
+                                    NATIONALITY: <span id="nationality">N/A</span><br>
+                                    PHONE: <span id="phone">—</span><br>
+                                    EMAIL: <span id="email">—</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+
+
+                    <!-- Folio Detail -->
+                    <div style="font-weight: bold; margin: 18px 0 10px;">Folio Detail:</div>
+                    <div id="folios-container"></div>
+                    
+                    <!-- Summary View Container (initially hidden) -->
+                    <div id="summary-container" style="display: none;"></div>
+
+                    <!-- Bank Details -->
+                    <div style="font-weight: bold; margin-bottom: 10px;">Bank Details:</div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                        <tr>
+                            <!-- Left: bank fields -->
+                            <td style="width: 50%; vertical-align: top; padding-right: 12px;">
+                                <div style="font-size: 10px; line-height: 1.4;">
+                                    ACCOUNT NAME: <span id="bankAccountNameDisplay">—</span><input type="text"
+                                        id="bankAccountNameInput" value="—"
+                                        style="display: none; border: 1px solid #ccc; padding: 4px; font-size: 10px; width: 120px; background: #ffffff; border-radius: 3px;" /><br>
+                                    BANK BRANCH: <span id="bankBranchDisplay">—</span><input type="text"
+                                        id="bankBranchInput" value="—"
+                                        style="display: none; border: 1px solid #ccc; padding: 4px; font-size: 10px; width: 120px; background: #ffffff; border-radius: 3px;" /><br>
+                                    BANK NAME: <span id="bankNameDisplay">—</span><input type="text" id="bankNameInput"
+                                        value="—"
+                                        style="display: none; border: 1px solid #ccc; padding: 4px; font-size: 10px; width: 120px; background: #ffffff; border-radius: 3px;" /><br>
+                                    ACCOUNT NO: <span id="bankAccountNoDisplay">—</span><input type="text"
+                                        id="bankAccountNoInput" value="—"
+                                        style="display: none; border: 1px solid #ccc; padding: 4px; font-size: 10px; width: 120px; background: #ffffff; border-radius: 3px;" /><br>
+                                    SWIFT CODE: <span id="bankSwiftCodeDisplay">—</span><input type="text"
+                                        id="bankSwiftCodeInput" value="—"
+                                        style="display: none; border: 1px solid #ccc; padding: 4px; font-size: 10px; width: 120px; background: #ffffff; border-radius: 3px;" />
+                                </div>
+                            </td>
+
+
+                            <!-- Right: logo + button -->
+                            <td
+                                style="width: 50%; vertical-align: top; padding-left: 12px; text-align: center; border-left: 1px solid #ccc;">
+                                <img src="https://hotelmate-internal.s3.us-east-1.amazonaws.com/logo/cclogo.png"
+                                    alt="Payment methods"
+                                    style="max-width: 100px; height: auto; display: inline-block; margin-bottom: 8px;" />
+                                <br />
+                                <button id="payHereBtn" aria-label="Pay here" title="Pay Here"
+                                    style="padding: 8px 12px; font-size: 10px; border: 1px solid #d1d5db; border-radius: 4px; background: #ffffff; color: #374151; cursor: pointer;">
+                                    Pay Here
+                                </button>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Footer -->
+                    <div style="font-size: 10px; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px;">
+                        This is an electronically generated report, hence does not require signature
+                    </div>
+
+                    <table style="width: 100%; margin-top: 10px;">
+                        <tr>
+                            <td style="font-size: 9px;">Powered by: HOTEL MATE - https://hotelmate.co.uk</td>
+                            <td style="text-align: right; font-size: 9px;">9/25/2025 17:14:59 PM13</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </center>
+    <script>
+        function money(n) {
+            try {
+                return new Intl.NumberFormat(undefined, {
+                    style: 'decimal',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(Number(n || 0));
+            } catch {
+                return Number(n || 0).toFixed(2);
+            }
+        }
+        function fmtDate(d) { try { const dt = new Date(d); return isNaN(dt) ? '—' : dt.toLocaleDateString(); } catch { return '—'; } }
+
+        // Debug: Log when template is loaded
+        console.log('📄 Invoice template loaded and ready');
+
+        window.addEventListener('message', (e) => {
+            if (!e?.data || e.data.type !== 'FOLIO_PAYLOAD') return;
+            console.log('📊 Invoice template received FOLIO_PAYLOAD:', e.data);
+            const { items = [], currencyCode = '', roomsMap = {} } = e.data.payload || {};
+            const container = document.getElementById('folios-container');
+            const summaryContainer = document.getElementById('summary-container');
+            
+            const COLGROUP = `
+  <colgroup>
+    <col style="width:12%">
+    <col style="width:14%">
+    <col style="width:12%">
+    <col style="width:20%">
+    <col style="width:14%">
+    <col style="width:8%">
+    <col style="width:8%">
+    <col style="width:12%">
+  </colgroup>
+`;
+            if (!container || !summaryContainer) {
+                console.error('❌ folios-container or summary-container element not found');
+                return;
+            }
+
+            console.log('📊 Processing folio items:', items);
+            console.log('💰 Currency code:', currencyCode);
+
+            // Group by reservationDetailId
+            const groups = items.reduce((acc, it) => {
+                const key = String(it?.reservationDetailId ?? 'unknown');
+                (acc[key] ||= []).push(it);
+                return acc;
+            }, {});
+
+            console.log('📊 Grouped folio items:', groups);
+
+            container.innerHTML = '';
+            summaryContainer.innerHTML = '';
+            let grandTotal = 0;
+
+            if (Object.keys(groups).length === 0) {
+                console.log('⚠️ No folio groups found, showing empty state');
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 12px;">No folio transactions found for this reservation.</div>';
+                summaryContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 12px;">No reservation data available for summary view.</div>';
+                return;
+            }
+
+            // Create detailed folio view (existing functionality)
+            Object.entries(groups).forEach(([detailId, rows]) => {
+                const total = rows.reduce((s, r) => s + Number(r?.amount || 0), 0);
+                grandTotal += total;
+
+                console.log(`📊 Creating table for detail ID ${detailId} with ${rows.length} rows, total: ${total}`);
+
+                const table = document.createElement('table');
+                table.style.cssText = 'width:100%;border-collapse:collapse;margin-bottom:20px;';
+                table.innerHTML = `
+${COLGROUP}
+<tr style="background-color:#333;color:#fff;">
+  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">
+    Room No: <strong>${roomsMap[detailId] ?? 'N/A'}</strong>
+  </td>
+  <td colspan="7" style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">&nbsp;</td>
+</tr>
+              <tr style="background-color:#333;color:#fff;">
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;">Date</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;">Tran Type</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;">Doc No</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;">POS Center</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;">Pmt. Mtd</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:center;">Credit</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:center;">Debit</td>
+                <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">Amount</td>
+              </tr>
+              ${rows.map(it => `
+                <tr>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${fmtDate(it.tranDate)}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${it.tranType ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${it.docNo ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${it.accountName ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${it.paymentMethod ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:center;">${it.credit ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:center;">${it.debit ?? '—'}</td>
+                  <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${currencyCode} ${money(it.amount)}</td>
+                </tr>
+              `).join('')}
+            <tr style="font-weight:bold;">
+  <td colspan="7" style="padding:8px;border:1px solid #ccc;font-size:10px;">Subtotal:</td>
+  <td class="folio-total" style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${currencyCode} ${money(total)}</td>
+</tr>
+            `;
+                container.appendChild(table);
+                console.log(`✅ Table created and appended for detail ID ${detailId}`);
+            });
+
+            // Grand total summary row (after all tables)
+            const grand = document.createElement('table');
+            grand.style.cssText = 'width:100%;border-collapse:collapse;margin-top:6px;margin-bottom:20px;';
+            grand.innerHTML = `
+  ${COLGROUP}
+  <tr style="font-weight:bold;">
+    <td colspan="7" style="padding:8px;border:1px solid #ccc;font-size:10px;"> Total:</td>
+    <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${currencyCode} ${money(grandTotal)}</td>
+  </tr>
+`;
+            container.appendChild(grand);
+
+            // Create summary table view
+            createSummaryTable(groups, roomsMap, currencyCode, grandTotal);
+
+            // Expose grand total for Pay Here
+            window.__folioGrandTotal = grandTotal;
+            console.log('💰 Grand total set:', grandTotal);
+        }, false);
+
+        // Function to create summary table
+        function createSummaryTable(groups, roomsMap, currencyCode, grandTotal) {
+            const summaryContainer = document.getElementById('summary-container');
+            if (!summaryContainer) return;
+
+            console.log('📊 Creating summary table');
+
+            // Create summary table with Room No, Room Type, Check-In, Check-Out, Amount columns
+            const summaryTable = document.createElement('table');
+            summaryTable.style.cssText = 'width:100%;border-collapse:collapse;margin-bottom:20px;';
+            
+            const summaryColgroup = `
+                <colgroup>
+                    <col style="width:20%">
+                    <col style="width:25%">
+                    <col style="width:20%">
+                    <col style="width:20%">
+                    <col style="width:15%">
+                </colgroup>
+            `;
+
+            // Get check-in and check-out dates from DOM elements
+            const checkInElement = document.getElementById('checkIn');
+            const checkOutElement = document.getElementById('arrival');
+            const deptElement = document.getElementById('dept');
+            
+            const checkInDate = checkInElement?.textContent || '—';
+            const checkOutDate = deptElement?.textContent || checkOutElement?.textContent || '—';
+
+            let summaryRows = '';
+            Object.entries(groups).forEach(([detailId, rows]) => {
+                const total = rows.reduce((s, r) => s + Number(r?.amount || 0), 0);
+                const roomNo = roomsMap[detailId] ?? 'N/A';
+                
+                // Get room type from rooms data
+                let roomType = 'N/A';
+                if (roomsData.length > 0) {
+                    const matchingRoom = roomsData.find(r => 
+                        r.roomNumber === roomNo || String(r.reservationDetailID) === detailId
+                    );
+                    roomType = matchingRoom?.roomType || 'N/A';
+                }
+
+                summaryRows += `
+                    <tr>
+                        <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${roomNo}</td>
+                        <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${roomType}</td>
+                        <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${checkInDate}</td>
+                        <td style="padding:8px;border:1px solid #ccc;font-size:10px;">${checkOutDate}</td>
+                        <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${currencyCode} ${money(total)}</td>
+                    </tr>
+                `;
+            });
+
+            summaryTable.innerHTML = `
+                ${summaryColgroup}
+                <tr style="background-color:#333;color:#fff;">
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;font-weight:bold;">Room No</td>
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;font-weight:bold;">Room Type</td>
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;font-weight:bold;">Check-In</td>
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;font-weight:bold;">Check-Out</td>
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;font-weight:bold;text-align:right;">Amount</td>
+                </tr>
+                ${summaryRows}
+                <tr style="font-weight:bold;">
+                    <td colspan="4" style="padding:8px;border:1px solid #ccc;font-size:10px;">Total:</td>
+                    <td style="padding:8px;border:1px solid #ccc;font-size:10px;text-align:right;">${currencyCode} ${money(grandTotal)}</td>
+                </tr>
+            `;
+
+            summaryContainer.appendChild(summaryTable);
+            console.log('✅ Summary table created and appended');
+        }
+    </script>
+    <script>
+        function setText(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = (val ?? '—');
+        }
+        function setInputValue(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.value = (val ?? '—');
+        }
+        function stripQuery(u) {
+            try { if (!u || typeof u !== 'string') return ''; var i = u.indexOf('?'); return i === -1 ? u : u.slice(0, i); } catch { return '' }
+        }
+        function setSrc(id, val) {
+            try {
+                var el = document.getElementById(id);
+                var clean = stripQuery(val);
+                if (el && clean && typeof clean === 'string') { el.setAttribute('src', clean); }
+            } catch { }
+        }
+        function fmt(d) {
+            try { const dt = new Date(d); return isNaN(dt) ? '—' : dt.toLocaleDateString(); } catch { return '—'; }
+        }
+
+        // Store just the rooms data for summary table
+        let roomsData = [];
+
+        // Reservation/Header payload (RES_HEADER)
+        window.addEventListener('message', (e) => {
+            if (!e?.data || e.data.type !== 'RES_HEADER') return;
+            const p = e.data.payload || {};
+
+            // Store rooms data for summary table
+            roomsData = p.rooms || [];
+
+            // Hotel header
+            setText('hotelName', p.hotelName || '—');
+            setText('hotelPhone', p.hotelPhone || '—');
+            setText('hotelEmail', p.hotelEmail || '—');
+            if (p.hotelLogo) setSrc('hotelLogo', p.hotelLogo);
+
+            setText('roomType', p.roomType);
+            setText('roomNo', p.roomNo);
+            setText('checkIn', fmt(p.checkIn));
+            setText('bookingRef', p.bookingRef);
+            setText('agent', p.agent);
+
+            setText('reservationNo', p.reservationNo);
+            setText('reservationDate', fmt(p.reservationDate));
+
+            setText('adults', p.adults);
+            setText('children', p.children);
+            setText('arrival', fmt(p.arrival));
+            setText('dept', fmt(p.dept));
+            setText('mealPlan', p.mealPlan);
+
+            setText('bookerName', p.bookerName);
+            setText('nationality', p.nationality || 'N/A');
+            setText('phone', p.phone);
+            setText('email', p.email);
+
+            // Bank details from hotel payload - set both display and input values
+            setText('bankAccountName', p.accountName || '—');
+            setText('bankBranch', p.bankBranch || '—');
+            setText('bankName', p.bankName || '—');
+            setText('bankAccountNo', p.accountNo || '—');
+            setText('bankSwiftCode', p.swiftCode || '—');
+
+            // Also set display spans and input field values
+            setText('bankAccountNameDisplay', p.accountName || '—');
+            setText('bankBranchDisplay', p.bankBranch || '—');
+            setText('bankNameDisplay', p.bankName || '—');
+            setText('bankAccountNoDisplay', p.accountNo || '—');
+            setText('bankSwiftCodeDisplay', p.swiftCode || '—');
+
+            setInputValue('bankAccountNameInput', p.accountName || '—');
+            setInputValue('bankBranchInput', p.bankBranch || '—');
+            setInputValue('bankNameInput', p.bankName || '—');
+            setInputValue('bankAccountNoInput', p.accountNo || '—');
+            setInputValue('bankSwiftCodeInput', p.swiftCode || '—');
+        }, false);
+    </script>
+    <script>
+        // Floating action buttons logic
+        (function () {
+            var printBtn = document.getElementById('printBtn');
+            var downloadBtn = document.getElementById('downloadBtn');
+            var emailBtn = document.getElementById('emailBtn');
+            var isEditingBankDetails = false;
+            var viewBtn = document.getElementById('viewToggleBtn');
+            var isViewOpen = true; // tracks which icon is visible
+
+            // Helper functions for toggling edit mode
+            function toggleEditMode() {
+                var displayElements = [
+                    'bankAccountNameDisplay', 'bankBranchDisplay', 'bankNameDisplay',
+                    'bankAccountNoDisplay', 'bankSwiftCodeDisplay'
+                ];
+                var inputElements = [
+                    'bankAccountNameInput', 'bankBranchInput', 'bankNameInput',
+                    'bankAccountNoInput', 'bankSwiftCodeInput'
+                ];
+
+                if (isEditingBankDetails) {
+                    // Switch to display mode
+                    displayElements.forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el) el.style.display = 'inline';
+                    });
+                    inputElements.forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el) el.style.display = 'none';
+                    });
+                    isEditingBankDetails = false;
+                } else {
+                    // Switch to edit mode
+                    displayElements.forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el) el.style.display = 'none';
+                    });
+                    inputElements.forEach(function (id) {
+                        var el = document.getElementById(id);
+                        if (el) el.style.display = 'inline';
+                    });
+                    isEditingBankDetails = true;
+                }
+            }
+
+            function syncInputToDisplay() {
+                var fields = [
+                    { input: 'bankAccountNameInput', display: 'bankAccountNameDisplay' },
+                    { input: 'bankBranchInput', display: 'bankBranchDisplay' },
+                    { input: 'bankNameInput', display: 'bankNameDisplay' },
+                    { input: 'bankAccountNoInput', display: 'bankAccountNoDisplay' },
+                    { input: 'bankSwiftCodeInput', display: 'bankSwiftCodeDisplay' }
+                ];
+
+                fields.forEach(function (field) {
+                    var inputEl = document.getElementById(field.input);
+                    var displayEl = document.getElementById(field.display);
+                    if (inputEl && displayEl) {
+                        displayEl.textContent = inputEl.value || '—';
+                    }
+                });
+            }
+
+            if (printBtn) {
+                printBtn.addEventListener('click', function () {
+                    window.print();
+                });
+            }
+
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function () {
+                    try {
+                        // Generate a PDF of the main invoice table using html2canvas + jsPDF
+                        var { jsPDF } = window.jspdf || {};
+                        if (!jsPDF || !window.html2canvas) {
+                            console.error('PDF libs not loaded');
+                            return;
+                        }
+                        var target = document.querySelector('center');
+                        window.html2canvas(target, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+                            var imgData = canvas.toDataURL('image/png');
+                            var pdf = new jsPDF('p', 'pt', 'a4');
+                            var pageWidth = pdf.internal.pageSize.getWidth();
+                            var pageHeight = pdf.internal.pageSize.getHeight();
+
+                            var imgWidth = pageWidth - 60; // margins
+                            var imgHeight = canvas.height * imgWidth / canvas.width;
+
+                            var y = 30;
+                            if (imgHeight < pageHeight - 60) {
+                                pdf.addImage(imgData, 'PNG', 30, y, imgWidth, imgHeight, undefined, 'FAST');
+                            } else {
+                                // multi-page if content is long
+                                var position = y;
+                                var heightLeft = imgHeight;
+                                while (heightLeft > 0) {
+                                    pdf.addImage(imgData, 'PNG', 30, position, imgWidth, imgHeight, undefined, 'FAST');
+                                    heightLeft -= (pageHeight - 60);
+                                    if (heightLeft > 0) {
+                                        pdf.addPage();
+                                        position = 30 - (imgHeight - heightLeft);
+                                    }
+                                }
+                            }
+                            pdf.save('invoice.pdf');
+                        });
+                    } catch (err) {
+                        console.error('Download failed:', err);
+                    }
+                });
+            }
+            if (emailBtn) {
+                emailBtn.addEventListener('click', function () {
+                    try {
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({ type: 'EMAIL_CLICK' }, '*');
+                        }
+                    } catch (err) {
+                        console.error('Email action failed:', err);
+                    }
+                });
+            }
+
+            // View toggle button handler
+            if (viewBtn) {
+                var TABLE_LIST_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-chevrons-down-up-icon lucide-list-chevrons-down-up"><path d="M3 5h8"/><path d="M3 12h8"/><path d="M3 19h8"/><path d="m15 5 3 3 3-3"/><path d="m15 19 3-3 3 3"/></svg>';
+                var TABLE_LIST_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-chevrons-down-up-icon lucide-list-chevrons-down-up"><path d="M3 5h8"/><path d="M3 12h8"/><path d="M3 19h8"/><path d="m15 8 3-3 3 3"/><path d="m15 16 3 3 3-3"/></svg>';
+
+                // ensure initial state is down (show detailed folio view)
+                viewBtn.innerHTML = TABLE_LIST_DOWN;
+
+                viewBtn.addEventListener('click', function () {
+                    isViewOpen = !isViewOpen;
+                    toggleView();
+                    if (isViewOpen) {
+                        viewBtn.innerHTML = TABLE_LIST_DOWN;
+                        viewBtn.title = 'Show Detailed View';
+                        viewBtn.setAttribute('aria-label', 'Show Detailed View');
+                    } else {
+                        viewBtn.innerHTML = TABLE_LIST_UP;
+                        viewBtn.title = 'Show Summary View';
+                        viewBtn.setAttribute('aria-label', 'Show Summary View');
+                    }
+                });
+            }
+
+            // Toggle between detailed folio view and summary table view
+            function toggleView() {
+                var foliosContainer = document.getElementById('folios-container');
+                var summaryContainer = document.getElementById('summary-container');
+                
+                if (!foliosContainer || !summaryContainer) return;
+                
+                if (isViewOpen) {
+                    // Show detailed folio view, hide summary table
+                    foliosContainer.style.display = 'block';
+                    summaryContainer.style.display = 'none';
+                } else {
+                    // Show summary table, hide detailed folio view
+                    foliosContainer.style.display = 'none';
+                    summaryContainer.style.display = 'block';
+                }
+            }
+
+            // Pay Here button handler
+            var payHereBtn = document.getElementById('payHereBtn');
+            if (payHereBtn) {
+                payHereBtn.addEventListener('click', function () {
+                    try {
+                        let totalAmount = 0;
+                        if (typeof window.__folioGrandTotal === 'number') {
+                            totalAmount = window.__folioGrandTotal;
+                        } else {
+                            // Fallback: sum all table totals in the DOM
+                            const totals = Array.from(document.querySelectorAll('.folio-total'))
+                                .map(el => (el.textContent || '').replace(/[^0-9.-]+/g, ''))
+                                .map(n => parseFloat(n || '0'));
+                            totalAmount = totals.reduce((a, b) => a + (isFinite(b) ? b : 0), 0);
+                        }
+
+                        // Get reservation details from DOM
+                        var reservationNo = document.getElementById('reservationNo');
+                        var bookingRef = document.getElementById('bookingRef');
+
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'PAY_HERE_CLICK',
+                                payload: {
+                                    amount: String(totalAmount),
+                                    reservationNo: reservationNo ? reservationNo.textContent : '',
+                                    bookingRef: bookingRef ? bookingRef.textContent : ''
+                                }
+                            }, '*');
+                        }
+                    } catch (err) {
+                        console.error('Pay Here action failed:', err);
+                    }
+                });
+            }
+
+            // Update Bank Details button handler
+            var updateBtn = document.getElementById('updateBtn');
+            if (updateBtn) {
+                updateBtn.addEventListener('click', function () {
+                    try {
+                        if (!isEditingBankDetails) {
+                            // First click: Enter edit mode
+                            toggleEditMode();
+                            updateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save-icon lucide-save"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></svg>';
+                            updateBtn.style.background = '#10b981';
+                            updateBtn.style.color = '#ffffff';
+                        } else {
+                            // Second click: Save changes
+                            // Sync input values to display elements
+                            syncInputToDisplay();
+
+                            if (window.parent && window.parent !== window) {
+                                // Get bank details from input fields
+                                var bankAccountName = document.getElementById('bankAccountNameInput');
+                                var bankBranch = document.getElementById('bankBranchInput');
+                                var bankName = document.getElementById('bankNameInput');
+                                var bankAccountNo = document.getElementById('bankAccountNoInput');
+                                var bankSwiftCode = document.getElementById('bankSwiftCodeInput');
+
+                                // Disable button and show loading state
+                                updateBtn.disabled = true;
+                                updateBtn.style.opacity = '0.6';
+                                updateBtn.style.cursor = 'not-allowed';
+                                updateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>';
+
+                                window.parent.postMessage({
+                                    type: 'UPDATE_BANK_DETAILS',
+                                    payload: {
+                                        accountName: bankAccountName ? bankAccountName.value : '',
+                                        bankBranch: bankBranch ? bankBranch.value : '',
+                                        bankName: bankName ? bankName.value : '',
+                                        accountNo: bankAccountNo ? bankAccountNo.value : '',
+                                        swiftCode: bankSwiftCode ? bankSwiftCode.value : ''
+                                    }
+                                }, '*');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Update Bank Details action failed:', err);
+                        // Re-enable button on error
+                        updateBtn.disabled = false;
+                        updateBtn.style.opacity = '1';
+                        updateBtn.style.cursor = 'pointer';
+                        updateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save-icon lucide-save"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></svg>';
+                    }
+                });
+            }
+
+            // Listen for update result from parent
+            window.addEventListener('message', function (e) {
+                if (e.data && e.data.type === 'UPDATE_BANK_DETAILS_RESULT') {
+                    var updateBtn = document.getElementById('updateBtn');
+                    if (updateBtn) {
+                        // Re-enable button
+                        updateBtn.disabled = false;
+                        updateBtn.style.opacity = '1';
+                        updateBtn.style.cursor = 'pointer';
+
+                        if (e.data.ok) {
+                            console.log('Bank details updated successfully');
+                            // Switch back to display mode and reset button
+                            toggleEditMode();
+                            updateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save-icon lucide-save"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></svg>';
+                            updateBtn.style.background = '#fefce8';
+                            updateBtn.style.color = '#000000';
+                        } else {
+                            console.error('Bank details update failed:', e.data.error);
+                            // Keep in edit mode but reset button icon
+                            updateBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save-icon lucide-save"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></svg>';
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

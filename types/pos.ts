@@ -1,0 +1,77 @@
+export interface PosItem {
+  finAct: string;
+  tranMasID: number;
+  tranDetailID: number;
+  itemID: number;
+  qty: number;
+  cost: number;
+  price: number;
+  lineCost: number;
+  linePrice: number;
+  lineDiscount: number;
+  lineTotal: number;
+  comment: string;
+  regPrice: number;
+  itemDescription: string;
+  createdBy: string;
+  createdOn: string;
+  voidBy: string;
+  voidOn: string;
+  isKOT: boolean;
+  isBOT: boolean;
+  isDeliveryReady: boolean;
+  isDelivered: boolean;
+  isKitchenSeen: boolean;
+  isBarSeen: boolean;
+  isCancelled: boolean;
+  isCookingFinished: boolean;
+  cover: string;
+  nbt: number;
+  vat: number;
+  tdl: number;
+  sc: number;
+  lineTotWithTaxes: number;
+  isFOC: boolean;
+  discPercentage: number;
+  reservationDetailID: number;
+  itemCode: string;
+}
+
+export interface PosTransaction {
+  tranMasId: number;
+  hotelCode: string;
+  finAct: boolean;
+  tranTypeId: number;
+  tranDate: string;
+  effectiveDate: string;
+  docNo: string;
+  posCenter: string;
+  createdOn: string;
+  createdBy: string;
+  tranValue: number;
+  nameId: number;
+  chequeNo: string;
+  paymentMethod: string;
+  chequeDate: string;
+  exchangeRate: number;
+  remarks: string;
+  dueDate: string;
+  refInvNo: string;
+  tableNo: string;
+  isFinished: boolean;
+  discPercentage: number;
+  onCost: boolean;
+  startTimeStamp: string;
+  endTimeStamp: string;
+  isOrderAccepted: boolean;
+  isPreparationStarted: boolean;
+  isPreparationFinished: boolean;
+  isDelivered: boolean;
+  roomId: number;
+  noOfPax: number;
+  deliveryMethod: string;
+  phoneNo: string;
+  items: PosItem[];
+}
+
+export type PosTransactionList = PosTransaction[];

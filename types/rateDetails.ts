@@ -1,0 +1,32 @@
+export interface RateDetailPayload {
+  recordId: number;
+  hotelId: number;
+  reservationId: number;
+  reservationDetailId: number;
+  rateDate: string;
+  mealPlan: string;
+  roomRate: number;
+  discPercen: number;
+  discount: number;
+  childRate: number;
+  exBedRate: number;
+  suppliment: number;
+  isFOC: boolean;
+  netRate: number;
+  currencyCode: string;
+  exchangeRate: number;
+  adult: number;
+  child: number;
+  isChecked: boolean;
+  checkedBy: string;
+  checkedAt: string;
+  guestName: string;
+  exBed: boolean;
+  exBedCount: number;
+  roomCount: number;
+  isLocked: boolean;
+  isNightAudit: boolean;
+  updatedOn: string;
+  updatedBy: string;
+  finAct: boolean;
+}

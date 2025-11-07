@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><span class="hotel-name">Hotel</span> Guest Registration Card</title>
+
+  <!-- PRINT RULES -->
+  <style>
+    /* General tidy ups */
+    html,
+    body {
+      height: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    /* --- PRINT: full-width A4, hide UI, remove shadows, fit to page --- */
+    @page {
+      size: A4 portrait;
+      margin: 0;
+      /* lets us control margins in the content */
+    }
+
+    @media print {
+
+      /* Hide floating action buttons */
+      #floating-actions {
+        display: none !important;
+      }
+
+      /* Remove on-screen spacing; make the card span the page width */
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* Card wrapper becomes full width (add inner page padding here) */
+      #card {
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 12mm !important;
+        /* page gutters */
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      /* Inner table: stretch */
+      .card-table {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+      }
+
+      /* TERMS: print as static block, no scrollbar */
+      #terms-text {
+        display: none !important;
+      }
+
+      #terms-text-print {
+        display: block !important;
+        white-space: pre-wrap;
+        font-size: 11px;
+        color: #333;
+        line-height: 1.6;
+        padding: 0;
+        /* remove inner padding to align with panel */
+        border: none !important;
+        /* remove inner border to avoid double border */
+        border-radius: 0;
+        /* no rounding since no border */
+        background: transparent;
+        /* ensure no background tint */
+        box-shadow: none;
+        /* safety */
+      }
+    }
+  </style>
+</head>
+
+<body style="margin:0; padding:20px; background-color:#f5f5f5; font-family:Arial, sans-serif;">
+  <div id="card"
+    style="max-width:650px; margin:0 auto; padding:30px; background:#ffffff; border:1px solid #ddd; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+
+    <!-- Floating Actions (hidden on print) -->
+ <div id="floating-actions"
+            style="position:absolute; right:360px; top:20px; display:flex; flex-direction:column; z-index:9999; background-color:#ffffff; gap: 3px; border-radius:12px;">
+            <button id="printBtn" aria-label="Print invoice" title="Print"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eef5ff; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+            </button>
+
+            <button id="downloadBtn" aria-label="Download invoice" title="Download"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#eafff0; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+            </button>
+
+            <button id="emailBtn" aria-label="Email invoice" title="Email"
+                style="width:40px; height:40px; border:1px solid #e5e7eb; border-radius:12px; background:#fff5f5; display:grid; place-items:center; box-shadow:0 4px 14px rgba(0,0,0,0.08); cursor:pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display:block;">
+                    <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+            </button>
+            <button id="updateBtn" aria-label="Update Policies" title="Update Policies"
+                style="width: 40px; height: 40px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fefce8; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: pointer;">
+                <!-- Lucide: update-cw -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-save-icon lucide-save">
+                    <path
+                        d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                    <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                    <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+                </svg>
+            </button>
+        </div>
+
+    <center>
+      <table class="card-table"
+        style="width:100%; max-width:600px; margin:0 auto; background-color:white; border-collapse:collapse;">
+        <!-- Header Section -->
+        <tr>
+          <td style="padding:12px 20px 8px 20px;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td style="width:200px; vertical-align:top;">
+                  <table style="border-collapse:collapse;">
+                    <tr>
+                      <td style="padding-bottom:6px;">
+                        <img id="hotelLogo" src="" alt="logo"
+                          style="width:60px;height:60px;object-fit:cover;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="text-align:right; vertical-align:top; width:100%;">
+                  <table style="border-collapse:collapse; float:right;">
+                    <tr>
+                      <td style="font-size:24px; font-weight:bold; color:#333; letter-spacing:1px;">
+                        <span class="hotel-name">Hotel</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:16px; color:#333; font-weight:bold;">GUEST REGISTRATION CARD</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Reservation Details -->
+        <tr>
+          <td style="padding:0; background-color:#ffffff;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td style="padding:10px 20px; vertical-align:middle; width:60%;">
+                  <div class="tm_invoice_seperator tm_gray_bg"
+                    style="height:12px; width:100%; max-width:100%; background:#eef1f6; border-radius:9999px;"></div>
+                </td>
+                <td
+                  style="text-align:right; padding:10px 20px; font-size:12px; color:#000000; white-space:nowrap; vertical-align:middle;">
+                  Reservation No: <strong id="reservation-no">N/A</strong>&nbsp;&nbsp;&nbsp;&nbsp;Date:
+                  <strong id="reservation-date">N/A</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Main Content -->
+        <tr>
+          <td style="padding:20px;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td style="width:50%; vertical-align:top; padding-right:20px;">
+                  <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                      <td style="font-size:14px; font-weight:bold; color:#333; padding-bottom:10px;">RESERVATION DETAIL:
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>ROOM:</strong> <span
+                          id="room-details">N/A</span></td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>RESERVATION DATE:</strong>
+                        <span id="reservation-date-detail">N/A</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>BOOKING REF.:</strong> <span
+                          id="booking-ref">N/A</span></td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:15px;"><strong>AGENT:</strong> <span
+                          id="agent">N/A</span></td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="width:50%; vertical-align:top; text-align:right;">
+                  <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right;">
+                        <strong>OCCUPANCY:</strong> <span id="occupancy">N/A</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right;">
+                        <strong>ARRIVAL:</strong> <span id="arrival">N/A</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right;">
+                        <strong>DEPT:</strong> <span id="departure">N/A</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:15px; text-align:right;"><strong>MEAL
+                          PLAN:</strong> <span id="meal-plan">N/A</span></td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Separator -->
+        <tr>
+          <td style="padding:0 20px;">
+            <hr style="border:0; border-top:1px solid #ddd; margin:10px 0; height: 40px;">
+          </td>
+        </tr>
+
+        <!-- Guest Info -->
+        <tr>
+          <td style="padding:0 20px 20px 20px; background-color:#ffffff;">
+            <table style="width:100%; border-collapse:collapse; background-color:#ffffff; padding:15px;">
+              <tr>
+                <td style="width:50%; vertical-align:top; padding-right:20px;">
+                  <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                      <td style="font-size:14px; font-weight:bold; color:#333; padding-bottom:10px;">GUEST INFO:</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>BOOKER :</strong> <span
+                          id="booker-name">N/A</span></td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>NATIONALITY:</strong> <span
+                          id="nationality">N/A</span></td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>PHONE:</strong> <span
+                          id="phone">N/A</span></td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px;"><strong>EMAIL:</strong> <span
+                          id="email">N/A</span></td>
+                    </tr>
+                  </table>
+                </td>
+                <td style="width:50%; vertical-align:top;">
+                  <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right"><strong>PASSPORT NO
+                          :</strong>......................................</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:8px;">&nbsp;</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right"><strong>DATE OF
+                          BIRTH:</strong> ......................................</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:8px;">&nbsp;</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:12px; color:#666; padding-bottom:3px; text-align:right"><strong>ARRIVAL
+                          TIME:</strong> ......................................</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Terms & Conditions -->
+        <tr>
+          <td
+            style="padding:20px; border:1px solid #ccc; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.1); background-color:#fff; margin:20px;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td colspan="2" style="font-size:14px; font-weight:bold; color:#333; padding:0; vertical-align:top;">
+                  Terms &amp; Conditions:</td>
+              </tr>
+
+              <!-- Editable on screen -->
+              <tr>
+                <td colspan="2" style="padding-top:10px;">
+                  <textarea id="terms-text" rows="8"
+                    style="width:100%; resize:none; overflow:hidden; font-size:11px; color:#333; line-height:1.6; padding:10px; border:1px solid #ddd; border-radius:6px;"></textarea>
+
+                  <!-- Print-only mirror (no scrollbar) -->
+                  <div id="terms-text-print" style="display:none;"></div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="font-size:11px; color:#666; padding-top:30px;"><strong>Guest Sign:</strong>
+                  ..................................</td>
+                <td style="font-size:11px; color:#666; text-align:right; padding-top:30px;">
+                  <strong>POM:</strong>&nbsp;&nbsp;...........................................
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:10px 20px; background-color:#ffffff; border-top:1px solid #ccc;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr>
+                <td style="font-size:10px; color:#666;">Powered by: HOTEL MATE - https://hotelmate.co.uk</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </center>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script>
+    // ===== Fallback Terms (default) =====
+    const FALLBACK_TERMS = `I/We will be personally occupying the room specified above and agree to pay all charges (including damages excluding normal wear and tear) arising from the use of it by myself and my invitees. I agree to be held liable to pay in part or full, the amount of the room charge as predetermined.
+Check-in time is 14:00. The check-out time is 12:00. If guests fail to check out by this time, the management reserves the right to charge a half-day room rate. If check-out has not occurred by 18:00, a full-day room rate will be applied.
+Loss or failure to return the room key at check-out will incur a charge of USD 10.
+I understand that the Hotel will not be responsible for any valuables left by myself or my invitees in the room and that an in-room safe has been provided for this purpose.`;
+
+    const termsTextEl = () => document.getElementById('terms-text');
+    const termsPrintEl = () => document.getElementById('terms-text-print');
+
+    // Auto-resize textarea to content height (no scrollbars)
+    function autosizeTerms() {
+      const t = termsTextEl();
+      if (!t) return;
+      t.style.height = 'auto';
+      // Add a small extra space to avoid last line clipping
+      t.style.height = (t.scrollHeight + 2) + 'px';
+    }
+
+    function setTermsText(val) {
+      const text = (val && String(val).trim()) || FALLBACK_TERMS;
+      const t = termsTextEl(), p = termsPrintEl();
+      if (t) t.value = text;
+      autosizeTerms();
+      if (p) p.textContent = text; // keep print mirror in sync
+    }
+    function applyTermsFromPayload(data) {
+      setTermsText(data?.grC_Para1 || null);
+    }
+
+    // Keep print mirror synced when user edits
+    document.addEventListener('input', (e) => {
+      if (e.target && e.target.id === 'terms-text') {
+        const p = termsPrintEl();
+        if (p) p.textContent = e.target.value;
+        autosizeTerms();
+      }
+    });
+
+    // Also sync right before print (covers any last-second changes)
+    function syncTermsForPrint() {
+      const t = termsTextEl(), p = termsPrintEl();
+      if (t && p) p.textContent = t.value || FALLBACK_TERMS;
+    }
+    window.addEventListener('beforeprint', syncTermsForPrint);
+    window.addEventListener('afterprint', autosizeTerms);
+
+    // Message bridge
+    window.addEventListener('message', function (event) {
+      if (event?.data?.type === 'GRC_DATA') {
+        const data = event.data.payload || {};
+        populateGRCData(data);
+        applyTermsFromPayload(data);
+      }
+      if (event?.data?.type === 'UPDATE_HOTEL_RESULT') {
+        const { ok, error } = event.data;
+        if (ok) {
+          console.log('Terms & Conditions updated successfully');
+        } else {
+          console.error('Update failed:', error);
+        }
+      }
+    });
+
+    function stripQuery(u) {
+      try { if (!u || typeof u !== 'string') return ''; var i = u.indexOf('?'); return i === -1 ? u : u.slice(0, i); } catch { return '' }
+    }
+
+    function populateGRCData(data) {
+      try {
+        var logoImg = document.getElementById('hotelLogo');
+        if (logoImg && data.hotelLogo) {
+          var cleanLogo = stripQuery(data.hotelLogo);
+          if (cleanLogo) logoImg.setAttribute('src', cleanLogo);
+        }
+      } catch { }
+
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+      setText('reservation-no', data.reservationNo || 'N/A');
+      setText('reservation-date', formatDate(data.reservationDate) || 'N/A');
+      setText('room-details', `${data.roomType || 'N/A'} : ${data.roomNumber || 'N/A'}`);
+      setText('reservation-date-detail', formatDate(data.reservationDate) || 'N/A');
+      setText('booking-ref', data.bookingRef || 'N/A');
+      setText('agent', data.agent || 'N/A');
+      setText('occupancy', `Adult: ${data.adults || 0} Child: ${data.children || 0}`);
+      setText('arrival', formatDate(data.checkIn) || 'N/A');
+      setText('departure', formatDate(data.checkOut) || 'N/A');
+      setText('meal-plan', data.mealPlan || 'N/A');
+      setText('booker-name', (data.bookerName || 'N/A'));
+      setText('nationality', data.nationality || 'N/A');
+      setText('phone', data.phone || 'N/A');
+      setText('email', data.email || 'N/A');
+
+      if (typeof data.hotelName === 'string') {
+        document.querySelectorAll('.hotel-name').forEach(el => el.textContent = data.hotelName || 'Hotel');
+        try { if (data.hotelName) document.title = data.hotelName + ' Guest Registration Card'; } catch { }
+      }
+
+      const generatedTimeEl = document.getElementById('generated-time');
+      if (generatedTimeEl) generatedTimeEl.textContent = new Date().toLocaleString();
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        return date.toLocaleDateString('en-GB');
+      } catch {
+        return dateString;
+      }
+    }
+
+    // Actions
+    document.addEventListener('DOMContentLoaded', function () {
+      const generatedTimeEl = document.getElementById('generated-time');
+      if (generatedTimeEl) generatedTimeEl.textContent = new Date().toLocaleString();
+
+      // Init terms in both textarea and print mirror
+      setTermsText(null);
+      autosizeTerms();
+
+      const updateBtn = document.getElementById('updateBtn');
+      if (updateBtn) {
+        updateBtn.addEventListener('click', function () {
+          const text = (termsTextEl()?.value || '').trim();
+          window.parent.postMessage({
+            type: 'UPDATE_HOTEL',
+            payload: { grC_Para1: text || FALLBACK_TERMS }
+          }, '*');
+        });
+      }
+
+      const printBtn = document.getElementById('printBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const emailBtn = document.getElementById('emailBtn');
+
+      if (printBtn) {
+        printBtn.addEventListener('click', function () {
+          syncTermsForPrint();   // ensure mirror is current
+          window.print();
+        });
+      }
+
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', async function () {
+          const container = document.querySelector('#card'); // export the full-width card
+          if (!container) return;
+          const floating = document.getElementById('floating-actions');
+
+          // Temporarily hide UI and use print mirror during export
+          const prevFab = floating ? floating.style.display : null;
+          const textArea = termsTextEl();
+          const printBlock = termsPrintEl();
+
+          try {
+            if (floating) floating.style.display = 'none';
+            if (textArea && printBlock) {
+              printBlock.style.display = 'block';
+              textArea.style.display = 'none';
+              syncTermsForPrint();
+            }
+
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const canvas = await html2canvas(container, {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#ffffff',
+              windowWidth: document.documentElement.scrollWidth,
+              windowHeight: document.documentElement.scrollHeight
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            if (imgHeight <= pageHeight) {
+              pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+            } else {
+              let remainingHeight = imgHeight;
+              let y = 0;
+              const pageCanvas = document.createElement('canvas');
+              const pageCtx = pageCanvas.getContext('2d');
+              const pxPageHeight = Math.floor((canvas.width * pageHeight) / pageWidth);
+              pageCanvas.width = canvas.width;
+              pageCanvas.height = pxPageHeight;
+              let first = true;
+              while (remainingHeight > 0) {
+                pageCtx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+                pageCtx.drawImage(canvas, 0, -y, canvas.width, canvas.height);
+                const pageData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                if (!first) pdf.addPage();
+                pdf.addImage(pageData, 'JPEG', 0, 0, pageWidth, pageHeight);
+                first = false;
+                y += pxPageHeight;
+                remainingHeight -= pageHeight;
+              }
+            }
+            pdf.save('guest-registration-card.pdf');
+          } catch (err) {
+            console.error('Failed to generate PDF', err);
+            alert('Failed to generate PDF. Please try printing to PDF instead.');
+          } finally {
+            if (floating && prevFab !== null) floating.style.display = prevFab;
+            if (textArea && printBlock) {
+              printBlock.style.display = 'none';
+              textArea.style.display = '';
+            }
+          }
+        });
+      }
+
+      if (emailBtn) {
+        emailBtn.addEventListener('click', function () {
+          window.parent.postMessage({ type: 'EMAIL_CLICK' }, '*');
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>
