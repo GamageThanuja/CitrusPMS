@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, UserPen, ArrowDown, ArrowUp, X } from "lucide-react";
-import { getAllGuestProfiles } from "@/controllers/guestProfileMasterController";
+// import { getAllGuestProfiles } from "@/controllers/guestProfileMasterController";
 import type { GuestProfilePayload } from "@/types/guestProfileMaster";
 import EditGuestProfileDrawer from "@/components/drawers/edit-guest-profile-drawer";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchGuestProfiles } from "@/redux/slices/guestProfileByHotelIdSlice";
+// import { fetchGuestProfiles } from "@/redux/slices/guestProfileByHotelIdSlice";
+import { fetchGuestMas } from "@/redux/slices/fetchGuestMasSlice";
 import { RootState } from "@/redux/store";
 
 const TableHeader = ({
@@ -57,12 +58,15 @@ const GuestProfilesPage = () => {
   const itemsPerPage = 10;
 
   const dispatch = useDispatch<any>();
-  const selectGuestProfilesByHotel = (state: RootState) =>
-    state.guestProfileByHotelId;
-  const { data: guestProfiles } = useSelector(selectGuestProfilesByHotel);
+  // const selectGuestProfilesByHotel = (state: RootState) =>
+  //   state.guestProfileByHotelId;
+  // const { data: guestProfiles } = useSelector(selectGuestProfilesByHotel);
+  const selectGuestMas = (state: RootState) => state.fetchGuestMas;
+const { items: guestProfiles = [], loading, error } = useSelector(selectGuestMas);
+
 
   useEffect(() => {
-    dispatch(fetchGuestProfiles());
+    dispatch(fetchGuestMas());
   }, [dispatch]);
 
   const handleSort = (key: keyof GuestProfilePayload) => {
