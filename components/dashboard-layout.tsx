@@ -208,6 +208,8 @@ const menuGroups: MenuGroup[] = [
       { name: "Category", href: "/rooms/category", icon: Utensils },
       { name: "Seasons", href: "/rooms/seasons", icon: Sun },
       { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
+      { name: "Room Types", href: "/rooms/roomType", icon: Home },
+      { name: "Rooms", href: "/rooms/rooms", icon: BedDouble },
     ],
   },
     {
@@ -217,7 +219,7 @@ const menuGroups: MenuGroup[] = [
       { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: ForkKnife },
       { name: "Nationality", href: "/configuration/nationality", icon: Globe },
       { name: "Tax Table", href: "/configuration/tax-table", icon: Receipt },
-      { name: "Reservation Resource", href: "/configuration/reservation-resource", icon: CalendarCheck },
+      { name: "Reservation Resource", href: "/configuration/reservation-source", icon: CalendarCheck },
     ],
   },
   
@@ -815,6 +817,8 @@ function PageTitle() {
       else if (path.includes("/rooms/category")) resolvedTitle = "Category";
       else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
       else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
+      else if (path.includes("/rooms/roomType")) resolvedTitle = "Room Types";
+      else if (path.includes("/rooms/rooms")) resolvedTitle = "Rooms";
       else if (path.includes("/configuration/meal-allocation")) resolvedTitle = "Meal Allocation";
       else if (path.includes("/configuration/nationality")) resolvedTitle = "Nationality";
       else if (path.includes("/configuration/tax-table")) resolvedTitle = "Tax Table";
