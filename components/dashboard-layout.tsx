@@ -71,7 +71,8 @@ import {
   Sun,
   LayoutGrid,
   Calendar,
-  ForkKnife
+  ForkKnife,
+  Lock
 } from "lucide-react";
 
 import {
@@ -231,6 +232,7 @@ const menuGroups: MenuGroup[] = [
     icon: Building,
     items: [
       { name: "audit", href: "/property/audit", icon: FileText },
+      { name: "User Permission", href: "/property/user-permission", icon: Lock },
     ],
   },
   {
@@ -821,6 +823,7 @@ function PageTitle() {
       else if (path.includes("/configuration/reservation-resource")) resolvedTitle = "Reservation Resource";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
+      else if (path.includes("/property/user-permission")) resolvedTitle = "User Permission";
       // else if (path.includes("/financials/purchases"))
       //   resolvedTitle = "Purchases";
       // else if (path.includes("/financials/expenses"))
