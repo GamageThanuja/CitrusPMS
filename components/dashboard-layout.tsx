@@ -205,6 +205,7 @@ const menuGroups: MenuGroup[] = [
       { name: "Basis", href: "/rooms/basis", icon: Tag },
       { name: "Category", href: "/rooms/category", icon: Utensils },
       { name: "Seasons", href: "/rooms/seasons", icon: Sun },
+      { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
     ],
   },
   {
@@ -788,6 +789,7 @@ function PageTitle() {
       else if (path.includes("/rooms/basis")) resolvedTitle = "Basis";
       else if (path.includes("/rooms/category")) resolvedTitle = "Category";
       else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
+      else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
       // else if (path.includes("/gss-portal")) resolvedTitle = "GSS";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
