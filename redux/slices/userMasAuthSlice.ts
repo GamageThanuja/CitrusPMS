@@ -64,25 +64,31 @@ const userMasAuthSlice = createSlice({
       state.lastUsername = null;
     },
   },
-  extraReducers: (builder) => {
-    builder
-      .addCase(userMasAuth.pending, (state, action) => {
-        state.loading = true;
-        state.error = null;
-        state.success = false;
-        state.lastUsername = action.meta.arg?.username ?? null; // store username only
-      })
-      .addCase(userMasAuth.fulfilled, (state, action: PayloadAction<any | null>) => {
-        state.loading = false;
-        state.data = action.payload;
-        state.success = true;
-      })
-      .addCase(userMasAuth.rejected, (state, action) => {
-        state.loading = false;
-        state.success = false;
-        state.error = (action.payload as string) || "Authentication failed.";
-      });
-  },
+extraReducers: (builder) => {
+  builder
+    .addCase(userMasAuth.pending, (state, action) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+      state.lastUsername = action.meta.arg?.username ?? null; // store username only
+    })
+    .addCase(userMasAuth.fulfilled, (state, action: PayloadAction<any | null>) => {
+      state.loading = false;
+      state.data = action.payload;
+      state.success = true;
+
+      // Save userID to localStorage if present
+      if (action.payload?.userID) {
+        localStorage.setItem("userID", action.payload.userID.toString());
+      }
+    })
+    .addCase(userMasAuth.rejected, (state, action) => {
+      state.loading = false;
+      state.success = false;
+      state.error = (action.payload as string) || "Authentication failed.";
+    });
+},
+
 });
 
 export const { clearUserMasAuth } = userMasAuthSlice.actions;
