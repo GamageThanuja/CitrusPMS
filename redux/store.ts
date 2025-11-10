@@ -399,7 +399,7 @@ const store = configureStore({
     createItemMas: createItemMasReducer,
     fetchItemsByPOSCenter: fetchItemsByPOSCenterReducer,
     createItemsByPOSCenter: createItemsByPOSCenterReducer,
-    marketMas: fetchMarketMasReducer,
+    fetchMarketMas: fetchMarketMasReducer,
     createMarketMas: createMarketMasReducer,
     fetchEventTypeMas: fetchEventTypeMasReducer,
     createEventTypeMas: createEventTypeMasReducer,
