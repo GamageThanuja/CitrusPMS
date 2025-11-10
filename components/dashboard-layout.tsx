@@ -215,8 +215,8 @@ const menuGroups: MenuGroup[] = [
     items: [
       { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: Boxes },
       { name: "Nationality", href: "/configuration/nationality", icon: Tag },
-      { name: "Tax Table", href: "/configuration/tax-table", icon: Utensils },
-      { name: "Reservation Source", href: "/configuration/reservation-source", icon: Sun },
+      { name: "Tax Table", href: "/configuration/tax-table", icon: Receipt },
+      { name: "Reservation Source", href: "/configuration/reservation-source", icon: CalendarCheck },
     ],
   },
   
