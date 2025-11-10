@@ -299,8 +299,8 @@ const nameMasError = useSelector(selectFetchNameMasError);
   // }, [dispatch]);
 
   useEffect(() => {
-  // Example: fetching all NameMas with nameType = "Customer"
-  dispatch(fetchNameMas({ nameType: "Customer" }));
+  // Example: fetching all NameMas with nameType = "Agent"
+  dispatch(fetchNameMas({ nameType: "AGENT" }));
 }, [dispatch]);
 
 
@@ -383,7 +383,7 @@ const handleAddAgent = async (form: any) => {
     };
 
     await dispatch(createNameMas(payload)).unwrap();
-    await dispatch(fetchNameMas({ nameType: "Customer" }));
+    await dispatch(fetchNameMas({ nameType: "AGENT" }));
     setIsAddDrawerOpen(false);
   } catch (e) {
     console.error("Create agent failed:", e);
@@ -508,7 +508,7 @@ const handleEditAgent = async (updatedAgent: any) => {
       "";
 
     await dispatch(updateNameMas({ nameID: id, payload })).unwrap();
-    await dispatch(fetchNameMas({ nameType: "Customer" }));
+    await dispatch(fetchNameMas({ nameType: "AGENT" }));
     setIsEditDrawerOpen(false);
   } catch (e) {
     console.error("Update agent failed:", e);
@@ -662,7 +662,7 @@ const handleEditAgent = async (updatedAgent: any) => {
         onCreated={(agent) => {
           // Refresh list so it appears in the options (no page reload)
           // dispatch(fetchNameMasterByHotel());
-            dispatch(fetchNameMas({ nameType: "Customer" }));
+            dispatch(fetchNameMas({ nameType: "AGENT" }));
         }}
       />
       <EditTravelAgentDrawer

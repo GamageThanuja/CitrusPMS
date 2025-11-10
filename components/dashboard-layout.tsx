@@ -70,6 +70,7 @@ import {
   Building,
   Sun,
   LayoutGrid,
+  Calendar,
 } from "lucide-react";
 
 import {
@@ -228,6 +229,14 @@ const menuGroups: MenuGroup[] = [
       { name: "Room View", href: "/housekeeping/room-view", icon: LayoutGrid },
     ],
     // href: "/housekeeping",
+  },
+  {
+    label: "Events",
+    icon: Calendar,
+    items: [
+      { name: "Events List", href: "/events/event-list", icon: Calendar },
+      { name: "Event Types", href: "/events/event-types", icon: CalendarCheck },
+    ],
   },
   {
     label: "Reports",
@@ -770,6 +779,8 @@ function PageTitle() {
       // else if (path.includes("/gallery")) resolvedTitle = "Gallery";
       else if (path.includes("/housekeeping/room-view")) resolvedTitle = "Room View";
       else if (path.includes("/housekeeping")) resolvedTitle = "Housekeeping";
+      else if (path.includes("/events/event-list")) resolvedTitle = "Events List";
+      else if (path.includes("/events/event-types")) resolvedTitle = "Event Types";
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
       else if (path.includes("/reservation/bookings"))
