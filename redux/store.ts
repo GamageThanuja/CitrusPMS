@@ -215,6 +215,9 @@ import updateTaxTableReducer from "./slices/updateTaxTableSlice";
 import fetchVenueMasReducer from "./slices/fetchVenueMasSlice";
 import updateVenueMasReducer from "./slices/updateVenueMasSlice";
 import createVenueMasReducer from "./slices/createVenueMasSlice";
+import createMealAllocationReducer from "./slices/createMealAllocationSlice";
+import updateMealAllocationReducer from "./slices/updateMealAllocationSlice";
+
 
 
 
@@ -435,6 +438,8 @@ const store = configureStore({
     fetchVenueMas: fetchVenueMasReducer,
     updateVenueMas: updateVenueMasReducer,
     createVenueMas: createVenueMasReducer,
+    createMealAllocation: createMealAllocationReducer,
+    updateMealAllocation: updateMealAllocationReducer,
   },
 });
 
