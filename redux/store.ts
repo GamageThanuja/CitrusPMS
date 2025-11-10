@@ -191,6 +191,30 @@ import updateItemMasReducer from "./slices/updateItemMasSlice";
 import updateItemsByPOSCenterReducer from "./slices/updateItemsByPOSCenterSlice";
 import updateMarketMasReducer from "./slices/updateMarketMasSlice";
 import updateEventTypeMasReducer from "./slices/updateEventTypeMasSlice";
+import fetchHotelPOSCenterMasReducer from "./slices/fetchHotelPOSCenterMasSlice";
+import createHotelPOSCenterMasReducer from "./slices/createHotelPOSCenterMasSlice";
+import updateHotelPOSCenterMasReducer from "./slices/updateHotelPOSCenterMasSlice";
+import fetchReservationDetailsReducer from "./slices/fetchReservationDetailsSlice";
+import updateReservationDetailsReducer from "./slices/updateReservationDetailsSlice";
+import createReservationDetailsReducer from "./slices/createReservationDetailsSlice";
+import fetchReservationRateDetailsReducer from "./slices/fetchReservationRateDetailsSlice";
+import createReservationRateDetailsReducer from "./slices/createReservationRateDetailsSlice";
+import updateReservationRateDetailsReducer from "./slices/updateReservationRateDetailsSlice";
+import fetchReservationSourceReducer from "./slices/fetchReservationSourceSlice";
+import createReservationSourceReducer from "./slices/createReservationSourceSlice";
+import updateReservationSourceReducer from "./slices/updateReservationSourceSlice";
+import fetchSalesExecutiveMasReducer from "./slices/fetchSalesExecutiveMasSlice"
+import createSalesExecutiveMasReducer from "./slices/createSalesExecutiveMasSlice";
+import updateSalesExecutiveMasReducer from "./slices/updateSalesExecutiveMasSlice";
+import fetchSeasonMasReducer from "./slices/fetchSeasonMasSlice";
+import createSeasonMasReducer from "./slices/createSeasonMasSlice";
+import updateSeasonMasReducer from "./slices/updateSeasonMasSlice";
+import fetchTaxTableReducer from "./slices/fetchTaxTableSlice";
+import createTaxTableReducer from "./slices/createTaxTableSlice";
+import updateTaxTableReducer from "./slices/updateTaxTableSlice";
+import fetchVenueMasReducer from "./slices/fetchVenueMasSlice";
+import updateVenueMasReducer from "./slices/updateVenueMasSlice";
+import createVenueMasReducer from "./slices/createVenueMasSlice";
 
 
 
@@ -387,6 +411,30 @@ const store = configureStore({
     updateItemsByPOSCenter: updateItemsByPOSCenterReducer,
     updateMarketMas: updateMarketMasReducer,
     updateEventTypeMas: updateEventTypeMasReducer,
+    fetchHotelPOSCenterMas: fetchHotelPOSCenterMasReducer,
+    createHotelPOSCenterMas: createHotelPOSCenterMasReducer,
+    updateHotelPOSCenterMas: updateHotelPOSCenterMasReducer,
+    fetchReservationDetails: fetchReservationDetailsReducer,
+    updateReservationDetails: updateReservationDetailsReducer,
+    createReservationDetails: createReservationDetailsReducer,
+    fetchReservationRateDetails: fetchReservationRateDetailsReducer,
+    createReservationRateDetails: createReservationRateDetailsReducer,
+    updateReservationRateDetails: updateReservationRateDetailsReducer,
+    reservationSource: fetchReservationSourceReducer,
+    createReservationSource: createReservationSourceReducer,
+    updateReservationSource: updateReservationSourceReducer,
+    fetchSalesExecutiveMas: fetchSalesExecutiveMasReducer,
+    createSalesExecutiveMas: createSalesExecutiveMasReducer,
+    updateSalesExecutiveMas: updateSalesExecutiveMasReducer,
+    fetchSeasonMas: fetchSeasonMasReducer,
+    createSeasonMas: createSeasonMasReducer,
+    updateSeasonMas: updateSeasonMasReducer,
+    fetchTaxTable: fetchTaxTableReducer,
+    createTaxTable: createTaxTableReducer,
+    updateTaxTable: updateTaxTableReducer,
+    fetchVenueMas: fetchVenueMasReducer,
+    updateVenueMas: updateVenueMasReducer,
+    createVenueMas: createVenueMasReducer,
   },
 });
 
