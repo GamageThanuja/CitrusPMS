@@ -209,6 +209,17 @@ const menuGroups: MenuGroup[] = [
       { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
     ],
   },
+    {
+    label: "Configuration",
+    icon: Home,
+    items: [
+      { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: Boxes },
+      { name: "Nationality", href: "/configuration/nationality", icon: Tag },
+      { name: "Tax Table", href: "/configuration/tax-table", icon: Utensils },
+      { name: "Reservation Resource", href: "/configuration/reservation-resource", icon: Sun },
+    ],
+  },
+  
   {
     label: "POS",
     icon: Utensils,
@@ -236,6 +247,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { name: "Events List", href: "/events/event-list", icon: Calendar },
       { name: "Event Types", href: "/events/event-types", icon: CalendarCheck },
+      { name: "Venues", href: "/events/venues", icon: Building2 },
     ],
   },
   {
@@ -781,6 +793,7 @@ function PageTitle() {
       else if (path.includes("/housekeeping")) resolvedTitle = "Housekeeping";
       else if (path.includes("/events/event-list")) resolvedTitle = "Events List";
       else if (path.includes("/events/event-types")) resolvedTitle = "Event Types";
+      else if (path.includes("/events/venues")) resolvedTitle = "Venues";
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
       else if (path.includes("/reservation/bookings"))
@@ -801,7 +814,10 @@ function PageTitle() {
       else if (path.includes("/rooms/category")) resolvedTitle = "Category";
       else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
       else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
-      // else if (path.includes("/gss-portal")) resolvedTitle = "GSS";
+      else if (path.includes("/configuration/meal-allocation")) resolvedTitle = "Meal Allocation";
+      else if (path.includes("/configuration/nationality")) resolvedTitle = "Nationality";
+      else if (path.includes("/configuration/tax-table")) resolvedTitle = "Tax Table";
+      else if (path.includes("/configuration/reservation-resource")) resolvedTitle = "Reservation Resource";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
       // else if (path.includes("/financials/purchases"))
