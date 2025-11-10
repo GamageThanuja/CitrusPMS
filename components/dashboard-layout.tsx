@@ -68,6 +68,8 @@ import {
   Minimize2,
   ExternalLink,
   Building,
+  Sun,
+  LayoutGrid,
   Calendar,
 } from "lucide-react";
 
@@ -203,6 +205,8 @@ const menuGroups: MenuGroup[] = [
       { name: "Inventory", href: "/rooms/inventory", icon: Boxes },
       { name: "Basis", href: "/rooms/basis", icon: Tag },
       { name: "Category", href: "/rooms/category", icon: Utensils },
+      { name: "Seasons", href: "/rooms/seasons", icon: Sun },
+      { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
     ],
   },
   {
@@ -222,7 +226,7 @@ const menuGroups: MenuGroup[] = [
     icon: ConciergeBell,
     items: [
       { name: "Housekeeping", href: "/housekeeping", icon: Boxes },
-      { name: "Room View", href: "/housekeeping/room-view", icon: Boxes },
+      { name: "Room View", href: "/housekeeping/room-view", icon: LayoutGrid },
     ],
     // href: "/housekeeping",
   },
@@ -797,6 +801,8 @@ function PageTitle() {
       else if (path.includes("/rooms/inventory")) resolvedTitle = "Inventory";
       else if (path.includes("/rooms/basis")) resolvedTitle = "Basis";
       else if (path.includes("/rooms/category")) resolvedTitle = "Category";
+      else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
+      else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
       // else if (path.includes("/gss-portal")) resolvedTitle = "GSS";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
