@@ -1,3 +1,5 @@
+import fetchReservationDetailsByIdReducer from "./slices/fetchreservtaionByIdSlice";
+import fetchAvailableRoomTypesReducer from "./slices/fetchAvailableRoomTypesSlice";
 import userMasAuthReducer from "./slices/userMasAuthSlice";
 import frontdeskReducer from "./slices/frontdeskSlice";
 import { configureStore } from "@reduxjs/toolkit";
@@ -384,6 +386,7 @@ const store = configureStore({
     fetchMealAllocation: fetchMealAllocationReducer,
     fetchNameMas: fetchNameMasReducer,
     fetchNationalityMas: fetchNationalityMasReducer,
+    fetchAvailableRoomTypes: fetchAvailableRoomTypesReducer,
     createNameMas: createNameMasReducer,
     updateNameMas: updateNameMasReducer,
     categoryTypeMas: categoryTypeMasReducer,
