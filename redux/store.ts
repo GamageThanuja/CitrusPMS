@@ -168,7 +168,29 @@ import createCategoryMasReducer from "./slices/createCategoryMasSlice";
 import fetchNameMasReducer from "./slices/fetchNameMasSlice"; 
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
-import createBookingFeedReducer from "./slices/createBookingFeedSlice";
+import updateNameMasReducer from "./slices/updateNameMasSlice";
+import categoryTypeMasReducer from "./slices/fetchCategoryTypeMasSlice";
+import createCategoryTypeMasReducer from "./slices/createCategoryTypeMasSlice";
+import fetchPMSModuleMasReducer from "./slices/fetchPMSModuleMasSlice";
+import createPMSModuleMasReducer from "./slices/createPMSModuleMasSlice";
+import fetchPMSUserPermissionReducer from "./slices/fetchPMSUserPermissionSlice";
+import createPMSUserPermissionReducer from "./slices/createPMSUserPermissionSlice";
+import fetchItemMasReducer from "./slices/fetchItemMasSlice";
+import createItemMasReducer from "./slices/createItemMasSlice";
+import fetchItemsByPOSCenterReducer from "./slices/fetchItemsByPOSCenterSlice";
+import createItemsByPOSCenterReducer from "./slices/createItemsByPOSCenterSlice";
+import fetchMarketMasReducer from "./slices/fetchMarketMasSlice";
+import createMarketMasReducer from "./slices/createMarketMasSlice";
+import fetchEventTypeMasReducer from "./slices/fetchEventTypeMasSlice";
+import createEventTypeMasReducer from "./slices/createEventTypeMasSlice";
+import fetchControlNumberMasReducer from "./slices/fetchControlNumberMasSlice";
+import updateCategoryTypeMasReducer from "./slices/updateCategoryTypeMasSlice";
+import updatePMSModuleMasReducer from "./slices/updatePMSModuleMasSlice";
+import updatePMSUserPermissionReducer from "./slices/updatePMSUserPermissionSlice";
+import updateItemMasReducer from "./slices/updateItemMasSlice";
+import updateItemsByPOSCenterReducer from "./slices/updateItemsByPOSCenterSlice";
+import updateMarketMasReducer from "./slices/updateMarketMasSlice";
+import updateEventTypeMasReducer from "./slices/updateEventTypeMasSlice";
 
 
 
@@ -342,7 +364,29 @@ const store = configureStore({
     fetchNationalityMas: fetchNationalityMasReducer,
     fetchAvailableRoomTypes: fetchAvailableRoomTypesReducer,
     createNameMas: createNameMasReducer,
-    createBookingFeed: createBookingFeedReducer,
+    updateNameMas: updateNameMasReducer,
+    categoryTypeMas: categoryTypeMasReducer,
+    createCategoryTypeMas: createCategoryTypeMasReducer,
+    fetchPMSModuleMas: fetchPMSModuleMasReducer,
+    createPMSModuleMas: createPMSModuleMasReducer,
+    fetchPMSUserPermission: fetchPMSUserPermissionReducer,
+    createPMSUserPermission: createPMSUserPermissionReducer,
+    fetchItemMas: fetchItemMasReducer,
+    createItemMas: createItemMasReducer,
+    fetchItemsByPOSCenter: fetchItemsByPOSCenterReducer,
+    createItemsByPOSCenter: createItemsByPOSCenterReducer,
+    marketMas: fetchMarketMasReducer,
+    createMarketMas: createMarketMasReducer,
+    fetchEventTypeMas: fetchEventTypeMasReducer,
+    createEventTypeMas: createEventTypeMasReducer,
+    fetchControlNumberMas: fetchControlNumberMasReducer,
+    updateCategoryTypeMas: updateCategoryTypeMasReducer,
+    updatePMSModuleMas: updatePMSModuleMasReducer,
+    updatePMSUserPermission: updatePMSUserPermissionReducer,
+    updateItemMas: updateItemMasReducer,
+    updateItemsByPOSCenter: updateItemsByPOSCenterReducer,
+    updateMarketMas: updateMarketMasReducer,
+    updateEventTypeMas: updateEventTypeMasReducer,
   },
 });
 
