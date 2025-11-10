@@ -142,7 +142,7 @@ export function AddTravelAgentDrawer({
       finAct: !formData.isActive,
 
       nameID: 0,
-      nameType: "Agent",
+      nameType: "AGENT",
 
       code: formData.code,
       name: formData.name,
