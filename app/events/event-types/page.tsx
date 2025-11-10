@@ -31,6 +31,12 @@ import {
   selectUpdateEventTypeMasSuccess,
   resetUpdateEventTypeMasState,
 } from "@/redux/slices/updateEventTypeMasSlice";
+import {
+  createEventTypeMas,
+  selectCreateEventTypeMasLoading,
+  selectCreateEventTypeMasError,
+  resetCreateEventTypeMasState,
+} from "@/redux/slices/createEventTypeMasSlice";
 
 export default function EventTypes() {
   const dispatch = useDispatch<AppDispatch>();
@@ -42,7 +48,14 @@ export default function EventTypes() {
   const updateError = useSelector(selectUpdateEventTypeMasError);
   const updateSuccess = useSelector(selectUpdateEventTypeMasSuccess);
 
+  const createDialogRef = useRef<HTMLDialogElement | null>(null);
+  const creating = useSelector(selectCreateEventTypeMasLoading);
+  const createError = useSelector(selectCreateEventTypeMasError);
+
   const [query, setQuery] = useState("");
+  const [createValues, setCreateValues] = useState<{ eventType: string }>({
+    eventType: "",
+  });
 
   // edit dialog state
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -95,6 +108,38 @@ export default function EventTypes() {
     } catch (e) {
       // keep dialog open so user can correct; you can also surface the error below
       console.error("Update failed:", e);
+    }
+  };
+
+  const openCreate = () => {
+    dispatch(resetCreateEventTypeMasState());
+    setCreateValues({ eventType: "" });
+    createDialogRef.current?.showModal();
+  };
+
+  const closeCreate = () => {
+    createDialogRef.current?.close();
+    dispatch(resetCreateEventTypeMasState());
+  };
+
+  const handleCreateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCreateValues((p) => ({ ...p, [name]: value }));
+  };
+
+  const handleSaveCreate = async () => {
+    try {
+      await dispatch(
+        createEventTypeMas({
+          eventType: createValues.eventType.trim(),
+        })
+      ).unwrap();
+
+      await dispatch(fetchEventTypeMas());
+      closeCreate();
+    } catch (e) {
+      // keep dialog open so user can fix the value
+      console.error("Create failed:", e);
     }
   };
 
@@ -155,12 +200,20 @@ export default function EventTypes() {
               onChange={(e) => setQuery(e.target.value)}
               className="w-64"
             />
-            <Button
+            {/* <Button
               type="button"
               onClick={() => dispatch(fetchEventTypeMas())}
               disabled={loading}
             >
               {loading ? "Loading…" : "Reload"}
+            </Button> */}
+            <Button
+              type="button"
+              variant="default"
+              onClick={openCreate}
+              disabled={loading}
+            >
+              Add Event Type
             </Button>
           </div>
         </div>
@@ -282,6 +335,58 @@ export default function EventTypes() {
                 disabled={updating || !editValues.eventType.trim()}
               >
                 {updating ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        </dialog>
+
+        {/* Create dialog (native & accessible) */}
+        <dialog
+          ref={createDialogRef}
+          className="rounded-lg p-0 backdrop:bg-black/30"
+        >
+          <form method="dialog" className="w-[92vw] max-w-lg">
+            <div className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold">Add Event Type</h2>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              <div className="space-y-1">
+                <label
+                  htmlFor="create-eventType"
+                  className="text-sm text-gray-600"
+                >
+                  Event Type
+                </label>
+                <input
+                  id="create-eventType"
+                  name="eventType"
+                  value={createValues.eventType}
+                  onChange={handleCreateChange}
+                  placeholder="e.g., Conference"
+                  className="w-full px-3 py-2 border rounded text-sm bg-white"
+                  autoFocus
+                />
+              </div>
+              {createError && (
+                <div className="text-xs text-red-600">{createError}</div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+              <button
+                type="button"
+                onClick={closeCreate}
+                className="px-3 py-1.5 text-sm border rounded"
+                disabled={creating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCreate}
+                className="px-3 py-1.5 text-sm rounded bg-black text-white disabled:opacity-60"
+                disabled={creating || !createValues.eventType.trim()}
+              >
+                {creating ? "Saving…" : "Save"}
               </button>
             </div>
           </form>
