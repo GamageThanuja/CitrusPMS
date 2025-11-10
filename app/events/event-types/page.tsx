@@ -280,7 +280,10 @@ export default function EventTypes() {
         </div>
 
         {/* Edit dialog (native & accessible) */}
-        <dialog ref={dialogRef} className="rounded-lg p-0 backdrop:bg-black/30">
+        <dialog
+          ref={dialogRef}
+          className="rounded-lg p-0 backdrop:bg-black/30 open:fixed open:top-1/2 open:left-1/2 open:-translate-x-1/2 open:-translate-y-1/2 open:m-0"
+        >
           <form method="dialog" className="w-[92vw] max-w-lg">
             <div className="border-b px-4 py-3">
               <h2 className="text-base font-semibold">Edit Event Type</h2>
@@ -343,7 +346,7 @@ export default function EventTypes() {
         {/* Create dialog (native & accessible) */}
         <dialog
           ref={createDialogRef}
-          className="rounded-lg p-0 backdrop:bg-black/30"
+          className="rounded-lg p-0 backdrop:bg-black/30 open:fixed open:top-1/2 open:left-1/2 open:-translate-x-1/2 open:-translate-y-1/2 open:m-0"
         >
           <form method="dialog" className="w-[92vw] max-w-lg">
             <div className="border-b px-4 py-3">

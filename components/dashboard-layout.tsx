@@ -209,6 +209,8 @@ const menuGroups: MenuGroup[] = [
       { name: "Category", href: "/rooms/category", icon: Utensils },
       { name: "Seasons", href: "/rooms/seasons", icon: Sun },
       { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
+      { name: "Room Types", href: "/rooms/roomType", icon: Home },
+      { name: "Rooms", href: "/rooms/rooms", icon: BedDouble },
     ],
   },
     {
@@ -217,8 +219,8 @@ const menuGroups: MenuGroup[] = [
     items: [
       { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: ForkKnife },
       { name: "Nationality", href: "/configuration/nationality", icon: Globe },
-      { name: "Tax Table", href: "/configuration/tax-table", icon: Utensils },
-      { name: "Reservation Resource", href: "/configuration/reservation-resource", icon: Sun },
+      { name: "Tax Table", href: "/configuration/tax-table", icon: Receipt },
+      { name: "Reservation Resource", href: "/configuration/reservation-source", icon: CalendarCheck },
     ],
   },
   
@@ -817,10 +819,12 @@ function PageTitle() {
       else if (path.includes("/rooms/category")) resolvedTitle = "Category";
       else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
       else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
+      else if (path.includes("/rooms/roomType")) resolvedTitle = "Room Types";
+      else if (path.includes("/rooms/rooms")) resolvedTitle = "Rooms";
       else if (path.includes("/configuration/meal-allocation")) resolvedTitle = "Meal Allocation";
       else if (path.includes("/configuration/nationality")) resolvedTitle = "Nationality";
       else if (path.includes("/configuration/tax-table")) resolvedTitle = "Tax Table";
-      else if (path.includes("/configuration/reservation-resource")) resolvedTitle = "Reservation Resource";
+      else if (path.includes("/configuration/reservation-source")) resolvedTitle = "Reservation Source";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
       else if (path.includes("/property/user-permission")) resolvedTitle = "User Permission";
