@@ -232,6 +232,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { name: "Events List", href: "/events/event-list", icon: Calendar },
       { name: "Event Types", href: "/events/event-types", icon: CalendarCheck },
+      { name: "Venues", href: "/events/venues", icon: Building2 },
     ],
   },
   {
@@ -777,6 +778,7 @@ function PageTitle() {
       else if (path.includes("/housekeeping")) resolvedTitle = "Housekeeping";
       else if (path.includes("/events/event-list")) resolvedTitle = "Events List";
       else if (path.includes("/events/event-types")) resolvedTitle = "Event Types";
+      else if (path.includes("/events/venues")) resolvedTitle = "Venues";
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
       else if (path.includes("/reservation/bookings"))

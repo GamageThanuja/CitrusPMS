@@ -200,13 +200,13 @@ export default function EventTypes() {
               onChange={(e) => setQuery(e.target.value)}
               className="w-64"
             />
-            <Button
+            {/* <Button
               type="button"
               onClick={() => dispatch(fetchEventTypeMas())}
               disabled={loading}
             >
               {loading ? "Loading…" : "Reload"}
-            </Button>
+            </Button> */}
             <Button
               type="button"
               variant="default"
