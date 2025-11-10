@@ -216,7 +216,7 @@ const menuGroups: MenuGroup[] = [
       { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: Boxes },
       { name: "Nationality", href: "/configuration/nationality", icon: Tag },
       { name: "Tax Table", href: "/configuration/tax-table", icon: Utensils },
-      { name: "Reservation Resource", href: "/configuration/reservation-resource", icon: Sun },
+      { name: "Reservation Source", href: "/configuration/reservation-source", icon: Sun },
     ],
   },
   
@@ -817,7 +817,7 @@ function PageTitle() {
       else if (path.includes("/configuration/meal-allocation")) resolvedTitle = "Meal Allocation";
       else if (path.includes("/configuration/nationality")) resolvedTitle = "Nationality";
       else if (path.includes("/configuration/tax-table")) resolvedTitle = "Tax Table";
-      else if (path.includes("/configuration/reservation-resource")) resolvedTitle = "Reservation Resource";
+      else if (path.includes("/configuration/reservation-source")) resolvedTitle = "Reservation Source";
       else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
       else if (path.includes("/property/audit")) resolvedTitle = "Audit";
       // else if (path.includes("/financials/purchases"))
