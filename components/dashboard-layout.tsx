@@ -71,6 +71,7 @@ import {
   Sun,
   LayoutGrid,
   Calendar,
+  ForkKnife
 } from "lucide-react";
 
 import {
@@ -213,8 +214,8 @@ const menuGroups: MenuGroup[] = [
     label: "Configuration",
     icon: Home,
     items: [
-      { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: Boxes },
-      { name: "Nationality", href: "/configuration/nationality", icon: Tag },
+      { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: ForkKnife },
+      { name: "Nationality", href: "/configuration/nationality", icon: Globe },
       { name: "Tax Table", href: "/configuration/tax-table", icon: Utensils },
       { name: "Reservation Resource", href: "/configuration/reservation-resource", icon: Sun },
     ],
