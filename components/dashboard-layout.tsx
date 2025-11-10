@@ -219,7 +219,11 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Housekeeping",
     icon: ConciergeBell,
-    href: "/housekeeping",
+    items: [
+      { name: "Housekeeping", href: "/housekeeping", icon: Boxes },
+      { name: "Room View", href: "/housekeeping/room-view", icon: Boxes },
+    ],
+    // href: "/housekeeping",
   },
   {
     label: "Reports",
@@ -760,6 +764,7 @@ function PageTitle() {
       else if (path.includes("/night-audit")) resolvedTitle = "Night Audit";
       else if (path.includes("/chat")) resolvedTitle = "Messages";
       // else if (path.includes("/gallery")) resolvedTitle = "Gallery";
+      else if (path.includes("/housekeeping/room-view")) resolvedTitle = "Room View";
       else if (path.includes("/housekeeping")) resolvedTitle = "Housekeeping";
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
