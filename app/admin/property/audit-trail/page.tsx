@@ -14,7 +14,7 @@ import {
 import { useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function AuditPage() {
+export default function AuditTrailPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(50);

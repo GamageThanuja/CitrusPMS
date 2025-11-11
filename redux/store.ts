@@ -219,6 +219,7 @@ import createMealAllocationReducer from "./slices/createMealAllocationSlice";
 import updateMealAllocationReducer from "./slices/updateMealAllocationSlice";
 import createNationalityMasReducer from "./slices/createNationalityMasSlice";
 import updateNationalityMasReducer from "./slices/updateNationalityMasSlice";
+import fetchUserMasReducer from "./slices/fetchUserMasSlice";
 
 
 
@@ -444,6 +445,7 @@ const store = configureStore({
     updateMealAllocation: updateMealAllocationReducer,
     createNationalityMas: createNationalityMasReducer,
     updateNationalityMas: updateNationalityMasReducer,
+     fetchUserMas: fetchUserMasReducer,
   },
 });
 
