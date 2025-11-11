@@ -92,7 +92,9 @@ import {
   CalendarX,
   CalendarDays,
   Megaphone,
-  Store
+  Store,
+  Sliders,
+  Inbox
 } from "lucide-react";
 
 import {
@@ -489,14 +491,33 @@ const menuGroups: MenuGroup[] = [
       { name: "POS Order List", href: "/point-of-sale/pos-order-list", icon: LayoutList },
     ],
   },
-  // {
-  //   label: "Property",
-  //   icon: Building,
-  //   items: [
-  // { name: "audit", href: "/property/audit", icon: FileText },
-  // { name: "User Permission", href: "/property/user-permission", icon: Lock },
-  //   ],
-  // },
+  {
+    label: "IBE",
+    icon: Building,
+    items: [
+  { name: "IBE-Home", href: "/IBE/ibe-home", icon: FileText },
+  { name: "User Permission", href: "/IBE/user-permission", icon: Lock },
+  { name: "IBE Min Stay", href: "/IBE/IBE-min-stay", icon: Clock },
+  { name: "IBE Packages", href: "/IBE/IBE-packages", icon: Package },
+  { name: "IBE Preference", href: "/IBE/IBE-preference", icon: Sliders },
+  { name: "IBE Promo", href: "/IBE/IBE-promo", icon: Tag },
+  { name: "IBE Rates", href: "/IBE/rates", icon: DollarSign },
+    ],
+  },
+    {
+    label: "Channel Manager",
+    icon: Globe,
+    items: [
+  { name: "Get Booking By ID", href: "/channel-manager/get-booking-by-id", icon: FileText },
+  { name: "Bookings", href: "/channel-manager/bookings", icon: LayoutList },
+  { name: "Full Refresh", href: "/channel-manager/full-refresh", icon: Clock },
+  { name: "Process Pending IBE Booking", href: "/channel-manager/pending-ibe-booking", icon: Users },
+  { name: "Rates Management", href: "/channel-manager/rates-management", icon: Sliders },
+  { name: "Receive Log", href: "/channel-manager/receive-log", icon: Inbox },
+  { name: "Reversations", href: "/channel-manager/reversations", icon: DollarSign },
+  { name : "Room Mapping", href: "/channel-manager/room-mapping", icon: Settings}
+    ],
+  },
   {
     label: "Housekeeping",
     icon: ConciergeBell,
@@ -1445,25 +1466,32 @@ function PageTitle() {
       else if (path.includes("/point-of-sale/pos-order-list"))
         resolvedTitle = "POS Order List";
       else if (path.includes("/point-of-sale/pos")) resolvedTitle = "Point of Sale";
-      // else if (path.includes("/property/audit")) resolvedTitle = "Audit";
-      // else if (path.includes("/property/user-permission")) resolvedTitle = "User Permission";
-      // else if (path.includes("/financials/purchases"))
-      //   resolvedTitle = "Purchases";
-      // else if (path.includes("/financials/expenses"))
-      //   resolvedTitle = "Expenses";
-      // else if (path.includes("/financials/payables"))
-      //   resolvedTitle = "Payables";
-      // else if (path.includes("/financials/receivables"))
-      //   resolvedTitle = "Receivables";
-      // else if (path.includes("/financials/profit-loss"))
-      //   resolvedTitle = "Profit & Loss";
-      // else if (path.includes("/financials/transactions"))
-      //   resolvedTitle = "Transactions";
-      // else if (path.includes("/settings/users")) resolvedTitle = "Users";
-      // else if (path.includes("/settings/currency")) resolvedTitle = "Currency";
-      // else if (path.includes("/settings/taxes")) resolvedTitle = "Taxes";
       else if (path.includes("/settings/travel-agents"))
         resolvedTitle = "Travel Agents";
+      else if (path.includes("/IBE/IBE-home")) resolvedTitle = "IBE Home";
+      else if (path.includes("/IBE/IBE-min-stay")) resolvedTitle = "IBE Min Stay";
+      else if (path.includes("/IBE/IBE-packages")) resolvedTitle = "IBE Packages";
+      else if (path.includes("/IBE/IBE-preference"))
+        resolvedTitle = "IBE Preference";
+      else if (path.includes("/IBE/IBE-promo")) resolvedTitle = "IBE Promo";
+      else if (path.includes("/IBE/rates")) resolvedTitle = "IBE Rates";
+      else if (path.includes("/channel-manager/get-booking-by-id"))
+        resolvedTitle = "Get Booking By ID";
+      else if (path.includes("/channel-manager/bookings"))
+        resolvedTitle = "Bookings";
+      else if (path.includes("/channel-manager/full-refresh"))
+        resolvedTitle = "Full Refresh";
+      else if (path.includes("/channel-manager/pending-ibe-booking"))
+        resolvedTitle = "Process Pending IBE Booking";
+      else if (path.includes("/channel-manager/rates-management"))
+        resolvedTitle = "Rates Management";
+      else if (path.includes("/channel-manager/receive-log"))
+        resolvedTitle = "Receive Log";
+      else if (path.includes("/channel-manager/reversations"))
+        resolvedTitle = "Reversations";
+      else if (path.includes("/channel-manager/room-mapping"))
+        resolvedTitle = "Room Mapping";
+
       // else if (path.includes("/settings/suppliers"))
       //   resolvedTitle = "Suppliers";
       // else if (path.includes("/settings/property")) resolvedTitle = "Property";
