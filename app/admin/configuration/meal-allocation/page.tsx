@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
-import { RefreshCw, Edit, Loader2 } from "lucide-react";
+import { RefreshCw, Edit, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import {
   fetchMealAllocation,
@@ -35,6 +35,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
 
 interface MealUI {
   id: number;
@@ -79,6 +87,10 @@ export default function MealAllocationPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [username, setUsername] = useState<string>("");
 
+  // Pagination state
+  const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   /** Load remembered username */
   useEffect(() => {
     const stored = localStorage.getItem("rememberedUsername");
@@ -115,6 +127,29 @@ export default function MealAllocationPage() {
       )
     );
   }, [items, query]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPageIndex(1);
+  }, [query, pageSize]);
+
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const canPrev = pageIndex > 1 && !loading;
+  const canNext = !loading && pageIndex < totalPages;
+
+  const handlePrev = () => canPrev && setPageIndex((p) => p - 1);
+  const handleNext = () => canNext && setPageIndex((p) => p + 1);
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value) || 10);
+    setPageIndex(1);
+  };
+
+  const paginated = useMemo(() => {
+    const start = (pageIndex - 1) * pageSize;
+    const end = start + pageSize;
+    return filtered.slice(start, end);
+  }, [filtered, pageIndex, pageSize]);
 
   /** Open create dialog */
   const openCreateDialog = () => {
@@ -204,29 +239,28 @@ export default function MealAllocationPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-4">
+      <div className="p-4 space-y-4">
         {/* Header */}
-        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <Button
-            variant="outline"
-            onClick={() => dispatch(fetchMealAllocation())}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            <span className="ml-2">Refresh</span>
-          </Button>
-
-          <div className="flex gap-2 md:ml-auto">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-semibold">Meal Allocations</h1>
+          <div className="flex gap-2">
             <Input
               placeholder="Search by hotel, currency, or created by..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full md:w-64"
+              className="w-64"
             />
+            <Button
+              variant="outline"
+              onClick={() => dispatch(fetchMealAllocation())}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
             <Button onClick={openCreateDialog}>Add Allocation</Button>
           </div>
         </div>
@@ -238,78 +272,71 @@ export default function MealAllocationPage() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="overflow-x-auto border rounded-md">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-100 dark:bg-zinc-800">
-              <tr>
-                {[
-                  "#",
-                  "Hotel Code",
-                  "Breakfast",
-                  "Lunch",
-                  "Dinner",
-                  "AI",
-                  "Currency",
-                  "Created By",
-                  "Created On",
-                  "Last Updated By",
-                  "Last Updated On",
-                  "Actions",
-                ].map((h) => (
-                  <th key={h} className="px-4 py-2 border-b">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i}>
-                      <td
-                        colSpan={12}
-                        className="px-4 py-2 animate-pulse bg-gray-100 dark:bg-zinc-900 h-10"
-                      />
-                    </tr>
-                  ))
-                : filtered.map((meal, idx) => (
-                    <tr
-                      key={meal.id}
-                      className="hover:bg-gray-50 dark:hover:bg-zinc-700"
-                    >
-                      <td className="px-4 py-2 border-b">{idx + 1}</td>
-                      <td className="px-4 py-2 border-b">{meal.hotelCode}</td>
-                      <td className="px-4 py-2 border-b">{meal.breakfast}</td>
-                      <td className="px-4 py-2 border-b">{meal.lunch}</td>
-                      <td className="px-4 py-2 border-b">{meal.dinner}</td>
-                      <td className="px-4 py-2 border-b">{meal.ai}</td>
-                      <td className="px-4 py-2 border-b">{meal.currency}</td>
-                      <td className="px-4 py-2 border-b">{meal.createdBy}</td>
-                      <td className="px-4 py-2 border-b">
-                        {meal.createdOn
-                          ? new Date(meal.createdOn).toLocaleString()
-                          : "-"}
-                      </td>
-                      <td className="px-4 py-2 border-b">{meal.lastUpdatedBy}</td>
-                      <td className="px-4 py-2 border-b">
-                        {meal.lastUpdatedOn
-                          ? new Date(meal.lastUpdatedOn).toLocaleString()
-                          : "-"}
-                      </td>
-                      <td className="px-4 py-2 border-b text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(meal)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-            </tbody>
-          </table>
+        {/* Table - Updated to use common component */}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">#</TableHead>
+                <TableHead className="w-[100px]">Hotel Code</TableHead>
+                <TableHead className="w-[90px]">Breakfast</TableHead>
+                <TableHead className="w-[80px]">Lunch</TableHead>
+                <TableHead className="w-[80px]">Dinner</TableHead>
+                <TableHead className="w-[70px]">AI</TableHead>
+                <TableHead className="w-[90px]">Currency</TableHead>
+                <TableHead className="w-[100px]">Created By</TableHead>
+                <TableHead className="w-[140px]">Created On</TableHead>
+                <TableHead className="w-[120px]">Last Updated By</TableHead>
+                <TableHead className="w-[140px]">Last Updated On</TableHead>
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={12} className="py-6 text-center">
+                    Loading meal allocations…
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginated.map((meal, idx) => (
+                  <TableRow key={meal.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      {(pageIndex - 1) * pageSize + idx + 1}
+                    </TableCell>
+                    <TableCell>{meal.hotelCode}</TableCell>
+                    <TableCell>{meal.breakfast}</TableCell>
+                    <TableCell>{meal.lunch}</TableCell>
+                    <TableCell>{meal.dinner}</TableCell>
+                    <TableCell>{meal.ai}</TableCell>
+                    <TableCell>{meal.currency}</TableCell>
+                    <TableCell>{meal.createdBy}</TableCell>
+                    <TableCell>
+                      {meal.createdOn
+                        ? new Date(meal.createdOn).toLocaleString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell>{meal.lastUpdatedBy}</TableCell>
+                    <TableCell>
+                      {meal.lastUpdatedOn
+                        ? new Date(meal.lastUpdatedOn).toLocaleString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditDialog(meal)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+
           {!loading && filtered.length === 0 && (
             <div className="p-4 text-center text-sm text-muted-foreground">
               No meal allocations found.
@@ -317,9 +344,55 @@ export default function MealAllocationPage() {
           )}
         </div>
 
+        {/* Pagination Controls - Consistent with venues */}
+        {filtered.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
+            <div className="hidden sm:block" />
+            <div className="flex justify-center">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handlePrev}
+                  disabled={!canPrev}
+                  className="flex items-center gap-1 text-sm text-black disabled:text-gray-400"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </button>
+                <span className="px-3 py-1 rounded bg-black text-white text-sm">
+                  {pageIndex} / {totalPages}
+                </span>
+                <button
+                  onClick={handleNext}
+                  disabled={!canNext}
+                  className="flex items-center gap-1 text-sm text-black disabled:text-gray-400"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="flex items-center gap-2">
+                <label htmlFor="pageSize" className="text-sm text-gray-600">
+                  Rows per page:
+                </label>
+                <select
+                  id="pageSize"
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  className="px-2 py-1 text-sm border rounded bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editId ? "Edit Meal Allocation" : "Create Meal Allocation"}
