@@ -76,6 +76,23 @@ import {
   Lock,
   Gift,
   ClipboardList,
+  Scale,
+  Wallet,
+  BarChart,
+  ListOrdered,
+  CheckSquare,
+  Package,
+  MonitorPlay,
+  ReceiptText,
+  ScrollText,
+  Briefcase,
+  TrendingUp,
+  UserCheck,
+  Clock,
+  CalendarX,
+  CalendarDays,
+  Megaphone,
+  Store
 } from "lucide-react";
 
 import {
@@ -527,7 +544,193 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Reports",
     icon: FileText,
-    href: "/reports",
+    items: [
+      {  
+        name: "Reports",
+        icon: FileText,
+        href: "/reports",
+      },  
+      {  
+        name: "Collection",
+        icon: Wallet,
+        items: [
+          {
+            name: "City Ledger",
+            href: "/reports/collection/city-ledger",
+            icon: Scale,
+          },
+          {
+            name: "Collection Summary",
+            href: "/reports/collection/collection-summary",
+            icon: BarChart,
+          },
+          {
+            name: "Collection Summary 2",
+            href: "/reports/collection/collection-summary2",
+            icon: ListOrdered,
+          },
+          {
+            name: "Deposit Ledger",
+            href: "/reports/collection/deposit-ledger",
+            icon: Banknote,
+          },
+          {
+            name: "Settlement Summary",
+            href: "/reports/collection/settlement-summary",
+            icon: CheckSquare,
+          },
+        ]
+      },  
+      {  
+        name: "Point Of Sales",
+        icon: MonitorPlay,
+        items: [
+          {
+            name: "Item List",
+            href: "/reports/point-of-sales/item-list",
+            icon: Package,
+          },
+          {
+            name: "KOT/BOT",
+            href: "/reports/point-of-sales/kot-bot",
+            icon: ReceiptText,
+          },
+          {
+            name: "Meal Allocation",
+            href: "/reports/point-of-sales/meal-allocation",
+            icon: ForkKnife,
+          },
+          {
+            name: "POS Bills",
+            href: "/reports/point-of-sales/pos-bills",
+            icon: ScrollText,
+          },
+          {
+            name: "POS Bills Complementary",
+            href: "/reports/point-of-sales/pos-bills-complementary",
+            icon: Gift,
+          },
+          {
+            name: "POS Bills Dept Charge",
+            href: "/reports/point-of-sales/pos-bills-dept-charge",
+            icon: Building,
+          },
+        ]
+      },  
+      {  
+        name: "Property",
+        icon: Building2,
+        items: [
+          {
+            name: "Business On The Book",
+            href: "/reports/property/business-on-the-book",
+            icon: Briefcase,
+          },
+          {
+            name: "Occupancy Forecast",
+            href: "/reports/property/occupancy-forecast",
+            icon: TrendingUp,
+          },
+          {
+            name: "Occupancy Report",
+            href: "/reports/property/occupancy-report",
+            icon: UserCheck,
+          },
+          {
+            name: "Reservation/Sales",
+            href: "/reports/property/reservation-or-sales",
+            icon: CalendarCheck,
+          },
+          {
+            name: "Revenue Forecast",
+            href: "/reports/property/revenue-forecast",
+            icon: LineChart,
+          },
+          {
+            name: "Revenue Overview",
+            href: "/reports/property/revenue-overview",
+            icon: Wallet,
+          },
+          {
+            name: "Revenue Report",
+            href: "/reports/property/revenue-report",
+            icon: Receipt,
+          },
+          {
+            name: "Room Revenue Report",
+            href: "/reports/property/room-revenue-report",
+            icon: Bed,
+          },
+        ]
+      },  
+      {  
+        name: "Reservations",
+        icon: CalendarDays,
+        items: [
+          {
+            name: "Arrivals",
+            href: "/reports/reservations/arrivals",
+            icon: LogIn,
+          },
+          {
+            name: "Cancellaations",
+            href: "/reports/reservations/cancellations",
+            icon: CalendarX,
+          },
+          {
+            name: "Check-in/Check-out Detail",
+            href: "/reports/reservations/check-in-check-out-detail",
+            icon: Clock,
+          },
+          {
+            name: "Departures",
+            href: "/reports/reservations/departures",
+            icon: LogOut,
+          },
+          {
+            name: "In-house Guest List",
+            href: "/reports/reservations/in-house-guest-list",
+            icon: Users,
+          },
+          {
+            name: "Information Sheet",
+            href: "/reports/reservations/information-sheet",
+            icon: FileText,
+          },
+          {
+            name: "List Of Reservations",
+            href: "/reports/reservations/list-of-reservations",
+            icon: ListChecks,
+          },
+          {
+            name: "Meal Forecast",
+            href: "/reports/reservations/meal-forecast",
+            icon: ForkKnife,
+          },
+        ]
+      },  
+      {  
+        name: "Sales",
+        icon: DollarSign,
+        items: [
+          {
+            name: "Events Sales",
+            href: "/reports/sales/events-sales",
+            icon: Megaphone,
+          },
+          {
+            name: "Outlet Sales",
+            href: "/reports/sales/outlet-sales",
+            icon: Store,
+          },
+          {
+            name: "Rooms Sales",
+            href: "/reports/sales/rooms-sales",
+            icon: BedDouble,
+          },
+        ]
+      },  
+    ],
   },
   {
     label: "Night Audit",
@@ -1066,6 +1269,36 @@ function PageTitle() {
       const path = window.location.pathname;
       let resolvedTitle = "Dashboard";
       if (path.includes("/dashboard")) resolvedTitle = "Dashboard";
+      else if (path.includes("/reports/collection/city-ledger")) resolvedTitle = "City Ledger";
+      else if (path.includes("/reports/collection/collection-summary2")) resolvedTitle = "Collection Summary 2";
+      else if (path.includes("/reports/collection/collection-summary")) resolvedTitle = "Collection Summary";
+      else if (path.includes("/reports/collection/deposit-ledger")) resolvedTitle = "Deposit Ledger";
+      else if (path.includes("/reports/collection/settlement-summary")) resolvedTitle = "Settlement Summary";
+      else if (path.includes("/reports/point-of-sales/item-list")) resolvedTitle = "Item List";
+      else if (path.includes("/reports/point-of-sales/kot-bot")) resolvedTitle = "KOT/BOT";
+      else if (path.includes("/reports/point-of-sales/meal-allocation")) resolvedTitle = "Meal Allocation";
+      else if (path.includes("/reports/point-of-sales/pos-bills-complementary")) resolvedTitle = "POS Bills Complementary";
+      else if (path.includes("/reports/point-of-sales/pos-bills")) resolvedTitle = "POS Bills";
+      else if (path.includes("/reports/point-of-sales/pos-bills-dept-charge")) resolvedTitle = "POS Bills Dept Charge";
+      else if (path.includes("/reports/property/business-on-the-book")) resolvedTitle = "Business On The Book";
+      else if (path.includes("/reports/property/occupancy-forecast")) resolvedTitle = "Occupancy Forecast";
+      else if (path.includes("/reports/property/occupancy-report")) resolvedTitle = "Occupancy Report";
+      else if (path.includes("/reports/property/reservation-or-sales")) resolvedTitle = "Reservation/Sales";
+      else if (path.includes("/reports/property/revenue-forecast")) resolvedTitle = "Revenue Forecast";
+      else if (path.includes("/reports/property/revenue-overview")) resolvedTitle = "Revenue Overview";
+      else if (path.includes("/reports/property/revenue-report")) resolvedTitle = "Revenue Report";
+      else if (path.includes("/reports/property/room-revenue-report")) resolvedTitle = "Room Revenue Report";
+      else if (path.includes("/reports/reservations/arrivals")) resolvedTitle = "Arrivals";
+      else if (path.includes("/reports/reservations/cancellations")) resolvedTitle = "Cancellations";
+      else if (path.includes("/reports/reservations/check-in-check-out-detail")) resolvedTitle = "Check-in/Check-out Detail";
+      else if (path.includes("/reports/reservations/departures")) resolvedTitle = "Departures";
+      else if (path.includes("/reports/reservations/in-house-guest-list")) resolvedTitle = "In-house Guest List";
+      else if (path.includes("/reports/reservations/information-sheet")) resolvedTitle = "Information Sheet";
+      else if (path.includes("/reports/reservations/list-of-reservations")) resolvedTitle = "List Of Reservations";
+      else if (path.includes("/reports/reservations/meal-forecast")) resolvedTitle = "Meal Forecast";
+      else if (path.includes("/reports/sales/events-sales")) resolvedTitle = "Events Sales";
+      else if (path.includes("/reports/sales/outlet-sales")) resolvedTitle = "Outlet Sales";
+      else if (path.includes("/reports/sales/rooms-sales")) resolvedTitle = "Rooms Sales";
       else if (path.includes("/reports")) resolvedTitle = "Reports";
       else if (path.includes("/support")) resolvedTitle = "Support";
       // else if (path.includes("/logs")) resolvedTitle = "Logs";
