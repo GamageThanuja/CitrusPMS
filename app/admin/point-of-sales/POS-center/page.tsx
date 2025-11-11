@@ -352,15 +352,7 @@ export default function POSCenterPage() {
           )}
         </div>
 
-        {/* ---------- Search + table ---------- */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search code / name / id / hotel…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="w-80"
-          />
-        </div>
+        {/* ---------- table ---------- */}
 
         {error && (
           <div className="text-red-600 text-sm border border-red-200 rounded-md p-3 bg-red-50">
