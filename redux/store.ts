@@ -223,6 +223,7 @@ import fetchUserMasReducer from "./slices/fetchUserMasSlice";
 import fetchMealPlanByFolioByDateReducer from "./slices/fetchMealPlanByFolioByDateSlice";
 import createMealPlanByFolioByDateReducer from "./slices/createMealPlanByFolioByDateSlice";
 import updateMealPlanByFolioByDateReducer from "./slices/updateMealPlanByFolioByDateSlice";
+import updateHotelMasReducer from "./slices/updateHotelMasSlice";
 
 
 
@@ -451,6 +452,7 @@ const store = configureStore({
     fetchMealPlanByFolioByDate: fetchMealPlanByFolioByDateReducer,
     createMealPlanByFolioByDate: createMealPlanByFolioByDateReducer,
     updateMealPlanByFolioByDate: updateMealPlanByFolioByDateReducer,
+    updateHotelMas: updateHotelMasReducer,
   },
 });
 
