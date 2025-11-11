@@ -220,7 +220,9 @@ import updateMealAllocationReducer from "./slices/updateMealAllocationSlice";
 import createNationalityMasReducer from "./slices/createNationalityMasSlice";
 import updateNationalityMasReducer from "./slices/updateNationalityMasSlice";
 import fetchUserMasReducer from "./slices/fetchUserMasSlice";
-
+import fetchMealPlanByFolioByDateReducer from "./slices/fetchMealPlanByFolioByDateSlice";
+import createMealPlanByFolioByDateReducer from "./slices/createMealPlanByFolioByDateSlice";
+import updateMealPlanByFolioByDateReducer from "./slices/updateMealPlanByFolioByDateSlice";
 
 
 
@@ -445,7 +447,10 @@ const store = configureStore({
     updateMealAllocation: updateMealAllocationReducer,
     createNationalityMas: createNationalityMasReducer,
     updateNationalityMas: updateNationalityMasReducer,
-     fetchUserMas: fetchUserMasReducer,
+    fetchUserMas: fetchUserMasReducer,
+    fetchMealPlanByFolioByDate: fetchMealPlanByFolioByDateReducer,
+    createMealPlanByFolioByDate: createMealPlanByFolioByDateReducer,
+    updateMealPlanByFolioByDate: updateMealPlanByFolioByDateReducer,
   },
 });
 
