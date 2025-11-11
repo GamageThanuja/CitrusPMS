@@ -754,6 +754,16 @@ const menuGroups: MenuGroup[] = [
       },  
     ],
   },
+   {
+    label: "BI",
+    icon: BarChart3,
+    items: [
+      { name: "Occupancy", href: "/BI/occupancy", icon: BarChart3 },
+      { name: "Revenue", href: "/BI/revenue", icon: FileText },
+      { name: "Snapshot", href: "/BI/snapshot", icon: LayoutList },
+      { name: "Travellers", href: "/BI/travellers", icon: Users },
+    ],
+  },
   {
     label: "Night Audit",
     icon: Activity,
@@ -1492,6 +1502,11 @@ function PageTitle() {
         resolvedTitle = "Reversations";
       else if (path.includes("/channel-manager/room-mapping"))
         resolvedTitle = "Room Mapping";
+
+      else if (path.includes("/BI/occupancy")) resolvedTitle = "Occupancy";
+      else if (path.includes("/BI/revenue")) resolvedTitle = "Revenue";
+      else if (path.includes("/BI/snapshot")) resolvedTitle = "Snapshot";
+      else if (path.includes("/BI/travellers")) resolvedTitle = "Travellers";
 
       // else if (path.includes("/settings/suppliers"))
       //   resolvedTitle = "Suppliers";
