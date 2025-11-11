@@ -54,6 +54,7 @@ import {
   MapPin,
   Truck,
   LayoutList,
+  List,
   Settings,
   BadgeDollarSign,
   Bot,
@@ -72,7 +73,9 @@ import {
   LayoutGrid,
   Calendar,
   ForkKnife,
-  Lock
+  Lock,
+  Gift,
+  ClipboardList,
 } from "lucide-react";
 
 import {
@@ -165,10 +168,17 @@ const getCurrentHotelCode = () => {
   return "";
 };
 
+interface MenuItem {
+  name: string;
+  href?: string;
+  icon?: React.ComponentType<any>;
+  items?: MenuItem[];
+}
+
 interface MenuGroup {
   label: string;
   icon: React.ComponentType<any>;
-  items?: { name: string; href: string; icon: React.ComponentType<any> }[];
+  items?: MenuItem[];
   href?: string;
 }
 
@@ -201,48 +211,286 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
-    label: "Room & Rates",
+    label: "Rates",
     icon: Home,
     items: [
-      { name: "Inventory", href: "/rooms/inventory", icon: Boxes },
-      { name: "Basis", href: "/rooms/basis", icon: Tag },
-      { name: "Category", href: "/rooms/category", icon: Utensils },
-      { name: "Seasons", href: "/rooms/seasons", icon: Sun },
-      { name: "Markets", href: "/rooms/markets", icon: ShoppingBag },
-      { name: "Room Types", href: "/rooms/roomType", icon: Home },
-      { name: "Rooms", href: "/rooms/rooms", icon: BedDouble },
+      // { name: "Inventory", href: "/rates/inventory", icon: Boxes },
+      // { name: "Basis", href: "/rates/basis", icon: Tag },
+      // { name: "Category", href: "/rates/category", icon: Utensils },
+      { name: "Seasons", href: "/rates/seasons", icon: Sun },
+      { name: "Markets", href: "/rates/markets", icon: ShoppingBag },
+      { name: "Rooms Rates", href: "/rates/rooms-rates", icon: Percent },
+      { name: "Rate Codes", href: "/rates/rate-codes", icon: BadgeDollarSign },
+      { name: "Supplements", href: "/rates/supplements", icon: Gift },
     ],
   },
-    {
-    label: "Configuration",
+  {
+    label: "Admin",
     icon: Home,
     items: [
-      { name: "Meal Allocation", href: "/configuration/meal-allocation", icon: ForkKnife },
-      { name: "Nationality", href: "/configuration/nationality", icon: Globe },
-      { name: "Tax Table", href: "/configuration/tax-table", icon: Receipt },
-      { name: "Reservation Resource", href: "/configuration/reservation-source", icon: CalendarCheck },
+      {
+        name: "Configuration",
+        icon: Settings2,
+        // nested configuration submenu
+        items: [
+          {
+            name: "Meal Allocation",
+            href: "/admin/configuration/meal-allocation",
+            icon: ForkKnife,
+          },
+          {
+            name: "Nationality",
+            href: "/admin/configuration/nationality",
+            icon: Globe,
+          },
+          {
+            name: "Tax Table",
+            href: "/admin/configuration/tax-table",
+            icon: Receipt,
+          },
+          {
+            name: "Reservation Source",
+            href: "/admin/configuration/reservation-source",
+            icon: CalendarCheck,
+          },
+        ],
+      },
+      {
+        name: "Point of Sales",
+        icon: ShoppingCart,
+        items: [
+          {
+            name: "Add-on Items",
+            href: "/admin/point-of-sales/add-on-items",
+            icon: ArrowUpCircle,
+          },
+          {
+            name: "Attach Bar Items",
+            href: "/admin/point-of-sales/attach-bar-items",
+            icon: Settings,
+          },
+          {
+            name: "Attach POS Items",
+            href: "/admin/point-of-sales/attach-pos-items",
+            icon: Settings,
+          },
+          {
+            name: "Base Category",
+            href: "/admin/point-of-sales/base-category",
+            icon: LayoutGrid,
+          },
+          {
+            name: "Compliment Types",
+            href: "/admin/point-of-sales/compliment-types",
+            icon: Tag,
+          },
+          {
+            name: "Import POS Items",
+            href: "/admin/point-of-sales/import-pos-items",
+            icon: ArrowUpCircle,
+          },
+          {
+            name: "Item Category",
+            href: "/admin/point-of-sales/item-category",
+            icon: Tag,
+          },
+          {
+            name: "Item List",
+            href: "/admin/point-of-sales/item-list",
+            icon: LayoutList,
+          },
+          {
+            name: "New Item",
+            href: "/admin/point-of-sales/new-item",
+            icon: ArrowUpCircle,
+          },
+          {
+            name: "POS Center",
+            href: "/admin/point-of-sales/POS-center",
+            icon: SatelliteDish,
+          },
+          {
+            name: "Service Items",
+            href: "/admin/point-of-sales/service-items",
+            icon: Settings,
+          },
+          { name: "SKU", href: "/admin/point-of-sales/SKU", icon: Tag },
+          {
+            name: "Sub Item",
+            href: "/admin/point-of-sales/sub-item",
+            icon: ArrowDownCircle,
+          },
+        ],
+      },
+      {
+        name: "Property",
+        icon: Building,
+        items: [
+          {
+            name: "Audit Trail",
+            href: "/admin/property/audit-trail",
+            icon: FileText,
+          },
+          { name: "Backup", href: "/admin/property/backup", icon: Archive },
+          { name: "Idea Hub", href: "/admin/property/idea-hub", icon: Palette },
+          {
+            name: "Property Detail",
+            href: "/admin/property/property-detail",
+            icon: Building2,
+          },
+          {
+            name: "Property Preferences",
+            href: "/admin/property/property-preferences",
+            icon: Settings,
+          },
+          {
+            name: "User Permissions",
+            href: "/admin/property/user-permissions",
+            icon: Lock,
+          },
+          {
+            name: "User Roles",
+            href: "/admin/property/user-roles",
+            icon: Users,
+          },
+          { name: "Users", href: "/admin/property/users", icon: UserRound },
+        ],
+      },
+      {
+        name: "Rooms",
+        icon: BedDouble,
+        items: [
+          {
+            name: "Cross Booking",
+            href: "/admin/rooms/croos-booking",
+            icon: CalendarCheck,
+          },
+          {
+            name: "Extra Charge",
+            href: "/admin/rooms/extra-charge",
+            icon: DollarSign,
+          },
+          {
+            name: "Extra Charge Types",
+            href: "/admin/rooms/extra-charge-types",
+            icon: CreditCard,
+          },
+          {
+            name: "Room Comp Category",
+            href: "/admin/rooms/room-comp-category",
+            icon: Tag,
+          },
+          { name: "Rooms", href: "/admin/rooms/rooms", icon: BedDouble },
+          { name: "Room Type", href: "/admin/rooms/roomType", icon: Home },
+        ],
+      },
+      {
+        name: "Transactions",
+        icon: Receipt,
+        items: [
+          {
+            name: "Approvals",
+            href: "/admin/transactions/approvals",
+            icon: Check,
+          },
+          {
+            name: "Change Res Status",
+            href: "/admin/transactions/change-res-status",
+            icon: Settings,
+          },
+          {
+            name: "Import BB eZee",
+            href: "/admin/transactions/import-bb-eZee",
+            icon: ArrowDownCircle,
+          },
+          {
+            name: "Import Res eZee",
+            href: "/admin/transactions/import-res-eZee",
+            icon: ArrowDownCircle,
+          },
+          {
+            name: "Res Import IDS",
+            href: "/admin/transactions/res-import-IDS",
+            icon: ArrowDownCircle,
+          },
+          {
+            name: "Room Bill Adv Proc",
+            href: "/admin/transactions/room-bill-adv-proc",
+            icon: FileText,
+          },
+          {
+            name: "Super Admin",
+            href: "/admin/transactions/super-admin",
+            icon: Settings2,
+          },
+          {
+            name: "System Update",
+            href: "/admin/transactions/system-update",
+            icon: Settings,
+          },
+          {
+            name: "Tran Master",
+            href: "/admin/transactions/tran-master",
+            icon: Receipt,
+          },
+          {
+            name: "Unlock Rate Table",
+            href: "/admin/transactions/unlock-rate-table",
+            icon: Settings,
+          },
+          {
+            name: "Update Meal Alloc",
+            href: "/admin/transactions/update-meal-alloc",
+            icon: Utensils,
+          },
+        ],
+      },
+      {
+        name: "Travel Agents",
+        icon: MapPin,
+        items: [
+          {
+            name: "Agent List",
+            href: "/admin/travel-agents/agent-list",
+            icon: LayoutList,
+          },
+          {
+            name: "Create Agent",
+            href: "/admin/travel-agents/create-agent",
+            icon: ArrowUpCircle,
+          },
+        ],
+      },
     ],
   },
-  
   {
     label: "POS",
     icon: Utensils,
-    href: "/pos",
-  },
-  {
-    label: "Property",
-    icon: Building,
     items: [
-      { name: "audit", href: "/property/audit", icon: FileText },
-      { name: "User Permission", href: "/property/user-permission", icon: Lock },
+      { name: "POS", href: "/point-of-sale/pos", icon: Utensils },
+      { name: "POS Bill List", href: "/point-of-sale/pos-bill-list", icon: FileText },
+      { name: "POS Order List", href: "/point-of-sale/pos-order-list", icon: LayoutList },
     ],
   },
+  // {
+  //   label: "Property",
+  //   icon: Building,
+  //   items: [
+  // { name: "audit", href: "/property/audit", icon: FileText },
+  // { name: "User Permission", href: "/property/user-permission", icon: Lock },
+  //   ],
+  // },
   {
     label: "Housekeeping",
     icon: ConciergeBell,
     items: [
       { name: "Housekeeping", href: "/housekeeping", icon: Boxes },
       { name: "Room View", href: "/housekeeping/room-view", icon: LayoutGrid },
+      { name: "Housekeeping Home", href: "/housekeeping/hk-home", icon: Home },
+      { name: "Housekeeping Board", href: "/housekeeping/hk-board", icon: ClipboardList },
+      { name: "Housekeeping Log", href: "/housekeeping/hk-log", icon: ClipboardList },
+      { name: "Housekeeping Staff", href: "/housekeeping/hk-staff", icon: Users },
+      { name: "Laundry Jobs", href: "/housekeeping/laundry-jobs", icon: ShoppingBag },
     ],
     // href: "/housekeeping",
   },
@@ -253,6 +501,27 @@ const menuGroups: MenuGroup[] = [
       { name: "Events List", href: "/events/event-list", icon: Calendar },
       { name: "Event Types", href: "/events/event-types", icon: CalendarCheck },
       { name: "Venues", href: "/events/venues", icon: Building2 },
+      {
+        name: "Create Event",
+        href: "/events/create-event",
+        icon: CalendarCheck,
+      },
+      {
+        name: "Events Calendar",
+        href: "/events/events-calender",
+        icon: Calendar,
+      },
+      { name: "Leads Center", href: "/events/leads-center", icon: Users },
+      {
+        name: "Table Booking",
+        href: "/events/table-booking",
+        icon: LayoutList,
+      },
+      {
+        name: "Table Booking List",
+        href: "/events/table-booking-list",
+        icon: LayoutList,
+      },
     ],
   },
   {
@@ -424,7 +693,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             : "1097";
 
         // Fetch the single hotel by code — no auth headers required
-        const url = `${BASE_URL}/api/HotelMas?hotelCode=${encodeURIComponent(hotelCode)}`;
+        const url = `${BASE_URL}/api/HotelMas?hotelCode=${encodeURIComponent(
+          hotelCode
+        )}`;
         const resp = await axios.get(url);
         const data = resp.data;
         // The API returns an array; pick the one that matches our code or the first item
@@ -518,6 +789,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       menuGroups.forEach((group) => {
         if (group.items?.length) {
           defaults[group.label] = true;
+          // Also set default expanded state for sub-menus
+          group.items.forEach((item) => {
+            if (item.items?.length) {
+              const subMenuKey = `${group.label}-${item.name}`;
+              defaults[subMenuKey] = true;
+            }
+          });
         }
       });
       try {
@@ -794,11 +1072,34 @@ function PageTitle() {
       else if (path.includes("/night-audit")) resolvedTitle = "Night Audit";
       else if (path.includes("/chat")) resolvedTitle = "Messages";
       // else if (path.includes("/gallery")) resolvedTitle = "Gallery";
-      else if (path.includes("/housekeeping/room-view")) resolvedTitle = "Room View";
+      else if (path.includes("/housekeeping/room-view"))
+        resolvedTitle = "Room View";
       else if (path.includes("/housekeeping")) resolvedTitle = "Housekeeping";
-      else if (path.includes("/events/event-list")) resolvedTitle = "Events List";
-      else if (path.includes("/events/event-types")) resolvedTitle = "Event Types";
+      else if (path.includes("/housekeeping/hk-home"))
+        resolvedTitle = "Housekeeping Home";
+      else if (path.includes("/housekeeping/hk-board"))
+        resolvedTitle = "Housekeeping Board";
+      else if (path.includes("/housekeeping/hk-log"))
+        resolvedTitle = "Housekeeping Log";
+      else if (path.includes("/housekeeping/hk-staff"))
+        resolvedTitle = "Housekeeping Staff";
+      else if (path.includes("/housekeeping/laundry-jobs"))
+        resolvedTitle = "Laundry Jobs";
+      else if (path.includes("/events/event-list"))
+        resolvedTitle = "Events List";
+      else if (path.includes("/events/event-types"))
+        resolvedTitle = "Event Types";
       else if (path.includes("/events/venues")) resolvedTitle = "Venues";
+      else if (path.includes("/events/create-event"))
+        resolvedTitle = "Create Event";
+      else if (path.includes("/events/events-calender"))
+        resolvedTitle = "Events Calendar";
+      else if (path.includes("/events/leads-center"))
+        resolvedTitle = "Leads Center";
+      else if (path.includes("/events/table-booking"))
+        resolvedTitle = "Table Booking";
+      else if (path.includes("/events/table-booking-list"))
+        resolvedTitle = "Table Booking List";
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
       else if (path.includes("/reservation/bookings"))
@@ -814,20 +1115,105 @@ function PageTitle() {
       // else if (path.includes("/rooms/types")) resolvedTitle = "Rooms";
       // else if (path.includes("/rooms/rates")) resolvedTitle = "Rates";
       // else if (path.includes("/rooms/channels")) resolvedTitle = "Channels";
-      else if (path.includes("/rooms/inventory")) resolvedTitle = "Inventory";
-      else if (path.includes("/rooms/basis")) resolvedTitle = "Basis";
-      else if (path.includes("/rooms/category")) resolvedTitle = "Category";
-      else if (path.includes("/rooms/seasons")) resolvedTitle = "Seasons";
-      else if (path.includes("/rooms/markets")) resolvedTitle = "Markets";
-      else if (path.includes("/rooms/roomType")) resolvedTitle = "Room Types";
-      else if (path.includes("/rooms/rooms")) resolvedTitle = "Rooms";
-      else if (path.includes("/configuration/meal-allocation")) resolvedTitle = "Meal Allocation";
-      else if (path.includes("/configuration/nationality")) resolvedTitle = "Nationality";
-      else if (path.includes("/configuration/tax-table")) resolvedTitle = "Tax Table";
-      else if (path.includes("/configuration/reservation-source")) resolvedTitle = "Reservation Source";
-      else if (path.includes("/pos")) resolvedTitle = "Point of Sale";
-      else if (path.includes("/property/audit")) resolvedTitle = "Audit";
-      else if (path.includes("/property/user-permission")) resolvedTitle = "User Permission";
+      else if (path.includes("/rates/inventory")) resolvedTitle = "Inventory";
+      else if (path.includes("/rates/basis")) resolvedTitle = "Basis";
+      else if (path.includes("/rates/category")) resolvedTitle = "Category";
+      else if (path.includes("/rates/seasons")) resolvedTitle = "Seasons";
+      else if (path.includes("/rates/markets")) resolvedTitle = "Markets";
+      else if (path.includes("/admin/configuration/meal-allocation"))
+        resolvedTitle = "Meal Allocation";
+      else if (path.includes("/admin/configuration/nationality"))
+        resolvedTitle = "Nationality";
+      else if (path.includes("/admin/configuration/tax-table"))
+        resolvedTitle = "Tax Table";
+      else if (path.includes("/admin/configuration/reservation-source"))
+        resolvedTitle = "Reservation Source";
+      else if (path.includes("/admin/point-of-sales/add-on-items"))
+        resolvedTitle = "Add-on Items";
+      else if (path.includes("/admin/point-of-sales/attach-bar-items"))
+        resolvedTitle = "Attach Bar Items";
+      else if (path.includes("/admin/point-of-sales/attach-pos-items"))
+        resolvedTitle = "Attach POS Items";
+      else if (path.includes("/admin/point-of-sales/base-category"))
+        resolvedTitle = "Base Category";
+      else if (path.includes("/admin/point-of-sales/compliment-types"))
+        resolvedTitle = "Compliment Types";
+      else if (path.includes("/admin/point-of-sales/import-pos-items"))
+        resolvedTitle = "Import POS Items";
+      else if (path.includes("/admin/point-of-sales/item-category"))
+        resolvedTitle = "Item Category";
+      else if (path.includes("/admin/point-of-sales/item-list"))
+        resolvedTitle = "Item List";
+      else if (path.includes("/admin/point-of-sales/new-item"))
+        resolvedTitle = "New Item";
+      else if (path.includes("/admin/point-of-sales/POS-center"))
+        resolvedTitle = "POS Center";
+      else if (path.includes("/admin/point-of-sales/service-items"))
+        resolvedTitle = "Service Items";
+      else if (path.includes("/admin/point-of-sales/SKU"))
+        resolvedTitle = "SKU";
+      else if (path.includes("/admin/point-of-sales/sub-item"))
+        resolvedTitle = "Sub Item";
+      else if (path.includes("/admin/property/audit-trail"))
+        resolvedTitle = "Audit Trail";
+      else if (path.includes("/admin/property/backup"))
+        resolvedTitle = "Backup";
+      else if (path.includes("/admin/property/idea-hub"))
+        resolvedTitle = "Idea Hub";
+      else if (path.includes("/admin/property/property-detail"))
+        resolvedTitle = "Property Detail";
+      else if (path.includes("/admin/property/property-preferences"))
+        resolvedTitle = "Property Preferences";
+      else if (path.includes("/admin/property/user-permissions"))
+        resolvedTitle = "User Permissions";
+      else if (path.includes("/admin/property/user-roles"))
+        resolvedTitle = "User Roles";
+      else if (path.includes("/admin/property/users")) resolvedTitle = "Users";
+      else if (path.includes("/admin/rooms/croos-booking"))
+        resolvedTitle = "Cross Booking";
+      else if (path.includes("/admin/rooms/extra-charge-types"))
+        resolvedTitle = "Extra Charge Types";
+      else if (path.includes("/admin/rooms/extra-charge"))
+        resolvedTitle = "Extra Charge";
+      else if (path.includes("/admin/rooms/room-comp-category"))
+        resolvedTitle = "Room Comp Category";
+      else if (path.includes("/admin/rooms/rooms"))
+        resolvedTitle = "Admin Rooms";
+      else if (path.includes("/admin/rooms/roomType"))
+        resolvedTitle = "Admin Room Type";
+      else if (path.includes("/admin/transactions/approvals"))
+        resolvedTitle = "Approvals";
+      else if (path.includes("/admin/transactions/change-res-status"))
+        resolvedTitle = "Change Res Status";
+      else if (path.includes("/admin/transactions/import-bb-eZee"))
+        resolvedTitle = "Import BB eZee";
+      else if (path.includes("/admin/transactions/import-res-eZee"))
+        resolvedTitle = "Import Res eZee";
+      else if (path.includes("/admin/transactions/res-import-IDS"))
+        resolvedTitle = "Res Import IDS";
+      else if (path.includes("/admin/transactions/room-bill-adv-proc"))
+        resolvedTitle = "Room Bill Adv Proc";
+      else if (path.includes("/admin/transactions/super-admin"))
+        resolvedTitle = "Super Admin";
+      else if (path.includes("/admin/transactions/system-update"))
+        resolvedTitle = "System Update";
+      else if (path.includes("/admin/transactions/tran-master"))
+        resolvedTitle = "Tran Master";
+      else if (path.includes("/admin/transactions/unlock-rate-table"))
+        resolvedTitle = "Unlock Rate Table";
+      else if (path.includes("/admin/transactions/update-meal-alloc"))
+        resolvedTitle = "Update Meal Alloc";
+      else if (path.includes("/admin/travel-agents/agent-list"))
+        resolvedTitle = "Agent List";
+      else if (path.includes("/admin/travel-agents/create-agent"))
+        resolvedTitle = "Create Agent";
+      else if (path.includes("/point-of-sale/pos-bill-list"))
+        resolvedTitle = "POS Bill List";
+      else if (path.includes("/point-of-sale/pos-order-list"))
+        resolvedTitle = "POS Order List";
+      else if (path.includes("/point-of-sale/pos")) resolvedTitle = "Point of Sale";
+      // else if (path.includes("/property/audit")) resolvedTitle = "Audit";
+      // else if (path.includes("/property/user-permission")) resolvedTitle = "User Permission";
       // else if (path.includes("/financials/purchases"))
       //   resolvedTitle = "Purchases";
       // else if (path.includes("/financials/expenses"))
@@ -1003,9 +1389,10 @@ function SidebarHeaderContent({
                         (typeof window !== "undefined" &&
                           (localStorage.getItem("hotelCode") || "")) ||
                         "";
-                      const hotelCode = codeFromStorage && codeFromStorage.trim() !== ""
-                        ? codeFromStorage
-                        : "1097";
+                      const hotelCode =
+                        codeFromStorage && codeFromStorage.trim() !== ""
+                          ? codeFromStorage
+                          : "1097";
                       const selected = {
                         id: hotel.id,
                         name: hotel.name,
@@ -1013,7 +1400,10 @@ function SidebarHeaderContent({
                         hotelCode,
                       };
                       localStorage.setItem("hotelCode", hotelCode);
-                      localStorage.setItem("selectedProperty", JSON.stringify(selected));
+                      localStorage.setItem(
+                        "selectedProperty",
+                        JSON.stringify(selected)
+                      );
                       setActiveHotel(hotel.name);
                       // Reload to ensure global context uses 1097 everywhere
                       window.location.reload();
@@ -1188,7 +1578,18 @@ function SidebarMenuList({
         const isGroupActive =
           pathname &&
           (group.href === pathname ||
-            group.items?.some((item) => pathname.startsWith(item.href)));
+            group.items?.some((item) => {
+              if (item.href && pathname.startsWith(item.href)) {
+                return true;
+              }
+              // Check nested items
+              if (item.items) {
+                return item.items.some(
+                  (subItem) => subItem.href && pathname.startsWith(subItem.href)
+                );
+              }
+              return false;
+            }));
         // Updated logic for isExpanded: allow toggling even when expanded
         const isExpanded = expandedGroups[group.label] ?? false;
         const handleToggle = () => {
@@ -1227,19 +1628,87 @@ function SidebarMenuList({
                       {state !== "collapsed" && isExpanded && (
                         <SidebarMenuSub className="!block">
                           {(group.items ?? []).map((item) => {
+                            // Handle nested menu items (like Configuration submenu)
+                            if (item.items && item.items.length > 0) {
+                              const subMenuKey = `${group.label}-${item.name}`;
+                              const isSubExpanded =
+                                expandedGroups[subMenuKey] ?? false;
+                              const isSubMenuActive = item.items.some(
+                                (subItem) =>
+                                  subItem.href &&
+                                  pathname.startsWith(subItem.href)
+                              );
+
+                              return (
+                                <SidebarMenuSubItem key={item.name}>
+                                  <SidebarMenuSubButton
+                                    className={`flex items-center justify-between w-full ${
+                                      isSubMenuActive ? activeButtonClasses : ""
+                                    }`}
+                                    onClick={() => toggleGroup(subMenuKey)}
+                                  >
+                                    <div className="flex items-center">
+                                      {item.icon && (
+                                        <item.icon className="h-4 w-4 mr-2" />
+                                      )}
+                                      <TranslatedText text={item.name} />
+                                    </div>
+                                    <ChevronDown
+                                      className={`h-3 w-3 transition-transform duration-200 ${
+                                        isSubExpanded ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  </SidebarMenuSubButton>
+                                  {isSubExpanded && (
+                                    <div className="ml-6 mt-1 space-y-1">
+                                      {item.items.map((subItem) => {
+                                        const isSubActive =
+                                          pathname === subItem.href;
+                                        return (
+                                          <SidebarMenuSubButton
+                                            key={subItem.name}
+                                            asChild
+                                          >
+                                            <Link
+                                              href={subItem.href || "#"}
+                                              className={`flex items-center text-sm py-1 ${
+                                                isSubActive
+                                                  ? `${activeButtonClasses} font-medium`
+                                                  : ""
+                                              }`}
+                                            >
+                                              {subItem.icon && (
+                                                <subItem.icon className="h-3 w-3 mr-2" />
+                                              )}
+                                              <TranslatedText
+                                                text={subItem.name}
+                                              />
+                                            </Link>
+                                          </SidebarMenuSubButton>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </SidebarMenuSubItem>
+                              );
+                            }
+
+                            // Regular menu items
                             const isActive = pathname === item.href;
                             return (
                               <SidebarMenuSubItem key={item.name}>
                                 <SidebarMenuSubButton asChild>
                                   <Link
-                                    href={item.href}
+                                    href={item.href || "#"}
                                     className={`flex items-center ${
                                       isActive
                                         ? `${activeButtonClasses} font-medium`
                                         : ""
                                     }`}
                                   >
-                                    <item.icon className="h-4 w-4 mr-2" />
+                                    {item.icon && (
+                                      <item.icon className="h-4 w-4 mr-2" />
+                                    )}
                                     <TranslatedText text={item.name} />
                                   </Link>
                                 </SidebarMenuSubButton>

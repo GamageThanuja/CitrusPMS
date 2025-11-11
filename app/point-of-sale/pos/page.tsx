@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const POSPage = dynamic(() => import("../../components/pos/posPage/posPage"), {
+const POSPage = dynamic(() => import("../../../components/pos/posPage/posPage"), {
   ssr: false,
 });
 
