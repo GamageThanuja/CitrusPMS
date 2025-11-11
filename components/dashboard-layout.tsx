@@ -95,7 +95,8 @@ import {
   CalendarX,
   CalendarDays,
   Megaphone,
-  Store
+  Store,
+  ChefHat
 } from "lucide-react";
 
 import {
@@ -271,7 +272,11 @@ const menuGroups: MenuGroup[] = [
             href: "/admin/configuration/reservation-source",
             icon: CalendarCheck,
           },
-          { name: "Sales Reps", href: "/admin/configuration/sales-rep", icon: Users },
+          {
+            name: "Meal Plan",
+            href: "/admin/configuration/meal-plan",
+            icon: ChefHat,
+          },
         ],
       },
       {
@@ -1392,8 +1397,8 @@ function PageTitle() {
         resolvedTitle = "Tax Table";
       else if (path.includes("/admin/configuration/reservation-source"))
         resolvedTitle = "Reservation Source";
-      else if (path.includes("/admin/configuration/sales-rep")) resolvedTitle = "Sales Reps";
-
+      else if (path.includes("/admin/configuration/meal-plan"))
+        resolvedTitle = "Meal Plan";
       else if (path.includes("/admin/point-of-sales/add-on-items"))
         resolvedTitle = "Add-on Items";
       else if (path.includes("/admin/point-of-sales/attach-bar-items"))
