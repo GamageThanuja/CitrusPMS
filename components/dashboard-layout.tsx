@@ -76,25 +76,26 @@ import {
   Lock,
   Gift,
   ClipboardList,
+  Clock,
+  Sliders,
+  Package,
+  Inbox,
   Scale,
   Wallet,
   BarChart,
   ListOrdered,
   CheckSquare,
-  Package,
   MonitorPlay,
   ReceiptText,
   ScrollText,
   Briefcase,
   TrendingUp,
   UserCheck,
-  Clock,
+ 
   CalendarX,
   CalendarDays,
   Megaphone,
-  Store,
-  Sliders,
-  Inbox
+  Store
 } from "lucide-react";
 
 import {
