@@ -96,7 +96,16 @@ import {
   CalendarDays,
   Megaphone,
   Store,
-  ChefHat
+  ChefHat,
+  CalendarPlus,
+  Bug,
+  CalendarClock,
+  SquarePlus,
+  Key,
+  Rows,
+  Columns,
+  PieChart,
+  User,
 } from "lucide-react";
 
 import {
@@ -218,17 +227,112 @@ const menuGroups: MenuGroup[] = [
     label: "Reservation",
     icon: CalendarCheck,
     items: [
-      // { name: "Front Desk", href: "/reservation/front-desk", icon: LayoutList },
-      { name: "Bookings", href: "/reservation/bookings", icon: NotebookPen },
-      { name: "Arrivals", href: "/reservation/arrivals", icon: LogIn },
-      { name: "Departures", href: "/reservation/departures", icon: LogOut },
-      { name: "In-House", href: "/reservation/inhouse", icon: DoorOpen },
-      { name: "Travel Agents", href: "/settings/travel-agents", icon: MapPin },
+      {
+        name: "Reservations",
+        icon: CalendarDays,
+        items: [
+          {
+            name: "List Of Business Block",
+            href: "/reservation/reservations/list-of-business-block",
+            icon: Building,
+          },
+          {
+            name: "List Of Reservations",
+            href: "/reservation/reservations/list-of-reservation",
+            icon: ListChecks,
+          },
+          {
+            name: "New Business Block",
+            href: "/reservation/reservations/new-business-block",
+            icon: SquarePlus,
+          },
+          {
+            name: "New Reservation",
+            href: "/reservation/reservations/new-reservation",
+            icon: CalendarPlus,
+          },
+          {
+            name: "Rates Checker",
+            href: "/reservation/reservations/rates-checker",
+            icon: DollarSign,
+          },
+          {
+            name: "Reservation Error Tracker",
+            href: "/reservation/reservations/reservation-error-tracker",
+            icon: Bug,
+          },
+          {
+            name: "Tentative Reservations Follow-up",
+            href: "/reservation/reservations/tentative-reservations-follow-up",
+            icon: CalendarClock,
+          }
+        ]
+      },
+      {
+        name: "Room Operation",
+        icon: Key,
+        items: [
+          {
+            name: "In-house",
+            href: "/reservation/room-operation/in-house",
+            icon: Users,
+          },
+          {
+            name: "Merge Reservations (Horizontal)",
+            href: "/reservation/room-operation/merge-reservations-horizontal",
+            icon: Columns,
+          },
+          {
+            name: "Merge Reservations (Vertical)",
+            href: "/reservation/room-operation/merge-reservations-vertical",
+            icon: Rows,
+          },
+          {
+            name: "Room Allocation",
+            href: "/reservation/room-operation/room-allocation",
+            icon: LayoutGrid,
+          },
+        ]
+      },
+      {
+        name: "Availability",
+        icon: Calendar,
+        items: [
+          {
+            name: "Availability",
+            href: "/reservation/availability/availability",
+            icon: CalendarDays,
+          },
+          {
+            name: "Occupancy & Availability",
+            href: "/reservation/availability/occupancy-and-availability",
+            icon: PieChart,
+          },
+        ]
+      },
       {
         name: "Guest Profile",
-        href: "/reservation/guest-profiles",
-        icon: Users,
+        icon: User,
+        items: [
+          {
+            name: "List Of Guest Profiles",
+            href: "/reservation/guest-profile/guest-profiles",
+            icon: Users,
+          },
+        ]
       },
+
+      // // { name: "Front Desk", href: "/reservation/front-desk", icon: LayoutList },
+      // { name: "Bookings", href: "/reservation/bookings", icon: NotebookPen },
+      // { name: "Arrivals", href: "/reservation/arrivals", icon: LogIn },
+      // { name: "Departures", href: "/reservation/departures", icon: LogOut },
+      // { name: "In-House", href: "/reservation/inhouse", icon: DoorOpen },
+      // { name: "Travel Agents", href: "/settings/travel-agents", icon: MapPin },
+      // {
+      //   name: "Guest Profile",
+      //   href: "/reservation/guest-profiles",
+      //   icon: Users,
+      // },
     ],
   },
   {
@@ -1305,6 +1409,8 @@ function PageTitle() {
       const path = window.location.pathname;
       let resolvedTitle = "Dashboard";
       if (path.includes("/dashboard")) resolvedTitle = "Dashboard";
+
+      //Report paths
       else if (path.includes("/reports/collection/city-ledger")) resolvedTitle = "City Ledger";
       else if (path.includes("/reports/collection/collection-summary2")) resolvedTitle = "Collection Summary 2";
       else if (path.includes("/reports/collection/collection-summary")) resolvedTitle = "Collection Summary";
@@ -1336,6 +1442,8 @@ function PageTitle() {
       else if (path.includes("/reports/sales/outlet-sales")) resolvedTitle = "Outlet Sales";
       else if (path.includes("/reports/sales/rooms-sales")) resolvedTitle = "Rooms Sales";
       else if (path.includes("/reports")) resolvedTitle = "Reports";
+
+
       else if (path.includes("/support")) resolvedTitle = "Support";
       // else if (path.includes("/logs")) resolvedTitle = "Logs";
       else if (path.includes("/night-audit")) resolvedTitle = "Night Audit";
@@ -1369,6 +1477,39 @@ function PageTitle() {
         resolvedTitle = "Table Booking";
       else if (path.includes("/events/table-booking-list"))
         resolvedTitle = "Table Booking List";
+
+
+      //Reservation paths
+      else if (path.includes("/reservation/reservations/list-of-business-block"))
+        resolvedTitle = "List Of Business Block";
+      else if (path.includes("/reservation/reservations/list-of-reservation"))
+        resolvedTitle = "List Of Reservation";
+      else if (path.includes("/reservation/reservations/new-business-block"))
+        resolvedTitle = "New Business Block";      
+      else if (path.includes("/reservation/reservations/new-reservation"))
+        resolvedTitle = "New Reservation";      
+      else if (path.includes("/reservation/reservations/rates-checker"))
+        resolvedTitle = "Rates Checker";      
+      else if (path.includes("/reservation/reservations/reservation-error-tracker"))
+        resolvedTitle = "Reservation Error Tracker";      
+      else if (path.includes("/reservation/reservations/tentative-reservations-follow-up"))
+        resolvedTitle = "Tentative Reservations Follow-up";
+      else if (path.includes("/reservation/room-operation/in-house"))
+        resolvedTitle = "In-house";      
+      else if (path.includes("/reservation/room-operation/merge-reservations-horizontal"))
+        resolvedTitle = "Merge Reservations (Horizontal)";    
+      else if (path.includes("/reservation/room-operation/merge-reservations-vertical"))
+        resolvedTitle = "Merge Reservations (Vertical)";      
+      else if (path.includes("/reservation/room-operation/room-allocation"))
+        resolvedTitle = "Room Allocation";
+      else if (path.includes("/reservation/availability/availability"))
+        resolvedTitle = "Availability";      
+      else if (path.includes("/reservation/availability/occupancy-and-availability"))
+        resolvedTitle = "Occupancy & AAvailability";
+      else if (path.includes("/reservation/guest-profile/guest-profiles"))
+        resolvedTitle = "List of Guest Profiles";
+
+
       else if (path.includes("/reservation/front-desk"))
         resolvedTitle = "Front Desk";
       else if (path.includes("/reservation/bookings"))
