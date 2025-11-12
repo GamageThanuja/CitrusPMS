@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 interface NameMasPayload {
   nameID: number;
   finAct: boolean;
@@ -42,7 +44,7 @@ interface NameMasPayload {
   epfNo: string;
   initials: string;
   gender: string;
-  dob: string;
+  dob: string | null;
   nationality: string;
   maritalStatus: string;
   passportNo: string;
@@ -58,9 +60,9 @@ interface NameMasPayload {
   allowance1: number;
   allowance2: number;
   allowance3: number;
-  dateOfJoined: string;
-  dateOfPermanent: string;
-  dateOfResigned: string;
+  dateOfJoined: string | null;
+  dateOfPermanent: string | null;
+  dateOfResigned: string | null;
   empPicturePath: string;
   pin: number;
   perDaySalary: boolean;
@@ -75,9 +77,9 @@ interface NameMasPayload {
   nAmeOnCheque: string;
   phoneRes: string;
   opBal: number;
-  opBalAsAt: string;
+  opBalAsAt: string | null;
   routeID: number;
-  joinedDate: string;
+  joinedDate: string | null;
   isAllowCredit: boolean;
   cmTaxRate: number;
   cmChannelID: string;
@@ -86,28 +88,27 @@ interface NameMasPayload {
   departmentID: number;
   empCategoryID: number;
   serviceChargePercentage: number;
-  tranCode: string;
+  tranCode: string; // Added TranCode field
 }
 
 interface UpdateNameMasArgs {
   nameID: number;
-  payload: NameMasPayload;
+  payload: {
+    nameMas: NameMasPayload;
+  };
 }
 
 // 🔹 Async Thunk
 export const updateNameMas = createAsyncThunk(
   "nameMas/updateNameMas",
-  async ({nameID, payload }: UpdateNameMasArgs, { rejectWithValue }) => {
+  async ({ nameID, payload }: UpdateNameMasArgs, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
-        `/api/NameMas/${nameID}`,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const url = `${API_BASE_URL}/api/NameMas/${nameID}`;
+      const response = await axios.put(url, payload, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       return response.data;
     } catch (err: any) {
       return rejectWithValue(
