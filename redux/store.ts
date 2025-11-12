@@ -226,8 +226,9 @@ import fetchMealPlanByFolioByDateReducer from "./slices/fetchMealPlanByFolioByDa
 import createMealPlanByFolioByDateReducer from "./slices/createMealPlanByFolioByDateSlice";
 import updateMealPlanByFolioByDateReducer from "./slices/updateMealPlanByFolioByDateSlice";
 import updateHotelMasReducer from "./slices/updateHotelMasSlice";
-
-
+import fetchRateCodesReducer from "./slices/fetchRateCodesSlice";
+import fetchRateMasAvailabilityReducer from "./slices/fetchRateMasAvailabilitySlice";
+import fetchRateMasReducer from "./slices/fetchRateMasSlice";
 
 const store = configureStore({
   reducer: {
@@ -457,6 +458,9 @@ const store = configureStore({
     createMealPlanByFolioByDate: createMealPlanByFolioByDateReducer,
     updateMealPlanByFolioByDate: updateMealPlanByFolioByDateReducer,
     updateHotelMas: updateHotelMasReducer,
+    fetchRateCodes: fetchRateCodesReducer,
+    fetchRateMasAvailability: fetchRateMasAvailabilityReducer,
+    fetchRateMas: fetchRateMasReducer,
   },
 });
 
