@@ -165,6 +165,7 @@ import createBasisMasReducer from "./slices/createBasisMasSlice";
 import editBasisMasByBasisKeyReducer from "./slices/editBasisMasByBasisKeySlice";
 import fetchMealAllocationReducer from "./slices/fetchMealAllocationSlice";
 import createCategoryMasReducer from "./slices/createCategoryMasSlice";
+import updateCategoryMasReducer from "./slices/updateCategoryMasSlice";
 import fetchNameMasReducer from "./slices/fetchNameMasSlice"; 
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
@@ -392,6 +393,7 @@ const store = configureStore({
     createBasisMas: createBasisMasReducer,
     editBasisMasByBasisKey: editBasisMasByBasisKeyReducer,
     createCategoryMas: createCategoryMasReducer,
+    updateCategoryMas: updateCategoryMasReducer,
     fetchMealAllocation: fetchMealAllocationReducer,
     fetchNameMas: fetchNameMasReducer,
     fetchNationalityMas: fetchNationalityMasReducer,
