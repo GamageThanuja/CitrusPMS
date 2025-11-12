@@ -10,12 +10,28 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
-// import { getAllGuestProfiles } from "@/controllers/guestProfileMasterController";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  updateGuestMas,
+  selectUpdateGuestMasLoading,
+  selectUpdateGuestMasError,
+  resetUpdateGuestMasState,
+  type GuestMas,
+} from "@/redux/slices/updateGuestMasSlice";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { GuestProfilePayload } from "@/types/guestProfileMaster";
 import EditGuestProfileDrawer from "@/components/drawers/edit-guest-profile-drawer";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { useDispatch, useSelector } from "react-redux";
-// import { fetchGuestProfiles } from "@/redux/slices/guestProfileByHotelIdSlice";
 import { fetchGuestMas } from "@/redux/slices/fetchGuestMasSlice";
 import { RootState } from "@/redux/store";
 
@@ -59,6 +75,98 @@ const GuestProfilesPage = () => {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [dobFrom, setDobFrom] = useState<string>(""); // NEW: DOB range
   const [dobTo, setDobTo] = useState<string>(""); // NEW: DOB range
+  const updating = useSelector(selectUpdateGuestMasLoading);
+  const updateError = useSelector(selectUpdateGuestMasError);
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    guestID: "",
+    guestName: "",
+    phone: "",
+    country: "",
+    email: "",
+    nicpp: "",
+    dob: "",
+  });
+  const onEditChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setEditForm((p) => ({ ...p, [name]: value }));
+  };
+  const openEdit = (p: GuestProfilePayload) => {
+    setEditingProfile(p);
+    setEditForm({
+      guestID: String((p as any).guestID ?? ""),
+      guestName: p.guestName ?? "",
+      phone: p.phone ?? "",
+      country: p.country ?? "",
+      email: p.email ?? "",
+      nicpp: (p.ppNo ?? (p as any).nic ?? "") as string,
+      dob: (() => {
+        const d = p.dob ?? (p as any).dateOfBirth ?? (p as any).dobStr;
+        if (!d) return "";
+        const iso = new Date(d).toISOString();
+        return iso.slice(0, 10); // yyyy-mm-dd for <input type="date">
+      })(),
+    });
+    setIsEditOpen(true);
+  };
+  const handleSaveEdit = async () => {
+    if (!editingProfile) return;
+
+    const base = editingProfile as any; // existing values to keep fields the API expects
+    const payload: GuestMas = {
+      guestID: Number(editForm.guestID),
+
+      // fields you edited
+      guestName: editForm.guestName || null,
+      phoneNo: editForm.phone || null,
+      nationality: editForm.country || null,
+      email: editForm.email || null,
+      nic: editForm.nicpp || null,
+      dob: editForm.dob ? new Date(editForm.dob).toISOString() : null,
+
+      // keep existing values for the rest so PUT remains safe
+      finAct: base?.finAct ?? true,
+      hotelCode: base?.hotelCode ?? null,
+      guestCode: base?.guestCode ?? null,
+      gender: base?.gender ?? null,
+      address: base?.address ?? null,
+      city: base?.city ?? null,
+      country: editForm.country || base?.country || null,
+      createdOn: base?.createdOn ?? null,
+      isVIP: base?.isVIP ?? null,
+      isVeg: base?.isVeg ?? null,
+      comment: base?.comment ?? null,
+      isDisabled: base?.isDisabled ?? null,
+      isAdult: base?.isAdult ?? null,
+      isChild: base?.isChild ?? null,
+      isInfant: base?.isInfant ?? null,
+      ppurl: base?.ppurl ?? null,
+      title: base?.title ?? null,
+      isWorkPermit: base?.isWorkPermit ?? null,
+      bC_Name: base?.bC_Name ?? null,
+      bC_Phone: base?.bC_Phone ?? null,
+      bC_Email: base?.bC_Email ?? null,
+      aC_Name: base?.aC_Name ?? null,
+      aC_Phone: base?.aC_Phone ?? null,
+      aC_Email: base?.aC_Email ?? null,
+      createdBy: base?.createdBy ?? null,
+      type: base?.type ?? null,
+      countryOfRes: base?.countryOfRes ?? null,
+    };
+
+    try {
+      await dispatch(updateGuestMas(payload)).unwrap();
+      // refresh list + close dialog
+      await dispatch(fetchGuestMas());
+      setIsEditOpen(false);
+    } catch (e) {
+      // keep dialog open and let the error render below
+      console.error("Update guest failed:", e);
+    }
+  };
 
   // Column filter states
   const [fResId, setFResId] = useState("");
@@ -455,10 +563,7 @@ const GuestProfilesPage = () => {
                       <td className="px-3 py-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingProfile(p as any);
-                            setIsEditDrawerOpen(true);
-                          }}
+                          onClick={() => openEdit(p as any)}
                           className="text-blue-600 hover:underline text-sm"
                           title="Edit guest"
                         >
@@ -481,6 +586,106 @@ const GuestProfilesPage = () => {
             </tbody>
           </table>
         </div>
+
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="sm:max-w-lg">
+            {updateError && (
+              <p className="text-sm text-red-600 mt-2">{updateError}</p>
+            )}
+            <DialogHeader>
+              <DialogTitle>Edit Guest</DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="guestID">Guest ID</Label>
+                <Input
+                  id="guestID"
+                  name="guestID"
+                  value={editForm.guestID}
+                  disabled
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="guestName">Booker Name</Label>
+                <Input
+                  id="guestName"
+                  name="guestName"
+                  value={editForm.guestName}
+                  onChange={onEditChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="phone">Phone No</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={editForm.phone}
+                  onChange={onEditChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="country">Nationality</Label>
+                <Input
+                  id="country"
+                  name="country"
+                  value={editForm.country}
+                  onChange={onEditChange}
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={onEditChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="nicpp">NIC/PP</Label>
+                <Input
+                  id="nicpp"
+                  name="nicpp"
+                  value={editForm.nicpp}
+                  onChange={onEditChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="dob">DOB</Label>
+                <Input
+                  id="dob"
+                  name="dob"
+                  type="date"
+                  value={editForm.dob}
+                  onChange={onEditChange}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="mt-2">
+              <DialogClose asChild>
+                <Button variant="outline" disabled={updating}>
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={updating}
+                className="bg-black hover:bg-gray-800"
+              >
+                {updating ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Pagination */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
@@ -526,12 +731,6 @@ const GuestProfilesPage = () => {
           </div>
         </div>
       </div>
-
-      <EditGuestProfileDrawer
-        isOpen={isEditDrawerOpen}
-        onClose={() => setIsEditDrawerOpen(false)}
-        profileData={editingProfile}
-      />
     </DashboardLayout>
   );
 };

@@ -170,6 +170,7 @@ import fetchNameMasReducer from "./slices/fetchNameMasSlice";
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
 import updateNameMasReducer from "./slices/updateNameMasSlice";
+import updateGuestMasReducer from "./slices/updateGuestMasSlice";
 import categoryTypeMasReducer from "./slices/fetchCategoryTypeMasSlice";
 import createCategoryTypeMasReducer from "./slices/createCategoryTypeMasSlice";
 import fetchPMSModuleMasReducer from "./slices/fetchPMSModuleMasSlice";
@@ -387,6 +388,7 @@ const store = configureStore({
     createFileUpload: createFileUploadReducer,
     fetchFileUploadByFolioId: fetchFileUploadByFolioIdReducer,
     fetchGuestMas: guestMasReducer,
+    updateGuestMas: updateGuestMasReducer,
     auditMasById: auditMasByIdReducer,
     fetchAuditMasByHotelCode: fetchAuditMasByHotelCodeReducer,
     fetchBasisMas: fetchBasisMasReducer,
