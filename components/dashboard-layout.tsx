@@ -1505,7 +1505,7 @@ function PageTitle() {
       else if (path.includes("/reservation/availability/availability"))
         resolvedTitle = "Availability";      
       else if (path.includes("/reservation/availability/occupancy-and-availability"))
-        resolvedTitle = "Occupancy & AAvailability";
+        resolvedTitle = "Occupancy & Availability";
       else if (path.includes("/reservation/guest-profile/guest-profiles"))
         resolvedTitle = "List of Guest Profiles";
 
