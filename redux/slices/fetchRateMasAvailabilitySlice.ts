@@ -27,16 +27,16 @@ export interface RateMasAvailabilityItem {
 }
 
 /** ---- Query Params ---- */
+
 export interface FetchRateMasAvailabilityParams {
   hotelId: number;               // path param (required)
-  startDate?: string;            // ISO or yyyy-mm-dd
-  endDate?: string;              // ISO or yyyy-mm-dd
-  rateCodeId?: number;
+  startDate?: string;            // "MM-dd-yyyy"
+  endDate?: string;              // "MM-dd-yyyy"
+  rateCodeId?: number;           // from RateCodes
   search?: string;
   currencyCode?: string;
-  hotelCode?: string;
+  hotelCode?: string;            // from selectedProperty.hotelCode
 }
-
 /** ---- State ---- */
 export interface FetchRateMasAvailabilityState {
   loading: boolean;

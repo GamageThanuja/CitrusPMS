@@ -9,7 +9,6 @@ import {
   selectRateCodesLoading,
   selectRateCodesError,
 } from "@/redux/slices/fetchRateCodesSlice";
-
 import {
   fetchRateMas,
   selectRateMasItems,
@@ -22,14 +21,18 @@ import {
   selectRateMasAvailabilityLoading,
   selectRateMasAvailabilityError,
 } from "@/redux/slices/fetchRateMasAvailabilitySlice";
-
 import {
   fetchRoomTypeMas,
   selectRoomTypeMas,
   selectRoomTypeMasLoading,
   selectRoomTypeMasError,
 } from "@/redux/slices/roomTypeMasSlice";
-
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+} from "@/redux/slices/fetchCurrencyMasSlice";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Select,
@@ -92,6 +95,9 @@ const VideoButton = ({
 export default function AvailabilityPage() {
   const [startDate, setStartDate] = React.useState(new Date());
   const [gridDays, setGridDays] = React.useState(14);
+  const [selectedRateCodeId, setSelectedRateCodeId] = React.useState<
+    number | undefined
+  >(undefined);
 
   const dates = React.useMemo(
     () => Array.from({ length: gridDays }, (_, i) => addDays(startDate, i)),
@@ -101,8 +107,7 @@ export default function AvailabilityPage() {
 
   const handlePrevRange = () =>
     setStartDate((prev) => addDays(prev, -gridDays));
-  const handleNextRange = () =>
-    setStartDate((prev) => addDays(prev, gridDays));
+  const handleNextRange = () => setStartDate((prev) => addDays(prev, gridDays));
 
   const dispatch = useDispatch<any>();
 
@@ -115,49 +120,65 @@ export default function AvailabilityPage() {
   const rateMasError = useSelector(selectRateMasError);
 
   const availabilityItems = useSelector(selectRateMasAvailabilityItems);
-  const availabilityLoading = useSelector(
-    selectRateMasAvailabilityLoading
-  );
+  const availabilityLoading = useSelector(selectRateMasAvailabilityLoading);
   const availabilityError = useSelector(selectRateMasAvailabilityError);
 
-  // ✅ Room types from RoomTypeMas
   const roomTypes = useSelector(selectRoomTypeMas);
   const roomTypesLoading = useSelector(selectRoomTypeMasLoading);
   const roomTypesError = useSelector(selectRoomTypeMasError);
 
+  // ✅ Currency state
+  const currencies = useSelector(selectCurrencyMasItems);
+  const currenciesLoading = useSelector(selectCurrencyMasLoading);
+  const currenciesError = useSelector(selectCurrencyMasError);
+
   useEffect(() => {
     dispatch(fetchRateCodes());
     dispatch(fetchRateMas());
-    dispatch(fetchRoomTypeMas()); // ✅ fetch room types on mount
+    dispatch(fetchRoomTypeMas());
+    dispatch(fetchCurrencyMas()); // ✅ fetch all currencies (no params)
   }, [dispatch]);
 
   useEffect(() => {
+    // Read from localStorage.selectedProperty
+
+    const hotelCode = localStorage.getItem("hotelCode");
     const selectedPropertyRaw =
       typeof window !== "undefined"
         ? localStorage.getItem("selectedProperty")
         : null;
+    
     let hotelId: number | null = null;
+
     try {
-      hotelId = selectedPropertyRaw
-        ? JSON.parse(selectedPropertyRaw)?.id ?? null
-        : null;
+      if (selectedPropertyRaw) {
+        const parsed = JSON.parse(selectedPropertyRaw);
+        hotelId = parsed?.id ?? null; 
+      }
     } catch {
       hotelId = null;
     }
 
     if (!hotelId) return;
 
-    const start = format(startDate, "yyyy-MM-dd");
-    const end = format(endDate, "yyyy-MM-dd");
+    // Backend expects month-day-year like 11-13-2025 => "MM-dd-yyyy"
+    const start = format(startDate, "MM-dd-yyyy");
+    const end = format(endDate, "MM-dd-yyyy");
+
+    console.log("Fetching availability for:", { hotelId, start, end, selectedRateCodeId });
 
     dispatch(
       fetchRateMasAvailability({
         hotelId,
         startDate: start,
         endDate: end,
+        rateCodeId: selectedRateCodeId, // 👈 NEW: from dropdown
+        hotelCode: hotelCode ?? undefined, // ensure type is string | undefined
       })
     );
-  }, [dispatch, startDate, endDate]);
+  }, [dispatch, startDate, endDate, selectedRateCodeId]);
+
+
 
   // For the "Rates Filter" dropdown
   const rateTypeOptions = useMemo(() => {
@@ -168,26 +189,57 @@ export default function AvailabilityPage() {
     return Array.from(set).sort();
   }, [rateMasItems]);
 
-  // ✅ Map roomTypeID -> room type object for quick lookup
   const roomTypeById = useMemo(() => {
     const map = new Map<number, any>();
+    
+    // First, populate from roomTypes data
     (roomTypes ?? []).forEach((rt: any) => {
       if (rt?.roomTypeID) {
         map.set(rt.roomTypeID, rt);
       }
     });
+    
+    // Also populate from availability items (in case they contain room type info)
+    (availabilityItems ?? []).forEach((item: any) => {
+      const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
+      if (roomId && !map.has(roomId)) {
+        map.set(roomId, {
+          roomTypeID: roomId,
+          roomType: item.roomType || `Room Type ${roomId}`,
+          shortCode: `RT${roomId}`
+        });
+      }
+    });
+    
     return map;
-  }, [roomTypes]);
+  }, [roomTypes, availabilityItems]);
 
   // Availability: quick access by roomTypeID + date
   const availabilityByRoomAndDate = useMemo(() => {
     const map = new Map<number, Map<string, any>>();
     (availabilityItems ?? []).forEach((item) => {
-      const roomId = Number(item.roomTypeID ?? 0);
+      // Handle both roomTypeID and roomTypeId (API inconsistency)
+      const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
       if (!roomId) return;
-      const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
-      if (!map.has(roomId)) map.set(roomId, new Map());
-      map.get(roomId)!.set(dateKey, item);
+      
+      // If item has availability array, process each date
+      if (item.availability && Array.isArray(item.availability)) {
+        item.availability.forEach((avail: any) => {
+          const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
+          if (!map.has(roomId)) map.set(roomId, new Map());
+          // Store the availability data with the item info
+          map.get(roomId)!.set(dateKey, {
+            ...item,
+            availabilityCount: avail.count,
+            rateDate: avail.date
+          });
+        });
+      } else {
+        // Fallback for old format
+        const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
+        if (!map.has(roomId)) map.set(roomId, new Map());
+        map.get(roomId)!.set(dateKey, item);
+      }
     });
     return map;
   }, [availabilityItems]);
@@ -196,18 +248,48 @@ export default function AvailabilityPage() {
   const ratesByRoom = useMemo(() => {
     const map = new Map<number, Map<number, Map<string, number>>>();
     (availabilityItems ?? []).forEach((item) => {
-      const roomId = Number(item.roomTypeID ?? 0);
+      // Handle both roomTypeID and roomTypeId (API inconsistency)
+      const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
       if (!roomId) return;
-      const occ = Number(item.primaryOccupancy ?? 1);
-      const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
-
-      if (!map.has(roomId)) map.set(roomId, new Map());
-      const occMap = map.get(roomId)!;
-
-      if (!occMap.has(occ)) occMap.set(occ, new Map());
-      const dateMap = occMap.get(occ)!;
-
-      dateMap.set(dateKey, item.defaultRate);
+      
+      // If item has hotelRates array, process each rate
+      if (item.hotelRates && Array.isArray(item.hotelRates)) {
+        item.hotelRates.forEach((rate: any) => {
+          const occ = Number(rate.primaryOccupancy ?? 1);
+          // Process availability dates if they exist
+          if (item.availability && Array.isArray(item.availability)) {
+            item.availability.forEach((avail: any) => {
+              const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
+              if (!map.has(roomId)) map.set(roomId, new Map());
+              const occMap = map.get(roomId)!;
+              if (!occMap.has(occ)) occMap.set(occ, new Map());
+              const dateMap = occMap.get(occ)!;
+              dateMap.set(dateKey, rate.defaultRate ?? item.averageRate ?? 0);
+            });
+          }
+        });
+      } else {
+        // Fallback for old format or when no hotelRates
+        const occ = Number(item.primaryOccupancy ?? item.adultCount ?? 1);
+        if (item.availability && Array.isArray(item.availability)) {
+          item.availability.forEach((avail: any) => {
+            const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
+            if (!map.has(roomId)) map.set(roomId, new Map());
+            const occMap = map.get(roomId)!;
+            if (!occMap.has(occ)) occMap.set(occ, new Map());
+            const dateMap = occMap.get(occ)!;
+            dateMap.set(dateKey, item.averageRate ?? 0);
+          });
+        } else {
+          // Old format fallback
+          const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
+          if (!map.has(roomId)) map.set(roomId, new Map());
+          const occMap = map.get(roomId)!;
+          if (!occMap.has(occ)) occMap.set(occ, new Map());
+          const dateMap = occMap.get(occ)!;
+          dateMap.set(dateKey, item.defaultRate);
+        }
+      }
     });
     return map;
   }, [availabilityItems]);
@@ -216,14 +298,15 @@ export default function AvailabilityPage() {
   const roomTypeIds = useMemo(() => {
     const set = new Set<number>();
     (availabilityItems ?? []).forEach((i) => {
-      const id = Number(i.roomTypeID ?? 0);
+      // Handle both roomTypeID and roomTypeId (API inconsistency)
+      const id = Number(i.roomTypeId ?? i.roomTypeID ?? 0);
       if (id) set.add(id);
     });
     return Array.from(set).sort((a, b) => a - b);
   }, [availabilityItems]);
 
   const handleNoop = () => {};
-  const headerTitle = "IBE Rates";
+  const headerTitle = "Rate and Availability";
 
   return (
     <DashboardLayout>
@@ -233,17 +316,46 @@ export default function AvailabilityPage() {
           {/* Left control group */}
           <div className="flex flex-row gap-4">
             <Select onValueChange={handleNoop}>
-              <SelectTrigger className="w-[150px] h-8 text-sm flex items-center gap-1">
+              <SelectTrigger className="w-[180px] h-8 text-sm flex items-center gap-1">
                 <SelectValue placeholder="Currency" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Currencies</SelectItem>
-                <SelectItem value="LKR">LKR</SelectItem>
-                <SelectItem value="USD">USD</SelectItem>
+                {currenciesLoading && (
+                  <SelectItem value="__loading" disabled>
+                    Loading currencies...
+                  </SelectItem>
+                )}
+                {!currenciesLoading && currenciesError && (
+                  <SelectItem value="__error" disabled>
+                    Failed to load currencies
+                  </SelectItem>
+                )}
+
+                {!currenciesLoading &&
+                  !currenciesError &&
+                  currencies.map((c: any) => (
+                    <SelectItem key={c.currencyCode} value={c.currencyCode}>
+                      {c.currencyCode} – {c.currencyName}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
 
-            <Select onValueChange={handleNoop}>
+            <Select
+              value={
+                selectedRateCodeId !== undefined
+                  ? String(selectedRateCodeId)
+                  : "all"
+              }
+              onValueChange={(value) => {
+                if (value === "all") {
+                  setSelectedRateCodeId(undefined);
+                } else {
+                  setSelectedRateCodeId(Number(value));
+                }
+              }}
+            >
               <SelectTrigger className="w-[180px] h-8 text-sm flex items-center gap-1">
                 <SelectValue placeholder="Rate Code Filter" />
               </SelectTrigger>
@@ -258,7 +370,7 @@ export default function AvailabilityPage() {
 
                 {!rateCodesLoading && rateCodesError && (
                   <SelectItem value="__error" disabled>
-                    Failed to load
+                    Failed to load rate codes
                   </SelectItem>
                 )}
 
@@ -267,7 +379,7 @@ export default function AvailabilityPage() {
                   rateCodes.map((rc) => (
                     <SelectItem
                       key={rc.rateCodeID}
-                      value={String(rc.rateCodeID)}
+                      value={String(rc.rateCodeID)} // 👈 this is rateCodeId from API
                     >
                       {rc.rateCode}
                     </SelectItem>
@@ -404,8 +516,8 @@ export default function AvailabilityPage() {
                     variant="outline"
                     className="text-sm h-8 flex items-center gap-1"
                   >
-                    {format(startDate, "dd MMM yyyy")} –{" "}
-                    {format(endDate, "dd MMM yyyy")}
+                    {format(startDate, "MM dd yyyy")} –{" "}
+                    {format(endDate, "MM dd yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-4 text-sm" align="start">
@@ -536,9 +648,7 @@ export default function AvailabilityPage() {
 
                       const rt = roomTypeById.get(roomTypeID);
                       const roomLabel =
-                        rt?.roomType ||
-                        rt?.shortCode ||
-                        `Room #${roomTypeID}`;
+                        rt?.roomType || rt?.shortCode || `Room #${roomTypeID}`;
 
                       return (
                         <React.Fragment key={roomTypeID}>
@@ -553,14 +663,13 @@ export default function AvailabilityPage() {
                             </TableCell>
                             {dates.map((d) => {
                               const dateKey = format(d, "yyyy-MM-dd");
-                              const rec =
-                                availabilityByRoomAndDate
-                                  .get(roomTypeID)
-                                  ?.get(dateKey);
-                              const cellValue =
-                                typeof rec?.defaultRate === "number"
-                                  ? rec.defaultRate
-                                  : "-";
+                              const rec = availabilityByRoomAndDate
+                                .get(roomTypeID)
+                                ?.get(dateKey);
+                              // Show availability count if available, otherwise show rate or dash
+                              const cellValue = rec?.availabilityCount ?? 
+                                              (typeof rec?.defaultRate === "number" ? rec.defaultRate : 
+                                               typeof rec?.averageRate === "number" ? rec.averageRate : "-");
                               return (
                                 <TableCell
                                   key={`${roomTypeID}-AVL-${dateKey}`}

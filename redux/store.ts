@@ -229,6 +229,7 @@ import updateHotelMasReducer from "./slices/updateHotelMasSlice";
 import fetchRateCodesReducer from "./slices/fetchRateCodesSlice";
 import fetchRateMasAvailabilityReducer from "./slices/fetchRateMasAvailabilitySlice";
 import fetchRateMasReducer from "./slices/fetchRateMasSlice";
+import fetchHotelRatePlansReducer from "./slices/fetchHotelRatePlanSlice";
 
 const store = configureStore({
   reducer: {
@@ -461,6 +462,7 @@ const store = configureStore({
     fetchRateCodes: fetchRateCodesReducer,
     fetchRateMasAvailability: fetchRateMasAvailabilityReducer,
     fetchRateMas: fetchRateMasReducer,
+    fetchHotelRatePlans: fetchHotelRatePlansReducer,
   },
 });
 
