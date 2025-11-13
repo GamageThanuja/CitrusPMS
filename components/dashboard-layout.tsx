@@ -342,7 +342,6 @@ const menuGroups: MenuGroup[] = [
       
       { name: "Seasons", href: "/rates/seasons", icon: Sun },
       { name: "Markets", href: "/rates/markets", icon: ShoppingBag },
-      { name: "Rooms Rates", href: "/rates/rooms-rates", icon: Percent },
       { name: "Rate Codes", href: "/rates/rate-codes", icon: BadgeDollarSign },
       { name: "Supplements", href: "/rates/supplements", icon: Gift },
     ],

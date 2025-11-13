@@ -147,13 +147,13 @@ export default function AvailabilityPage() {
       typeof window !== "undefined"
         ? localStorage.getItem("selectedProperty")
         : null;
-    
+
     let hotelId: number | null = null;
 
     try {
       if (selectedPropertyRaw) {
         const parsed = JSON.parse(selectedPropertyRaw);
-        hotelId = parsed?.id ?? null; 
+        hotelId = parsed?.id ?? null;
       }
     } catch {
       hotelId = null;
@@ -165,7 +165,12 @@ export default function AvailabilityPage() {
     const start = format(startDate, "MM-dd-yyyy");
     const end = format(endDate, "MM-dd-yyyy");
 
-    console.log("Fetching availability for:", { hotelId, start, end, selectedRateCodeId });
+    console.log("Fetching availability for:", {
+      hotelId,
+      start,
+      end,
+      selectedRateCodeId,
+    });
 
     dispatch(
       fetchRateMasAvailability({
@@ -178,8 +183,6 @@ export default function AvailabilityPage() {
     );
   }, [dispatch, startDate, endDate, selectedRateCodeId]);
 
-
-
   // For the "Rates Filter" dropdown
   const rateTypeOptions = useMemo(() => {
     const set = new Set<string>();
@@ -191,14 +194,14 @@ export default function AvailabilityPage() {
 
   const roomTypeById = useMemo(() => {
     const map = new Map<number, any>();
-    
+
     // First, populate from roomTypes data
     (roomTypes ?? []).forEach((rt: any) => {
       if (rt?.roomTypeID) {
         map.set(rt.roomTypeID, rt);
       }
     });
-    
+
     // Also populate from availability items (in case they contain room type info)
     (availabilityItems ?? []).forEach((item: any) => {
       const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
@@ -206,11 +209,11 @@ export default function AvailabilityPage() {
         map.set(roomId, {
           roomTypeID: roomId,
           roomType: item.roomType || `Room Type ${roomId}`,
-          shortCode: `RT${roomId}`
+          shortCode: `RT${roomId}`,
         });
       }
     });
-    
+
     return map;
   }, [roomTypes, availabilityItems]);
 
@@ -221,7 +224,9 @@ export default function AvailabilityPage() {
       // Handle both roomTypeID and roomTypeId (API inconsistency)
       const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
       if (!roomId) return;
-      
+
+      // console.log("Processing availability for room:", roomId, "item:", item); // Debug log
+
       // If item has availability array, process each date
       if (item.availability && Array.isArray(item.availability)) {
         item.availability.forEach((avail: any) => {
@@ -231,10 +236,10 @@ export default function AvailabilityPage() {
           map.get(roomId)!.set(dateKey, {
             ...item,
             availabilityCount: avail.count,
-            rateDate: avail.date
+            rateDate: avail.date,
           });
         });
-      } else {
+      } else if (item.rateDate) {
         // Fallback for old format
         const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
         if (!map.has(roomId)) map.set(roomId, new Map());
@@ -251,9 +256,11 @@ export default function AvailabilityPage() {
       // Handle both roomTypeID and roomTypeId (API inconsistency)
       const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
       if (!roomId) return;
-      
+
+      // console.log("Processing item:", item); // Debug log
+
       // If item has hotelRates array, process each rate
-      if (item.hotelRates && Array.isArray(item.hotelRates)) {
+      if (item.hotelRates && Array.isArray(item.hotelRates) && item.hotelRates.length > 0) {
         item.hotelRates.forEach((rate: any) => {
           const occ = Number(rate.primaryOccupancy ?? 1);
           // Process availability dates if they exist
@@ -264,13 +271,13 @@ export default function AvailabilityPage() {
               const occMap = map.get(roomId)!;
               if (!occMap.has(occ)) occMap.set(occ, new Map());
               const dateMap = occMap.get(occ)!;
-              dateMap.set(dateKey, rate.defaultRate ?? item.averageRate ?? 0);
+              dateMap.set(dateKey, item.averageRate ?? 0);
             });
           }
         });
       } else {
-        // Fallback for old format or when no hotelRates
-        const occ = Number(item.primaryOccupancy ?? item.adultCount ?? 1);
+        // Fallback for when no hotelRates array or empty hotelRates
+        const occ = Number(item.primaryOccupancy ?? item.adultCount ?? 2); // Default to 2 adults
         if (item.availability && Array.isArray(item.availability)) {
           item.availability.forEach((avail: any) => {
             const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
@@ -280,14 +287,14 @@ export default function AvailabilityPage() {
             const dateMap = occMap.get(occ)!;
             dateMap.set(dateKey, item.averageRate ?? 0);
           });
-        } else {
+        } else if (item.rateDate) {
           // Old format fallback
           const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
           if (!map.has(roomId)) map.set(roomId, new Map());
-          const occMap = map.get(roomId)!;
+          const occMap = map.get(roomId)!
           if (!occMap.has(occ)) occMap.set(occ, new Map());
           const dateMap = occMap.get(occ)!;
-          dateMap.set(dateKey, item.defaultRate);
+          dateMap.set(dateKey, item.averageRate ?? 0);
         }
       }
     });
@@ -516,8 +523,8 @@ export default function AvailabilityPage() {
                     variant="outline"
                     className="text-sm h-8 flex items-center gap-1"
                   >
-                    {format(startDate, "MM dd yyyy")} –{" "}
-                    {format(endDate, "MM dd yyyy")}
+                    {format(startDate, "dd MMM yyyy")} –{" "}
+                    {format(endDate, "dd MMM yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-4 text-sm" align="start">
@@ -667,9 +674,13 @@ export default function AvailabilityPage() {
                                 .get(roomTypeID)
                                 ?.get(dateKey);
                               // Show availability count if available, otherwise show rate or dash
-                              const cellValue = rec?.availabilityCount ?? 
-                                              (typeof rec?.defaultRate === "number" ? rec.defaultRate : 
-                                               typeof rec?.averageRate === "number" ? rec.averageRate : "-");
+                              const cellValue =
+                                rec?.availabilityCount ??
+                                (typeof rec?.defaultRate === "number"
+                                  ? rec.defaultRate
+                                  : typeof rec?.averageRate === "number"
+                                  ? rec.averageRate
+                                  : "-");
                               return (
                                 <TableCell
                                   key={`${roomTypeID}-AVL-${dateKey}`}
