@@ -8,13 +8,6 @@ import { RefreshCw, Edit, Loader2, ChevronLeft, ChevronRight } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
   Table,
   TableHeader,
   TableRow,
@@ -43,6 +36,9 @@ import {
   selectUpdateNationalityMasError,
 } from "@/redux/slices/updateNationalityMasSlice";
 
+import { AddNationalityDrawer } from "../../../../components/drawers/add-nationality-drawer";
+import { UpdateNationalityDrawer } from "../../../../components/drawers/update-nationality-drawer";
+
 interface NationalityUI {
   nationalityID: number;
   nationality: string;
@@ -65,15 +61,11 @@ export default function NationalityPage() {
 
   const [filtered, setFiltered] = useState<NationalityUI[]>([]);
   const [query, setQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [nationalityData, setNationalityData] = useState({
-    nationality: "",
-    countryCode: "",
-    country: "",
-  });
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [currentNationality, setCurrentNationality] = useState<NationalityUI | null>(null);
 
-  // Pagination state - consistent with venues
+  // Pagination state
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -99,7 +91,7 @@ export default function NationalityPage() {
     setPageIndex(1);
   }, [query, pageSize]);
 
-  // Pagination logic - consistent with venues
+  // Pagination logic
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const canPrev = pageIndex > 1 && !loading;
   const canNext = !loading && pageIndex < totalPages;
@@ -117,86 +109,41 @@ export default function NationalityPage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
-  const openCreateDialog = () => {
-    setEditId(null);
-    setNationalityData({
-      nationality: "",
-      countryCode: "",
-      country: "",
-    });
-    setDialogOpen(true);
+  const openAddDrawer = () => {
+    setAddDrawerOpen(true);
   };
 
-  const openEditDialog = (nat: NationalityUI) => {
-    setEditId(nat.nationalityID);
-    setNationalityData({
-      nationality: nat.nationality,
-      countryCode: nat.countryCode,
-      country: nat.country,
-    });
-    setDialogOpen(true);
+  const openUpdateDrawer = (nat: NationalityUI) => {
+    setCurrentNationality(nat);
+    setUpdateDrawerOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!nationalityData.nationality.trim()) {
-      toast.error("Nationality is required");
-      return;
-    }
-
-    if (!nationalityData.country.trim()) {
-      toast.error("Country is required");
-      return;
-    }
-
-    const username = localStorage.getItem("rememberedUsername") || "unknown";
-
-    try {
-      if (editId !== null) {
-        const action = await dispatch(
-          updateNationalityMas({
-            nationality: nationalityData.nationality,
-            country: nationalityData.country,
-            countryCode: nationalityData.countryCode,
-          })
-        );
-        if (updateNationalityMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to update nationality");
-          return;
-        }
-        toast.success(`Nationality "${nationalityData.nationality}" updated`);
-      } else {
-        const action = await dispatch(
-          createNationalityMas({
-            nationality: nationalityData.nationality,
-            country: nationalityData.country,
-            countryCode: nationalityData.countryCode,
-          })
-        );
-        if (createNationalityMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to create nationality");
-          return;
-        }
-        toast.success(`Nationality "${nationalityData.nationality}" created`);
-      }
-
-      setDialogOpen(false);
-      dispatch(fetchNationalityMas());
-    } catch {
-      toast.error("Operation failed");
-    }
+  const handleAddDrawerClose = () => {
+    setAddDrawerOpen(false);
   };
 
-  const handleInputChange = (field: keyof typeof nationalityData, value: string) => {
-    setNationalityData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleUpdateDrawerClose = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentNationality(null);
+  };
+
+  const handleNationalityCreated = () => {
+    setAddDrawerOpen(false);
+    dispatch(fetchNationalityMas());
+    toast.success("Nationality created successfully");
+  };
+
+  const handleNationalityUpdated = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentNationality(null);
+    dispatch(fetchNationalityMas());
+    toast.success("Nationality updated successfully");
   };
 
   return (
     <DashboardLayout>
       <div className="p-4 space-y-4">
-        {/* Header - consistent with venues */}
+        {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-semibold">Nationalities</h1>
           <div className="flex gap-2">
@@ -217,7 +164,7 @@ export default function NationalityPage() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button onClick={openCreateDialog}>Add Nationality</Button>
+            <Button onClick={openAddDrawer}>Add Nationality</Button>
           </div>
         </div>
 
@@ -228,7 +175,7 @@ export default function NationalityPage() {
           </div>
         )}
 
-        {/* Table - Updated to use common component */}
+        {/* Table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -260,7 +207,7 @@ export default function NationalityPage() {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        onClick={() => openEditDialog(nat)}
+                        onClick={() => openUpdateDrawer(nat)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -278,7 +225,7 @@ export default function NationalityPage() {
           )}
         </div>
 
-        {/* Pagination Controls - Consistent with venues */}
+        {/* Pagination Controls */}
         {filtered.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
             <div className="hidden sm:block" />
@@ -324,43 +271,20 @@ export default function NationalityPage() {
           </div>
         )}
 
-        {/* Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editId ? "Edit Nationality" : "Create Nationality"}</DialogTitle>
-            </DialogHeader>
+        {/* Add Nationality Drawer */}
+        <AddNationalityDrawer
+          isOpen={addDrawerOpen}
+          onClose={handleAddDrawerClose}
+          onNationalityCreated={handleNationalityCreated}
+        />
 
-            <div className="space-y-4 mt-2">
-              {["nationality", "country", "countryCode"].map((f) => (
-                <div key={f} className="space-y-2">
-                  <Label htmlFor={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</Label>
-                  <Input
-                    id={f}
-                    placeholder={`Enter ${f}`}
-                    value={(nationalityData as any)[f]}
-                    onChange={(e) => handleInputChange(f as keyof typeof nationalityData, e.target.value)}
-                  />
-                </div>
-              ))}
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={creating || updating}>
-                  {creating || updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : editId ? (
-                    "Update"
-                  ) : (
-                    "Create"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Update Nationality Drawer */}
+        <UpdateNationalityDrawer
+          isOpen={updateDrawerOpen}
+          onClose={handleUpdateDrawerClose}
+          nationality={currentNationality}
+          onNationalityUpdated={handleNationalityUpdated}
+        />
       </div>
     </DashboardLayout>
   );
