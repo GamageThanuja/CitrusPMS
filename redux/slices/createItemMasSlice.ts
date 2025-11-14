@@ -4,7 +4,7 @@ import axios from "axios";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 /** ---- Types ---- */
-export interface CreateItemMasPayload {
+export interface ItemMasData {
   finAct: boolean;
   itemID: number;
   itemNumber: string;
@@ -42,12 +42,12 @@ export interface CreateItemMasPayload {
   costCenterID: number;
   custodianID: number;
   supplierID: number;
-  acqDate: string;
+  acqDate: string | null;
   lifeTimeYears: number;
   lifeTimeMonths: number;
   serviceProvider: string;
   warranty: string;
-  nextServiceDate: string;
+  nextServiceDate: string | null;
   serviceContractNo: string;
   commercialDepreMethodID: number;
   fiscalDepreMethodID: number;
@@ -102,7 +102,7 @@ export interface CreateItemMasPayload {
   changePriceOnGRN: boolean;
   partNo: string;
   oldPrice: number;
-  oldPriceAsAt: string;
+  oldPriceAsAt: string | null;
   lastPriceUpdateBy: string;
   colour: string;
   askQtyOnSale: boolean;
@@ -113,13 +113,17 @@ export interface CreateItemMasPayload {
   shotItemCode: string;
   subItemOf: string;
   imageURL: string;
-  lastDepreciatedDate: string;
+  lastDepreciatedDate: string | null;
   depreciationExpenseAccountID: number;
   bookValue: number;
-  bookValueAsAt: string;
+  bookValueAsAt: string | null;
   guardian: string;
   barCode: string;
   nameOnBill: string;
+}
+
+export interface CreateItemMasPayload {
+  newItem: ItemMasData;
 }
 
 /** ---- State ---- */
@@ -127,7 +131,7 @@ interface CreateItemMasState {
   loading: boolean;
   success: boolean;
   error: string | null;
-  createdItem: CreateItemMasPayload | null;
+  createdItem: ItemMasData | null;
 }
 
 const initialState: CreateItemMasState = {
@@ -140,10 +144,42 @@ const initialState: CreateItemMasState = {
 /** ---- Thunk: POST /api/ItemMas ---- */
 export const createItemMas = createAsyncThunk<
   CreateItemMasPayload,
-  CreateItemMasPayload,
+  ItemMasData,
   { rejectValue: string }
->("itemMas/create", async (payload, { rejectWithValue }) => {
+>("itemMas/create", async (itemData, { rejectWithValue }) => {
   try {
+    // Format dates properly for the API
+    const formattedItemData = {
+      ...itemData,
+      // Ensure date fields are properly formatted as ISO strings or null
+      oldPriceAsAt: itemData.oldPriceAsAt 
+        ? new Date(itemData.oldPriceAsAt).toISOString()
+        : null,
+      createdOn: itemData.createdOn 
+        ? new Date(itemData.createdOn).toISOString()
+        : new Date().toISOString(),
+      lastModOn: itemData.lastModOn 
+        ? new Date(itemData.lastModOn).toISOString()
+        : new Date().toISOString(),
+      acqDate: itemData.acqDate 
+        ? new Date(itemData.acqDate).toISOString()
+        : null,
+      nextServiceDate: itemData.nextServiceDate 
+        ? new Date(itemData.nextServiceDate).toISOString()
+        : null,
+      lastDepreciatedDate: itemData.lastDepreciatedDate 
+        ? new Date(itemData.lastDepreciatedDate).toISOString()
+        : null,
+      bookValueAsAt: itemData.bookValueAsAt 
+        ? new Date(itemData.bookValueAsAt).toISOString()
+        : null,
+    };
+
+    // Wrap the data in the expected structure
+    const payload: CreateItemMasPayload = {
+      newItem: formattedItemData
+    };
+
     const response = await axios.post(`${API_BASE_URL}/api/ItemMas`, payload);
     return response.data;
   } catch (err: any) {
@@ -179,7 +215,7 @@ const createItemMasSlice = createSlice({
         (state, action: PayloadAction<CreateItemMasPayload>) => {
           state.loading = false;
           state.success = true;
-          state.createdItem = action.payload;
+          state.createdItem = action.payload.newItem;
         }
       )
       .addCase(createItemMas.rejected, (state, action) => {
@@ -203,4 +239,4 @@ export const selectCreateItemMasSuccess = (s: any) =>
 export const selectCreateItemMasError = (s: any) =>
   (s.createItemMas?.error as string | null) ?? null;
 export const selectCreatedItemMas = (s: any) =>
-  (s.createItemMas?.createdItem as CreateItemMasPayload | null) ?? null;
+  (s.createItemMas?.createdItem as ItemMasData | null) ?? null;

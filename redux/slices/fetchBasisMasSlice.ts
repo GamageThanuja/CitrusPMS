@@ -52,9 +52,14 @@ export const fetchBasisMas = createAsyncThunk<
   try {
     const basis = params?.basis;
     const url = `${API_BASE_URL}/api/BasisMas${basis ? `?basis=${encodeURIComponent(basis)}` : ""}`;
+    console.log("Fetching meal plans from:", url);
     const res = await axios.get(url);
-    return normalizeArray(res.data);
+    console.log("BasisMas API response:", res.data);
+    const normalizedData = normalizeArray(res.data);
+    console.log("Normalized BasisMas data:", normalizedData);
+    return normalizedData;
   } catch (err: any) {
+    console.error("BasisMas API error:", err);
     const msg =
       err?.response?.data?.message ||
       err?.message ||
@@ -105,12 +110,12 @@ export default fetchBasisMasSlice.reducer;
 
 /** ---- Selectors ---- */
 export const selectBasisMasItems = (s: any) =>
-  (s.basisMas?.items as BasisMasItem[]) ?? [];
+  (s.fetchBasisMas?.items as BasisMasItem[]) ?? [];
 export const selectBasisMasLoading = (s: any) =>
-  (s.basisMas?.loading as boolean) ?? false;
+  (s.fetchBasisMas?.loading as boolean) ?? false;
 export const selectBasisMasError = (s: any) =>
-  (s.basisMas?.error as string | null) ?? null;
+  (s.fetchBasisMas?.error as string | null) ?? null;
 export const selectBasisMasSuccess = (s: any) =>
-  (s.basisMas?.success as boolean) ?? false;
+  (s.fetchBasisMas?.success as boolean) ?? false;
 export const selectBasisMasLastFetchedAt = (s: any) =>
-  (s.basisMas?.lastFetchedAt as string | null) ?? null;
+  (s.fetchBasisMas?.lastFetchedAt as string | null) ?? null;

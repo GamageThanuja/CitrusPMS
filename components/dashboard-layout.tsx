@@ -342,7 +342,6 @@ const menuGroups: MenuGroup[] = [
       
       { name: "Seasons", href: "/rates/seasons", icon: Sun },
       { name: "Markets", href: "/rates/markets", icon: ShoppingBag },
-      { name: "Rooms Rates", href: "/rates/rooms-rates", icon: Percent },
       { name: "Rate Codes", href: "/rates/rate-codes", icon: BadgeDollarSign },
       { name: "Supplements", href: "/rates/supplements", icon: Gift },
     ],
@@ -1505,7 +1504,7 @@ function PageTitle() {
       else if (path.includes("/reservation/availability/availability"))
         resolvedTitle = "Availability";      
       else if (path.includes("/reservation/availability/occupancy-and-availability"))
-        resolvedTitle = "Occupancy & AAvailability";
+        resolvedTitle = "Occupancy & Availability";
       else if (path.includes("/reservation/guest-profile/guest-profiles"))
         resolvedTitle = "List of Guest Profiles";
 
