@@ -50,7 +50,7 @@ import {
 } from "date-fns";
 
 // New Redux imports
-import { 
+import {
   createGuestProfileCheckIn,
   selectCreateCheckInLoading,
   selectCreateCheckInError,
@@ -58,47 +58,56 @@ import {
 } from "@/redux/slices/createCheckInSlice";
 // Keep existing controller for check-in since no equivalent slice exists
 import { checkInReservationDetail } from "@/controllers/reservationController";
-import { 
+import {
   fetchAvailableRoomTypes,
   selectAvailableRoomTypesItems,
   selectAvailableRoomTypesLoading,
 } from "@/redux/slices/fetchAvailableRoomTypesSlice";
-import { 
+import {
   fetchCountryMas,
   selectCountryMas,
   selectCountryMasLoading,
 } from "@/redux/slices/fetchCountryMasSlice";
-import { 
+import {
   fetchNameMas,
   selectFetchNameMasItems,
   selectFetchNameMasLoading,
 } from "@/redux/slices/fetchNameMasSlice";
-import { 
+import {
   fetchGuestMas,
   selectGuestMasItems,
   selectGuestMasLoading,
 } from "@/redux/slices/fetchGuestMasSlice";
-import { 
+import {
   fetchRoomTypeMas,
   selectRoomTypeMas,
   selectRoomTypeMasLoading,
 } from "@/redux/slices/roomTypeMasSlice";
-import { 
+import {
   fetchBasisMas,
   selectBasisMasItems,
   selectBasisMasLoading,
+  selectBasisMasError,
 } from "@/redux/slices/fetchBasisMasSlice";
-import { 
+import {
   fetchReservationDetailsById,
   selectReservationDetailsItems,
   selectReservationDetailsLoading,
 } from "@/redux/slices/fetchreservtaionByIdSlice";
-import { 
+import {
   createBookingFeed,
   selectCreateBookingFeedLoading,
   selectCreateBookingFeedError,
   selectCreateBookingFeedSuccess,
 } from "@/redux/slices/createBookingFeedSlice";
+import {
+  fetchHotelRatePlans,
+  selectHotelRatePlansItems,
+  selectHotelRatePlansLoading,
+  selectHotelRatePlansError,
+  selectHotelRatePlansLastQuery,
+  type HotelRatePlanItem,
+} from "@/redux/slices/fetchHotelRatePlanSlice";
 
 import { RateCode } from "@/types/rateCode";
 import { HotelRatePlan } from "@/types/hotelRatePlan";
@@ -443,7 +452,7 @@ export default function QuickReservationDrawer({
   const [selectedRatePlan, setSelectedRatePlan] = useState<number | null>(null);
   // Store selected rate plan details
   const [selectedRatePlanDetails, setSelectedRatePlanDetails] =
-    useState<HotelRatePlan | null>(null);
+    useState<HotelRatePlanItem | null>(null);
   console.log("selectedRatePlanDetails 🏨🏨🏨:", selectedRatePlanDetails);
   useEffect(() => {
     if (systemDate) {
@@ -486,8 +495,13 @@ export default function QuickReservationDrawer({
     setOverlayRoot(document.getElementById("overlay-root"));
   }, []);
 
-  // Hotel rate plans state
-  const [hotelRatePlans, setHotelRatePlans] = useState<HotelRatePlan[]>([]);
+  // Redux selectors for hotel rate plans
+  const hotelRatePlansRedux = useSelector(selectHotelRatePlansItems);
+  const hotelRatePlansLoading = useSelector(selectHotelRatePlansLoading);
+  const hotelRatePlansError = useSelector(selectHotelRatePlansError);
+
+  // Hotel rate plans state - using Redux state
+  const hotelRatePlans = hotelRatePlansRedux;
   // Hotel room types state
   const [roomTypes, setRoomTypes] = useState<HotelRoomType[]>([]);
   const [rateCodes, setRateCodes] = useState<RateCode[]>([]);
@@ -504,11 +518,20 @@ export default function QuickReservationDrawer({
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const fetchedroomTypes = useSelector(selectRoomTypeMas);
   const roomTypesLoading = useSelector(selectRoomTypeMasLoading);
-  
+
   const [selectedMealPlan, setSelectedMealPlan] = useState<string>("");
   const [mealPlanName, setMealPlanName] = useState<string>("");
 
-  console.log("hotelRatePlans aaaaa ⚽️⚽️⚽️ :", hotelRatePlans);
+  console.log("hotelRatePlans (Redux) ⚽️⚽️⚽️ :", hotelRatePlans);
+  console.log("hotelRatePlans loading:", hotelRatePlansLoading);
+  console.log("hotelRatePlans error:", hotelRatePlansError);
+  
+  // Debug rate code data from hotel rate plans
+  console.log("Rate codes from hotel rate plans:", hotelRatePlans.map(plan => ({
+    rateCodeID: plan.rateCodeID,
+    rateCode: plan.rateCode?.rateCode,
+    description: plan.rateCode?.description,
+  })));
 
   console.log("checked in clicked:", isCheckedIn);
 
@@ -537,13 +560,30 @@ export default function QuickReservationDrawer({
 
   const mealPlans = useSelector(selectBasisMasItems);
   const mealPlansLoading = useSelector(selectBasisMasLoading);
+  const mealPlansError = useSelector(selectBasisMasError);
 
   useEffect(() => {
     dispatch(fetchBasisMas());
   }, [dispatch]);
 
+  // Handle meal plans error
+  useEffect(() => {
+    if (mealPlansError) {
+      console.error("Failed to fetch meal plans:", mealPlansError);
+      toast.error("Failed to fetch meal plans", {
+        position: "top-right",
+        className: "bg-red-500 text-white",
+      });
+    }
+  }, [mealPlansError]);
+
   console.log("mealPlans (BasisMas): ", mealPlans);
-  console.log("mealPlans sample item: ", mealPlans[0]);
+  console.log("mealPlans loading:", mealPlansLoading);
+  console.log("mealPlans error:", mealPlansError);
+  console.log("mealPlans length:", mealPlans.length);
+  if (mealPlans.length > 0) {
+    console.log("mealPlans sample item: ", mealPlans[0]);
+  }
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -597,26 +637,53 @@ export default function QuickReservationDrawer({
     setRepeatGuest(!!matchedGuest); // 👈
   };
 
+  // Fetch hotel rate plans using Redux
   useEffect(() => {
-    const fetchRatePlans = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const selectedProperty = JSON.parse(
-          localStorage.getItem("selectedProperty") || "{}"
-        );
-        const plans = await getHotelRatePlans({
-          token: tokens.accessToken,
-          hotelId: selectedProperty.id,
-        });
-        setHotelRatePlans(plans);
-      } catch (err) {
-        console.error("Failed to fetch hotel rate plans", err);
+    const selectedProperty = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+    const hotelId = selectedProperty?.id;
+    
+    if (hotelId) {
+      dispatch(fetchHotelRatePlans({ hotelId }));
+    }
+  }, [dispatch]);
+
+  // Handle hotel rate plans error
+  useEffect(() => {
+    if (hotelRatePlansError) {
+      console.error("Failed to fetch hotel rate plans:", hotelRatePlansError);
+      toast.error("Failed to fetch hotel rate plans", {
+        position: "top-right",
+        className: "bg-red-500 text-white",
+      });
+    }
+  }, [hotelRatePlansError]);
+
+  // Refetch hotel rate plans when filters change
+  useEffect(() => {
+    const selectedProperty = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+    const hotelId = selectedProperty?.id;
+    
+    if (hotelId) {
+      const params: any = { hotelId };
+      
+      // Add optional filters if they exist
+      if (rateCode && !isNaN(Number(rateCode))) {
+        params.rateCodeID = Number(rateCode);
       }
-    };
-    fetchRatePlans();
-  }, []);
+      if (selectedMealPlan && !isNaN(Number(selectedMealPlan))) {
+        params.mealPlanID = Number(selectedMealPlan);
+      }
+      if (currency) {
+        params.currencyCode = currency;
+      }
+      
+      dispatch(fetchHotelRatePlans(params));
+    }
+  }, [dispatch, rateCode, selectedMealPlan, currency]);
 
   // Clears stale prices so UI doesn't show previous rate while fetching a new one
   const resetRatesForAllRows = () => {
@@ -688,21 +755,22 @@ export default function QuickReservationDrawer({
     fetchRoomTypes();
   }, []);
 
-  // Fetch rate codes on mount
-  useEffect(() => {
-    const fetchRateCodes = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const codes = await getRateCodes({ token: tokens.accessToken });
-        setRateCodes(codes);
-      } catch (err) {
-        console.error("Failed to fetch rate codes", err);
-      }
-    };
-    fetchRateCodes();
-  }, []);
+  // Rate codes are now fetched from hotel rate plans Redux state
+  // No need for separate rate codes API call
+  // useEffect(() => {
+  //   const fetchRateCodes = async () => {
+  //     try {
+  //       const tokens = JSON.parse(
+  //         localStorage.getItem("hotelmateTokens") || "{}"
+  //       );
+  //       const codes = await getRateCodes({ token: tokens.accessToken });
+  //       setRateCodes(codes);
+  //     } catch (err) {
+  //       console.error("Failed to fetch rate codes", err);
+  //     }
+  //   };
+  //   fetchRateCodes();
+  // }, []);
 
   console.log("Travel Agent : ", selectedTravelAgent);
 
@@ -758,7 +826,7 @@ export default function QuickReservationDrawer({
       return false;
     }
     if (!rateCode) {
-      toast.error("Rate plan date is required", {
+      toast.error("Rate plan is required", {
         position: "top-right",
         className: "bg-red-500 text-white",
       });
@@ -1076,15 +1144,17 @@ export default function QuickReservationDrawer({
       };
 
       try {
-        const guestResult = await dispatch(createGuestProfileCheckIn({
-          hotelCode: localStorage.getItem("hotelCode") || "1097",
-          guestName: guestName || "",
-          phoneNo: mobile,
-          email: guestEmail,
-          country: selectedCountry || "",
-          createdBy: fullName || "system",
-        }));
-        
+        const guestResult = await dispatch(
+          createGuestProfileCheckIn({
+            hotelCode: localStorage.getItem("hotelCode") || "1097",
+            guestName: guestName || "",
+            phoneNo: mobile,
+            email: guestEmail,
+            country: selectedCountry || "",
+            createdBy: fullName || "system",
+          })
+        );
+
         if (createGuestProfileCheckIn.fulfilled.match(guestResult)) {
           guestProfileId = guestResult.payload?.guestID ?? null;
         } else {
@@ -1475,6 +1545,13 @@ export default function QuickReservationDrawer({
     );
     console.log("Selected Rate Plan:", selectedRatePlan);
     console.log("Rate Code ID:", selectedRatePlan?.rateCodeID);
+    
+    // Log meal plan info being sent
+    console.log("🍽️ MEAL PLAN DEBUG:");
+    console.log("Selected meal plan ID (selectedMealPlan):", selectedMealPlan);
+    console.log("Selected meal plan name (mealPlanName):", mealPlanName);
+    console.log("Available meal plans (basisMas):", mealPlans);
+    console.log("Note: Frontend correctly uses basisMas table, backend error references MealPlanMas table");
 
     // Log the payload exactly as it will be sent
     console.log(
@@ -1865,10 +1942,21 @@ export default function QuickReservationDrawer({
   const availableLoading = useSelector(selectAvailableRoomTypesLoading);
 
   console.log("Available Rooms.⚽⚽⚽⚽ :", availableRooms);
-  console.log("Available Rooms Type:", typeof availableRooms, Array.isArray(availableRooms));
+  console.log(
+    "Available Rooms Type:",
+    typeof availableRooms,
+    Array.isArray(availableRooms)
+  );
   console.log("Fetched Room Types:🎾🎾🎾", fetchedroomTypes);
   console.log("Current rooms state:", rooms);
-  console.log("Room type values:", rooms.map(r => ({ idx: rooms.indexOf(r), roomType: r.roomType, room: r.room })));
+  console.log(
+    "Room type values:",
+    rooms.map((r) => ({
+      idx: rooms.indexOf(r),
+      roomType: r.roomType,
+      room: r.room,
+    }))
+  );
 
   useEffect(() => {
     rooms.forEach((room, idx) => {
@@ -1955,12 +2043,14 @@ export default function QuickReservationDrawer({
     try {
       setRateLoading((p) => ({ ...p, [idx]: true }));
 
+      console.log("Fetching calculated rate with mealPlanId (from basisMas):", Number(selectedMealPlan || 0));
+      
       const res = await (
         dispatch(
           fetchCalculatedRate({
             ratePlanId: Number(ratePlanId),
             currencyCode: String(currency || "LKR"),
-            mealPlanId: Number(selectedMealPlan || 0),
+            mealPlanId: Number(selectedMealPlan || 0), // This comes from basisMas.basisID
             roomTypeId: Number(row.roomType),
             startDate: toApiDateTime(checkInDate),
             endDate: toApiDateTime(checkOutDate),
@@ -2822,31 +2912,40 @@ export default function QuickReservationDrawer({
                           }}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Rate" />
+                            <SelectValue placeholder={
+                              hotelRatePlansLoading 
+                                ? "Loading rate plans..." 
+                                : hotelRatePlans.length === 0 
+                                ? "No rate plans available" 
+                                : "Select rate plan"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
-                            {[
-                              ...new Map(
-                                hotelRatePlans
-                                  .map((plan) => {
-                                    const matchedRateCode = rateCodes.find(
-                                      (rc) => rc.rateCodeID === plan.rateCodeID
-                                    );
-                                    return matchedRateCode
-                                      ? [
-                                          plan.rateCodeID,
-                                          <SelectItem
-                                            key={plan.rateCodeID}
-                                            value={String(plan.rateCodeID)}
-                                          >
-                                            {matchedRateCode.rateCode}
-                                          </SelectItem>,
-                                        ]
-                                      : null;
-                                  })
-                                  .filter(Boolean) as [number, JSX.Element][]
-                              ).values(),
-                            ]}
+                            {hotelRatePlansLoading ? (
+                              <SelectItem value="loading" disabled>
+                                Loading rate plans...
+                              </SelectItem>
+                            ) : hotelRatePlans.length === 0 ? (
+                              <SelectItem value="empty" disabled>
+                                No rate plans found
+                              </SelectItem>
+                            ) : (
+                              [
+                                ...new Map(
+                                  hotelRatePlans
+                                    .filter((plan) => plan.rateCode) // Only plans with rateCode
+                                    .map((plan) => [
+                                      plan.rateCodeID,
+                                      <SelectItem
+                                        key={plan.rateCodeID}
+                                        value={String(plan.rateCodeID)}
+                                      >
+                                        {plan.rateCode.rateCode}
+                                      </SelectItem>,
+                                    ])
+                                ).values(),
+                              ]
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -2904,14 +3003,16 @@ export default function QuickReservationDrawer({
                     }`}
                   >
                     <Label className="text-sm font-medium block mb-1">
-                      Meal Plan
+                      Meal Plan (BasisMas)
                     </Label>
                     <Select
                       onValueChange={(value) => {
+                        console.log("Selected meal plan ID (basisID):", value);
                         setSelectedMealPlan(value);
                         const plan = mealPlans.find(
                           (p) => p.basisID.toString() === value
                         );
+                        console.log("Selected meal plan details:", plan);
                         setMealPlanName(plan?.basis || "");
                         resetRatesForAllRows(); // 👈 clear immediately
                       }}
@@ -2962,10 +3063,12 @@ export default function QuickReservationDrawer({
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="-Select-">
-                                {row.roomType ? 
-                                  fetchedroomTypes.find(rt => String(rt.roomTypeID) === row.roomType)?.roomType || "-Select-"
-                                  : "-Select-"
-                                }
+                                {row.roomType
+                                  ? fetchedroomTypes.find(
+                                      (rt) =>
+                                        String(rt.roomTypeID) === row.roomType
+                                    )?.roomType || "-Select-"
+                                  : "-Select-"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
@@ -2990,10 +3093,9 @@ export default function QuickReservationDrawer({
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="-Select-">
-                                {(
-                                  availableRooms.filter(Boolean) as any[]
-                                ).find((r) => String(r.roomId) === row.room)
-                                  ?.roomNo || "-Select-"}
+                                {(availableRooms.filter(Boolean) as any[]).find(
+                                  (r) => String(r.roomId) === row.room
+                                )?.roomNo || "-Select-"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
@@ -3494,23 +3596,12 @@ export default function QuickReservationDrawer({
           }
 
           // Refresh Hotel Rate Plans so mapping (rateCodeID -> hotelRatePlanID) is up-to-date
-          try {
-            const tokens = JSON.parse(
-              localStorage.getItem("hotelmateTokens") || "{}"
-            );
-            const selectedProperty = JSON.parse(
-              localStorage.getItem("selectedProperty") || "{}"
-            );
-            const plans = await getHotelRatePlans({
-              token: tokens.accessToken,
-              hotelId: selectedProperty.id,
-            });
-            setHotelRatePlans(plans || []);
-          } catch (err) {
-            console.error(
-              "Failed to refresh hotel rate plans after creation",
-              err
-            );
+          const selectedProperty = JSON.parse(
+            localStorage.getItem("selectedProperty") || "{}"
+          );
+          const hotelId = selectedProperty?.id;
+          if (hotelId) {
+            dispatch(fetchHotelRatePlans({ hotelId }));
           }
 
           // Auto-select the newly created rate plan if we have the ID
