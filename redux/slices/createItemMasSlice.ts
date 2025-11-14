@@ -122,10 +122,6 @@ export interface ItemMasData {
   nameOnBill: string;
 }
 
-export interface CreateItemMasPayload {
-  newItem: ItemMasData;
-}
-
 /** ---- State ---- */
 interface CreateItemMasState {
   loading: boolean;
@@ -143,7 +139,7 @@ const initialState: CreateItemMasState = {
 
 /** ---- Thunk: POST /api/ItemMas ---- */
 export const createItemMas = createAsyncThunk<
-  CreateItemMasPayload,
+  ItemMasData,
   ItemMasData,
   { rejectValue: string }
 >("itemMas/create", async (itemData, { rejectWithValue }) => {
@@ -175,12 +171,7 @@ export const createItemMas = createAsyncThunk<
         : null,
     };
 
-    // Wrap the data in the expected structure
-    const payload: CreateItemMasPayload = {
-      newItem: formattedItemData
-    };
-
-    const response = await axios.post(`${API_BASE_URL}/api/ItemMas`, payload);
+    const response = await axios.post(`${API_BASE_URL}/api/ItemMas`, formattedItemData);
     return response.data;
   } catch (err: any) {
     const msg =
@@ -212,10 +203,10 @@ const createItemMasSlice = createSlice({
       })
       .addCase(
         createItemMas.fulfilled,
-        (state, action: PayloadAction<CreateItemMasPayload>) => {
+        (state, action: PayloadAction<ItemMasData>) => {
           state.loading = false;
           state.success = true;
-          state.createdItem = action.payload.newItem;
+          state.createdItem = action.payload;
         }
       )
       .addCase(createItemMas.rejected, (state, action) => {

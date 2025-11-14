@@ -15,6 +15,23 @@ import {
 } from "@/redux/slices/fetchItemMasSlice";
 
 import {
+  createItemMas,
+  selectCreateItemMasLoading,
+  selectCreateItemMasSuccess,
+  selectCreateItemMasError,
+  resetCreateItemMasState,
+  type ItemMasData,
+} from "@/redux/slices/createItemMasSlice";
+
+import {
+  updateItemMas,
+  selectUpdateItemMasLoading,
+  selectUpdateItemMasSuccess,
+  selectUpdateItemMasError,
+  resetUpdateItemMasState,
+} from "@/redux/slices/updateItemMasSlice";
+
+import {
   Table,
   TableHeader,
   TableRow,
@@ -35,6 +52,16 @@ export default function ItemListPage() {
   const items = useSelector((s: RootState) => selectItemMasItems(s));
   const loading = useSelector((s: RootState) => selectItemMasLoading(s));
   const error = useSelector((s: RootState) => selectItemMasError(s));
+
+  // Create item state
+  const createLoading = useSelector((s: RootState) => selectCreateItemMasLoading(s));
+  const createSuccess = useSelector((s: RootState) => selectCreateItemMasSuccess(s));
+  const createError = useSelector((s: RootState) => selectCreateItemMasError(s));
+
+  // Update item state
+  const updateLoading = useSelector((s: RootState) => selectUpdateItemMasLoading(s));
+  const updateSuccess = useSelector((s: RootState) => selectUpdateItemMasSuccess(s));
+  const updateError = useSelector((s: RootState) => selectUpdateItemMasError(s));
 
   // Pagination state
   const [pageIndex, setPageIndex] = useState(1); // 1-based
@@ -64,6 +91,27 @@ export default function ItemListPage() {
   useEffect(() => {
     dispatch(fetchItemMas(undefined));
   }, [dispatch]);
+
+  // Handle successful item creation
+  useEffect(() => {
+    if (createSuccess) {
+      setAddDrawerOpen(false);
+      dispatch(resetCreateItemMasState());
+      // Refresh the items list
+      dispatch(fetchItemMas(undefined));
+    }
+  }, [createSuccess, dispatch]);
+
+  // Handle successful item update
+  useEffect(() => {
+    if (updateSuccess) {
+      setEditDrawerOpen(false);
+      setSelectedItem(null);
+      dispatch(resetUpdateItemMasState());
+      // Refresh the items list
+      dispatch(fetchItemMas(undefined));
+    }
+  }, [updateSuccess, dispatch]);
 
   const filtered = useMemo(() => {
     const matchesBool = (val: boolean, f: BoolFilter) => {
@@ -131,8 +179,8 @@ export default function ItemListPage() {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const canPrev = pageIndex > 1 && !loading;
-  const canNext = !loading && pageIndex < totalPages;
+  const canPrev = pageIndex > 1 && !loading && !updateLoading;
+  const canNext = !loading && !updateLoading && pageIndex < totalPages;
 
   const handlePrev = () => canPrev && setPageIndex((p) => p - 1);
   const handleNext = () => canNext && setPageIndex((p) => p + 1);
@@ -178,12 +226,132 @@ export default function ItemListPage() {
 
   const handleSaveNew = (values: Partial<ItemMas>) => {
     console.log("Save NEW item from drawer:", values);
-    // TODO: call create API then refresh
+    
+    // Convert the partial ItemMas to ItemMasData format
+    const itemData: ItemMasData = {
+      finAct: values.finAct ?? false,
+      itemID: 0, // Will be assigned by the API
+      itemNumber: values.itemNumber ?? "",
+      description: values.description ?? "",
+      extDescription: values.extDescription ?? "",
+      uomid: values.uomid ?? 0,
+      itemTypeID: values.itemTypeID ?? 0,
+      categoryID: values.categoryID ?? 0,
+      salesTaxID: values.salesTaxID ?? 0,
+      price: values.price ?? 0,
+      cost: values.cost ?? 0,
+      binLocation: values.binLocation ?? "",
+      notes: values.notes ?? "",
+      reorderPoint: values.reorderPoint ?? 0,
+      restockLevel: values.restockLevel ?? 0,
+      picturePath: values.picturePath ?? "",
+      notDiscountable: values.notDiscountable ?? false,
+      cannotPurchase: values.cannotPurchase ?? false,
+      cannotInvoDecimal: values.cannotInvoDecimal ?? false,
+      waighMustEnter: values.waighMustEnter ?? false,
+      itemMessage: values.itemMessage ?? "",
+      createdBy: values.createdBy ?? 0,
+      createdOn: new Date().toISOString(),
+      lastModBy: values.lastModBy ?? 0,
+      lastModOn: new Date().toISOString(),
+      cogsAccountID: values.cogsAccountID ?? 0,
+      salesAccountID: values.salesAccountID ?? 0,
+      inventoryAssetsAccID: values.inventoryAssetsAccID ?? 0,
+      lowestSellingPrice: values.lowestSellingPrice ?? 0,
+      packagingSize: values.packagingSize ?? "",
+      messageClient: values.messageClient ?? "",
+      cannotInvoInsufQty: values.cannotInvoInsufQty ?? false,
+      subCompanyID: values.subCompanyID ?? 0,
+      serialNo: values.serialNo ?? "",
+      costCenterID: values.costCenterID ?? 0,
+      custodianID: values.custodianID ?? 0,
+      supplierID: values.supplierID ?? 0,
+      acqDate: values.acqDate ?? null,
+      lifeTimeYears: values.lifeTimeYears ?? 0,
+      lifeTimeMonths: values.lifeTimeMonths ?? 0,
+      serviceProvider: values.serviceProvider ?? "",
+      warranty: values.warranty ?? "",
+      nextServiceDate: values.nextServiceDate ?? null,
+      serviceContractNo: values.serviceContractNo ?? "",
+      commercialDepreMethodID: values.commercialDepreMethodID ?? 0,
+      fiscalDepreMethodID: values.fiscalDepreMethodID ?? 0,
+      profitMargin: values.profitMargin ?? 0,
+      vat: values.vat ?? false,
+      nbt: values.nbt ?? false,
+      sinhalaDes: values.sinhalaDes ?? "",
+      brandID: values.brandID ?? 0,
+      kitItem: values.kitItem ?? false,
+      buid: values.buid ?? 0,
+      serialNumbered: values.serialNumbered ?? false,
+      preferedSupplierID: values.preferedSupplierID ?? 0,
+      backColour: values.backColour ?? "",
+      limitWholesaleQtyAtCHK: values.limitWholesaleQtyAtCHK ?? false,
+      limitWholesaleQtyAt: values.limitWholesaleQtyAt ?? 0,
+      maxWholesaleQtyCHK: values.maxWholesaleQtyCHK ?? false,
+      maxWholesaleQty: values.maxWholesaleQty ?? 0,
+      discountRTNarration: values.discountRTNarration ?? "",
+      discountWSNarration: values.discountWSNarration ?? "",
+      limitRetailQtyAtCHK: values.limitRetailQtyAtCHK ?? false,
+      limitRetailQtyAt: values.limitRetailQtyAt ?? 0,
+      maxRetialQtyCHK: values.maxRetialQtyCHK ?? false,
+      maxRetailQty: values.maxRetailQty ?? 0,
+      isPick: values.isPick ?? false,
+      rtPrice: values.rtPrice ?? 0,
+      wsPrice: values.wsPrice ?? 0,
+      itemMessage_Client: values.itemMessage_Client ?? "",
+      showOnPOS: values.showOnPOS ?? false,
+      isKOT: values.isKOT ?? false,
+      isBOT: values.isBOT ?? false,
+      posCenter: values.posCenter ?? "",
+      rackNo: values.rackNo ?? "",
+      isTrading: values.isTrading ?? false,
+      isTaxIncluded: values.isTaxIncluded ?? false,
+      isSCIncluded: values.isSCIncluded ?? false,
+      baseItemCatID: values.baseItemCatID ?? 0,
+      oldItemCode: values.oldItemCode ?? "",
+      small: values.small ?? false,
+      regular: values.regular ?? false,
+      large: values.large ?? false,
+      guestPrice: values.guestPrice ?? 0,
+      childPrice: values.childPrice ?? 0,
+      guidePrice: values.guidePrice ?? 0,
+      driverPrice: values.driverPrice ?? 0,
+      isRecipe: values.isRecipe ?? false,
+      isAIEntitled: values.isAIEntitled ?? false,
+      sku: values.sku ?? "",
+      useBatchPriceOnSale: values.useBatchPriceOnSale ?? false,
+      discountPercentage: values.discountPercentage ?? 0,
+      discountID: values.discountID ?? 0,
+      isFastCheckOut: values.isFastCheckOut ?? false,
+      changePriceOnGRN: values.changePriceOnGRN ?? false,
+      partNo: values.partNo ?? "",
+      oldPrice: values.oldPrice ?? 0,
+      oldPriceAsAt: values.oldPriceAsAt ?? null,
+      lastPriceUpdateBy: values.lastPriceUpdateBy ?? "",
+      colour: values.colour ?? "",
+      askQtyOnSale: values.askQtyOnSale ?? false,
+      isAskSKU: values.isAskSKU ?? false,
+      skuid: values.skuid ?? 0,
+      isShotItem: values.isShotItem ?? false,
+      shotItemID: values.shotItemID ?? 0,
+      shotItemCode: values.shotItemCode ?? "",
+      subItemOf: values.subItemOf ?? "",
+      imageURL: values.imageURL ?? "",
+      lastDepreciatedDate: values.lastDepreciatedDate ?? null,
+      depreciationExpenseAccountID: values.depreciationExpenseAccountID ?? 0,
+      bookValue: values.bookValue ?? 0,
+      bookValueAsAt: values.bookValueAsAt ?? null,
+      guardian: values.guardian ?? "",
+      barCode: values.barCode ?? "",
+      nameOnBill: values.nameOnBill ?? "",
+    };
+
+    dispatch(createItemMas(itemData));
   };
 
   const handleSaveEdit = (updated: ItemMas) => {
     console.log("Save EDITED item from drawer:", updated);
-    // TODO: call update API then refresh
+    dispatch(updateItemMas(updated));
   };
 
   return (
@@ -197,13 +365,15 @@ export default function ItemListPage() {
               View / Edit / Filter POS Items
             </p>
           </div>
-          <Button onClick={handleAddItem}>Add Items</Button>
+          <Button onClick={handleAddItem} disabled={createLoading || updateLoading}>
+            {createLoading ? "Adding..." : "Add Items"}
+          </Button>
         </div>
 
         {/* Error */}
-        {error && (
+        {(error || createError || updateError) && (
           <div className="text-red-600 border border-red-300 rounded p-3 bg-red-50">
-            {error}
+            {error || createError || updateError}
           </div>
         )}
 
@@ -366,7 +536,7 @@ export default function ItemListPage() {
             </TableHeader>
 
             <TableBody>
-              {loading ? (
+              {(loading || createLoading || updateLoading) ? (
                 <TableRow>
                   <TableCell colSpan={12} className="py-6 text-center">
                     Loading items…
