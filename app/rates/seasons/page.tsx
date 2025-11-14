@@ -26,7 +26,6 @@ import {
 import { useAppSelector } from "@/redux/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableHeader,
@@ -35,6 +34,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import { AddSeasonDrawer } from "../../../components/drawers/add-season-drawer";
+import { UpdateSeasonDrawer } from "../../../components/drawers/update-season-drawer";
 
 // ---- Type ----
 interface SeasonUI {
@@ -57,9 +58,9 @@ export default function SeasonPage() {
 
   const [filtered, setFiltered] = useState<SeasonUI[]>([]);
   const [query, setQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [seasonName, setSeasonName] = useState("");
-  const [editId, setEditId] = useState<number | null>(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [currentSeason, setCurrentSeason] = useState<SeasonUI | null>(null);
 
   // Pagination state
   const [pageIndex, setPageIndex] = useState(1);
@@ -100,50 +101,35 @@ export default function SeasonPage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
-  const openCreateDialog = () => {
-    setSeasonName("");
-    setEditId(null);
-    setDialogOpen(true);
+  const openAddDrawer = () => {
+    setAddDrawerOpen(true);
   };
 
-  const openEditDialog = (season: SeasonUI) => {
-    setSeasonName(season.name);
-    setEditId(season.id);
-    setDialogOpen(true);
+  const openUpdateDrawer = (season: SeasonUI) => {
+    setCurrentSeason(season);
+    setUpdateDrawerOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!seasonName.trim()) {
-      toast.error("Season name cannot be empty");
-      return;
-    }
+  const handleAddDrawerClose = () => {
+    setAddDrawerOpen(false);
+  };
 
-    try {
-      if (editId !== null) {
-        // UPDATE
-        const action = await dispatch(updateSeasonMas({ seasonID: editId, season: seasonName }));
-        if (updateSeasonMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to update season");
-          return;
-        }
-        toast.success(`Season updated to "${seasonName}"`);
-      } else {
-        // CREATE
-        const action = await dispatch(createSeasonMas({ seasonID: 0, season: seasonName }));
-        if (createSeasonMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to create season");
-          return;
-        }
-        toast.success(`Season "${seasonName}" created`);
-      }
+  const handleUpdateDrawerClose = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentSeason(null);
+  };
 
-      setDialogOpen(false);
-      setSeasonName("");
-      setEditId(null);
-      dispatch(fetchSeasonMas());
-    } catch {
-      toast.error("Operation failed");
-    }
+  const handleSeasonCreated = () => {
+    setAddDrawerOpen(false);
+    dispatch(fetchSeasonMas());
+    toast.success("Season created successfully");
+  };
+
+  const handleSeasonUpdated = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentSeason(null);
+    dispatch(fetchSeasonMas());
+    toast.success("Season updated successfully");
   };
 
   return (
@@ -170,7 +156,7 @@ export default function SeasonPage() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button onClick={openCreateDialog}>Add Season</Button>
+            <Button onClick={openAddDrawer}>Add Season</Button>
           </div>
         </div>
 
@@ -181,7 +167,7 @@ export default function SeasonPage() {
           </div>
         )}
 
-        {/* Table - Updated to use common component */}
+        {/* Table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -209,7 +195,7 @@ export default function SeasonPage() {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        onClick={() => openEditDialog(season)}
+                        onClick={() => openUpdateDrawer(season)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -227,7 +213,7 @@ export default function SeasonPage() {
           )}
         </div>
 
-        {/* Pagination Controls - Consistent with venues */}
+        {/* Pagination Controls */}
         {filtered.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
             <div className="hidden sm:block" />
@@ -273,35 +259,20 @@ export default function SeasonPage() {
           </div>
         )}
 
-        {/* Create/Edit Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>{editId !== null ? "Edit Season" : "Create Season"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-2">
-              <Input
-                placeholder="Season Name"
-                value={seasonName}
-                onChange={(e) => setSeasonName(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={creating || updating}>
-                  {creating || updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : editId !== null ? (
-                    "Update"
-                  ) : (
-                    "Create"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Add Season Drawer */}
+        <AddSeasonDrawer
+          isOpen={addDrawerOpen}
+          onClose={handleAddDrawerClose}
+          onSeasonCreated={handleSeasonCreated}
+        />
+
+        {/* Update Season Drawer */}
+        <UpdateSeasonDrawer
+          isOpen={updateDrawerOpen}
+          onClose={handleUpdateDrawerClose}
+          season={currentSeason}
+          onSeasonUpdated={handleSeasonUpdated}
+        />
       </div>
     </DashboardLayout>
   );
