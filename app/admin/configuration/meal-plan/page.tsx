@@ -16,7 +16,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-
+import AddMealPlanDrawer from "@/components/drawers/add-mealPlan-drawer";
 import {
   fetchMealPlanByFolioByDate,
   selectMealPlanByFolioByDateData,
@@ -38,8 +38,12 @@ import {
   selectUpdateMealPlanByFolioByDateError,
 } from "@/redux/slices/updateMealPlanByFolioByDateSlice";
 
+import EditMealPlanDrawer from "@/components/drawers/edit-mealPlan-drawer";
+
 export default function MealPlanPage() {
   const dispatch = useDispatch<AppDispatch>();
+
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const loading = useSelector(selectMealPlanByFolioByDateLoading);
   const error = useSelector(selectMealPlanByFolioByDateError);
@@ -47,10 +51,15 @@ export default function MealPlanPage() {
 
   const creating = useSelector(selectCreateMealPlanByFolioByDateLoading);
   const createError = useSelector(selectCreateMealPlanByFolioByDateError);
-  
+
   const updating = useSelector(selectUpdateMealPlanByFolioByDateLoading);
   const updateSuccess = useSelector(selectUpdateMealPlanByFolioByDateSuccess);
   const updateError = useSelector(selectUpdateMealPlanByFolioByDateError);
+
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<MealPlanByFolioByDate | null>(
+    null
+  );
 
   const [query, setQuery] = useState("");
   const [pageIndex, setPageIndex] = useState(1);
@@ -135,14 +144,10 @@ export default function MealPlanPage() {
   }, [filtered, pageIndex, pageSize]);
 
   /** ---- CREATE ---- */
-  const openCreate = () => {
-    setCreateValues({
-      folioID: 0,
-      dt: new Date().toISOString().slice(0, 10),
-      mealPlan: "",
-      ai: false,
-    });
-    createDialogRef.current?.showModal();
+  const openCreate = () => setAddDrawerOpen(true);
+
+  const handleCreated = () => {
+    refreshData();
   };
 
   const handleCreateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,9 +167,11 @@ export default function MealPlanPage() {
         mealPlan: createValues.mealPlan,
         ai: createValues.ai,
       };
-      
-      const result = await dispatch(createMealPlanByFolioByDate(payload)).unwrap();
-      
+
+      const result = await dispatch(
+        createMealPlanByFolioByDate(payload)
+      ).unwrap();
+
       if (result) {
         toast.success("Meal plan created successfully");
         createDialogRef.current?.close();
@@ -178,18 +185,20 @@ export default function MealPlanPage() {
 
   /** ---- EDIT ---- */
   const openEdit = (row: MealPlanByFolioByDate) => {
-    setEditValues({ ...row });
-    editDialogRef.current?.showModal();
+    setSelectedRow(row);
+    setEditDrawerOpen(true);
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setEditValues((p) => p && { ...p, [name]: type === "checkbox" ? checked : value });
+    setEditValues(
+      (p) => p && { ...p, [name]: type === "checkbox" ? checked : value }
+    );
   };
 
   const handleSaveEdit = async () => {
     if (!editValues) return;
-    
+
     try {
       // Ensure we're sending the complete object with recordID
       const updatePayload: MealPlanByFolioByDate = {
@@ -199,7 +208,7 @@ export default function MealPlanPage() {
         mealPlan: editValues.mealPlan,
         ai: editValues.ai,
       };
-      
+
       await dispatch(updateMealPlanByFolioByDate(updatePayload)).unwrap();
       // The useEffect will handle the success message and data refresh
       editDialogRef.current?.close();
@@ -237,11 +246,7 @@ export default function MealPlanPage() {
               onChange={(e) => setQuery(e.target.value)}
               className="w-64"
             />
-            <Button
-              variant="outline"
-              onClick={refreshData}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={refreshData} disabled={loading}>
               {loading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
@@ -356,160 +361,21 @@ export default function MealPlanPage() {
           </div>
         )}
 
-        {/* Create Dialog */}
-        <dialog
-          ref={createDialogRef}
-          className="rounded-lg p-0 backdrop:bg-black/30"
-        >
-          <form method="dialog" className="w-[92vw] max-w-lg">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold">Add Meal Plan</h2>
-            </div>
-            <div className="px-4 py-4 space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm text-gray-600">Folio ID *</label>
-                <Input
-                  name="folioID"
-                  type="number"
-                  value={createValues.folioID}
-                  onChange={handleCreateChange}
-                  placeholder="Enter Folio ID"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-gray-600">Date *</label>
-                <Input
-                  name="dt"
-                  type="date"
-                  value={createValues.dt}
-                  onChange={handleCreateChange}
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-gray-600">Meal Plan *</label>
-                <Input
-                  name="mealPlan"
-                  value={createValues.mealPlan}
-                  onChange={handleCreateChange}
-                  placeholder="e.g., HB, AI, BB"
-                  required
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="ai"
-                  checked={createValues.ai}
-                  onChange={handleCreateChange}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm text-gray-600">AI (All Inclusive)</span>
-              </div>
-              {createError && (
-                <div className="text-xs text-red-600">{createError}</div>
-              )}
-            </div>
-            <div className="border-t flex justify-end gap-2 px-4 py-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeCreateDialog}
-                disabled={creating}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveCreate}
-                disabled={creating || !createValues.mealPlan.trim() || !createValues.folioID || !createValues.dt}
-              >
-                {creating ? "Saving…" : "Save"}
-              </Button>
-            </div>
-          </form>
-        </dialog>
+        <AddMealPlanDrawer
+          isOpen={addDrawerOpen}
+          onClose={() => setAddDrawerOpen(false)}
+          onCreated={handleCreated}
+        />
 
-        {/* Edit Dialog */}
-        <dialog
-          ref={editDialogRef}
-          className="rounded-lg p-0 backdrop:bg-black/30"
-        >
-          <form method="dialog" className="w-[92vw] max-w-lg">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold">Edit Meal Plan</h2>
-            </div>
-            {editValues && (
-              <div className="px-4 py-4 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm text-gray-600">Record ID</label>
-                  <Input
-                    value={editValues.recordID}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-gray-600">Folio ID</label>
-                  <Input
-                    value={editValues.folioID}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-gray-600">Date</label>
-                  <Input
-                    value={editValues.dt.split("T")[0]}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-gray-600">Meal Plan *</label>
-                  <Input
-                    name="mealPlan"
-                    value={editValues.mealPlan}
-                    onChange={handleEditChange}
-                    placeholder="e.g., HB, AI, BB"
-                    required
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="ai"
-                    checked={editValues.ai}
-                    onChange={handleEditChange}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm text-gray-600">AI (All Inclusive)</span>
-                </div>
-                {updateError && (
-                  <div className="text-xs text-red-600">{updateError}</div>
-                )}
-              </div>
-            )}
-            <div className="border-t flex justify-end gap-2 px-4 py-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeEditDialog}
-                disabled={updating}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={updating || !editValues?.mealPlan.trim()}
-              >
-                {updating ? "Saving…" : "Save"}
-              </Button>
-            </div>
-          </form>
-        </dialog>
+        <EditMealPlanDrawer
+          isOpen={editDrawerOpen}
+          onClose={() => setEditDrawerOpen(false)}
+          row={selectedRow}
+          onUpdated={() => {
+            // refresh list on successful update
+            refreshData();
+          }}
+        />
       </div>
     </DashboardLayout>
   );

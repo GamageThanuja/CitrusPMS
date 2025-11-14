@@ -249,57 +249,91 @@ export default function AvailabilityPage() {
     return map;
   }, [availabilityItems]);
 
-  // Rates: roomTypeID -> occupancy -> date -> defaultRate
-  const ratesByRoom = useMemo(() => {
-    const map = new Map<number, Map<number, Map<string, number>>>();
-    (availabilityItems ?? []).forEach((item) => {
-      // Handle both roomTypeID and roomTypeId (API inconsistency)
-      const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
-      if (!roomId) return;
+  // Rates: roomTypeID -> occupancy -> date -> rateValue
+const ratesByRoom = useMemo(() => {
+  const map = new Map<number, Map<number, Map<string, number>>>();
 
-      // console.log("Processing item:", item); // Debug log
+  (availabilityItems ?? []).forEach((item: any) => {
+    const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
+    if (!roomId) return;
 
-      // If item has hotelRates array, process each rate
-      if (item.hotelRates && Array.isArray(item.hotelRates) && item.hotelRates.length > 0) {
-        item.hotelRates.forEach((rate: any) => {
-          const occ = Number(rate.primaryOccupancy ?? 1);
-          // Process availability dates if they exist
-          if (item.availability && Array.isArray(item.availability)) {
-            item.availability.forEach((avail: any) => {
-              const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
-              if (!map.has(roomId)) map.set(roomId, new Map());
-              const occMap = map.get(roomId)!;
-              if (!occMap.has(occ)) occMap.set(occ, new Map());
-              const dateMap = occMap.get(occ)!;
-              dateMap.set(dateKey, item.averageRate ?? 0);
-            });
-          }
+    // helper to upsert into the nested map
+    const upsert = (occ: number, date: Date, value: number | null | undefined) => {
+      if (value == null || Number.isNaN(value)) return;
+      const dateKey = format(date, "yyyy-MM-dd");
+
+      if (!map.has(roomId)) map.set(roomId, new Map());
+      const occMap = map.get(roomId)!;
+
+      if (!occMap.has(occ)) occMap.set(occ, new Map());
+      const dateMap = occMap.get(occ)!;
+
+      dateMap.set(dateKey, value);
+    };
+
+    // ---- CASE 1: new shape with hotelRates + availability[] ----
+    if (Array.isArray(item.hotelRates) && item.hotelRates.length > 0) {
+      const availArray = Array.isArray(item.availability)
+        ? item.availability
+        : item.rateDate
+        ? [{ date: item.rateDate }]
+        : [];
+
+      item.hotelRates.forEach((rate: any) => {
+        const occ = Number(rate.primaryOccupancy ?? item.primaryOccupancy ?? 1);
+
+        availArray.forEach((avail: any) => {
+          if (!avail?.date) return;
+          const value =
+            typeof rate.defaultRate === "number"
+              ? rate.defaultRate
+              : typeof rate.averageRate === "number"
+              ? rate.averageRate
+              : typeof item.defaultRate === "number"
+              ? item.defaultRate
+              : typeof item.averageRate === "number"
+              ? item.averageRate
+              : undefined;
+
+          upsert(occ, new Date(avail.date), value);
         });
-      } else {
-        // Fallback for when no hotelRates array or empty hotelRates
-        const occ = Number(item.primaryOccupancy ?? item.adultCount ?? 2); // Default to 2 adults
-        if (item.availability && Array.isArray(item.availability)) {
-          item.availability.forEach((avail: any) => {
-            const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
-            if (!map.has(roomId)) map.set(roomId, new Map());
-            const occMap = map.get(roomId)!;
-            if (!occMap.has(occ)) occMap.set(occ, new Map());
-            const dateMap = occMap.get(occ)!;
-            dateMap.set(dateKey, item.averageRate ?? 0);
-          });
-        } else if (item.rateDate) {
-          // Old format fallback
-          const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
-          if (!map.has(roomId)) map.set(roomId, new Map());
-          const occMap = map.get(roomId)!
-          if (!occMap.has(occ)) occMap.set(occ, new Map());
-          const dateMap = occMap.get(occ)!;
-          dateMap.set(dateKey, item.averageRate ?? 0);
-        }
+      });
+
+      return; // done with this item
+    }
+
+    // ---- CASE 2: flat record per date with defaultRate / paxN ----
+    const date =
+      item.rateDate != null ? new Date(item.rateDate) : undefined;
+    if (!date || Number.isNaN(date.getTime())) return;
+
+    const primaryOcc = Number(item.primaryOccupancy ?? item.adultCount ?? 2);
+
+    // primary/default rate
+    if (typeof item.defaultRate === "number") {
+      upsert(primaryOcc, date, item.defaultRate);
+    }
+
+    // occupancy-specific pax1..pax18
+    for (let occ = 1; occ <= 18; occ++) {
+      const key = `pax${occ}`;
+      const v = item[key];
+      if (typeof v === "number") {
+        upsert(occ, date, v);
       }
-    });
-    return map;
-  }, [availabilityItems]);
+    }
+
+    // last fallback to averageRate if nothing else
+    if (
+      typeof item.defaultRate !== "number" &&
+      typeof item.averageRate === "number"
+    ) {
+      upsert(primaryOcc, date, item.averageRate);
+    }
+  });
+
+  return map;
+}, [availabilityItems]);
 
   // Distinct roomTypeIDs present in availability
   const roomTypeIds = useMemo(() => {
