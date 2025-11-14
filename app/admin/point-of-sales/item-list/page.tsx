@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import PosAddItemListDrawer from "@/components/drawers/pos-addItemList-drawer";
+import PosEditItemListDrawer from "@/components/drawers/pos-editItemList-drawer"; // ⬅️ import edit drawer
 
 type BoolFilter = "all" | "checked" | "unchecked";
 
@@ -40,7 +41,8 @@ export default function ItemListPage() {
   const [pageSize, setPageSize] = useState(10);
 
   // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ItemMas | null>(null);
 
   // Text filters
@@ -165,18 +167,23 @@ export default function ItemListPage() {
   // Open drawer in "add" mode
   const handleAddItem = () => {
     setSelectedItem(null);
-    setDrawerOpen(true);
+    setAddDrawerOpen(true);
   };
 
   // Open drawer in "edit" mode
   const handleEdit = (item: ItemMas) => {
     setSelectedItem(item);
-    setDrawerOpen(true);
+    setEditDrawerOpen(true); // ⬅️ open edit drawer
   };
 
-  const handleSaveFromDrawer = (values: Partial<ItemMas>) => {
-    console.log("Save from drawer:", values);
-    // TODO: create/update APIs + refresh
+  const handleSaveNew = (values: Partial<ItemMas>) => {
+    console.log("Save NEW item from drawer:", values);
+    // TODO: call create API then refresh
+  };
+
+  const handleSaveEdit = (updated: ItemMas) => {
+    console.log("Save EDITED item from drawer:", updated);
+    // TODO: call update API then refresh
   };
 
   return (
@@ -206,7 +213,7 @@ export default function ItemListPage() {
 
           <Table className="min-w-full text-sm">
             <TableHeader>
-              {/* Header labels row (like GuestProfiles) */}
+              {/* Header labels row */}
               <TableRow>
                 <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Item Type
@@ -246,9 +253,8 @@ export default function ItemListPage() {
                 </TableHead>
               </TableRow>
 
-              {/* Filter inputs row (matching GuestProfiles style) */}
+              {/* Filter row */}
               <TableRow className="border-t border-gray-200">
-                {/* Item Type */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fItemType}
@@ -256,8 +262,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Base Category */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fBaseCat}
@@ -265,8 +269,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Category */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fCategory}
@@ -274,8 +276,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Code */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fCode}
@@ -283,8 +283,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Item Name */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fName}
@@ -293,7 +291,7 @@ export default function ItemListPage() {
                   />
                 </TableHead>
 
-                {/* OnPOS filter dropdown */}
+                {/* Bool filters */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fOnPOS}
@@ -305,8 +303,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* KOT */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fKOT}
@@ -318,8 +314,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* BOT */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fBOT}
@@ -331,8 +325,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* AI Ent. */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fAIEnt}
@@ -344,12 +336,12 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* Trading */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fTrading}
-                    onChange={(e) => setFTrading(e.target.value as BoolFilter)}
+                    onChange={(e) =>
+                      setFTrading(e.target.value as BoolFilter)
+                    }
                     className="w-full border rounded px-2 py-1 text-sm"
                   >
                     <option value="all">All</option>
@@ -357,8 +349,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* AskQty */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fAskQty}
@@ -371,7 +361,6 @@ export default function ItemListPage() {
                   </select>
                 </TableHead>
 
-                {/* Action (no filter) */}
                 <TableHead className="px-3 py-2" />
               </TableRow>
             </TableHeader>
@@ -430,7 +419,7 @@ export default function ItemListPage() {
                         size="icon"
                         variant="outline"
                         className="h-8 w-8 p-0"
-                        onClick={() => handleEdit(item)}
+                        onClick={() => handleEdit(item)} // ⬅️ opens edit drawer
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -488,12 +477,20 @@ export default function ItemListPage() {
           </div>
         )}
 
-        {/* POS Add / Edit Drawer */}
+        {/* POS Add Drawer */}
         <PosAddItemListDrawer
-          isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          isOpen={addDrawerOpen}
+          onClose={() => setAddDrawerOpen(false)}
+          selectedItem={null}
+          onSave={handleSaveNew}
+        />
+
+        {/* POS Edit Drawer */}
+        <PosEditItemListDrawer
+          isOpen={editDrawerOpen}
+          onClose={() => setEditDrawerOpen(false)}
           selectedItem={selectedItem}
-          onSave={handleSaveFromDrawer}
+          onSave={handleSaveEdit}
         />
       </div>
     </DashboardLayout>
