@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch } from "@/redux/store";
 
@@ -8,7 +8,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, EllipsisVertical } from "lucide-react"; // << NEW
+import { ChevronLeft, ChevronRight, Edit } from "lucide-react";
 
 import {
   fetchReservationSource,
@@ -25,7 +25,6 @@ import {
   resetCreateReservationSourceState,
 } from "@/redux/slices/createReservationSourceSlice";
 
-// << NEW imports
 import {
   updateReservationSource,
   selectUpdateReservationSourceLoading,
@@ -33,88 +32,31 @@ import {
   resetUpdateReservationSourceState,
 } from "@/redux/slices/updateReservationSourceSlice";
 
+import { AddReservationSourceDrawer } from "../../../../components/drawers/add-reservation-source-drawer";
+import { UpdateReservationSourceDrawer } from "../../../../components/drawers/update-reservation-source-drawer";
+
 export default function ReservationSourcePage() {
   const dispatch = useDispatch<AppDispatch>();
   const loading = useSelector(selectReservationSourceLoading);
   const error = useSelector(selectReservationSourceError);
   const data = useSelector(selectReservationSourceData);
 
-  // create dialog state
-  const createDialogRef = useRef<HTMLDialogElement | null>(null);
+  // create state
   const creating = useSelector(selectCreateReservationSourceLoading);
   const createError = useSelector(selectCreateReservationSourceError);
 
-  const [createValues, setCreateValues] = useState<{ reservationSource: string }>({ reservationSource: "" });
-
-  const openCreate = () => {
-    dispatch(resetCreateReservationSourceState());
-    setCreateValues({ reservationSource: "" });
-    createDialogRef.current?.showModal();
-  };
-
-  const closeCreate = () => {
-    createDialogRef.current?.close();
-    dispatch(resetCreateReservationSourceState());
-  };
-
-  const handleCreateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCreateValues((p) => ({ ...p, [name]: value }));
-  };
-
-  const handleSaveCreate = async () => {
-    const value = createValues.reservationSource.trim();
-    if (!value) return;
-    try {
-      await dispatch(createReservationSource({ reservationSource: value })).unwrap();
-      await dispatch(fetchReservationSource()); // refresh list
-      closeCreate();
-    } catch (e) {
-      console.error("Create reservation source failed:", e);
-    }
-  };
-
-  // << NEW: edit dialog state
-  const editDialogRef = useRef<HTMLDialogElement | null>(null);
+  // update state
   const updating = useSelector(selectUpdateReservationSourceLoading);
   const updateError = useSelector(selectUpdateReservationSourceError);
 
-  const [editValues, setEditValues] = useState<{ id: number; reservationSource: string }>({
-    id: 0,
-    reservationSource: "",
-  });
-
-  const openEdit = (row: ReservationSource) => {
-    dispatch(resetUpdateReservationSourceState());
-    setEditValues({ id: row.reservationSourceID, reservationSource: row.reservationSource ?? "" });
-    editDialogRef.current?.showModal();
-  };
-
-  const closeEdit = () => {
-    editDialogRef.current?.close();
-    dispatch(resetUpdateReservationSourceState());
-  };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditValues((p) => ({ ...p, [name]: name === "id" ? Number(value) : value }));
-  };
-
-  const handleSaveEdit = async () => {
-    const value = editValues.reservationSource.trim();
-    if (!value) return;
-    try {
-      await dispatch(updateReservationSource({ id: editValues.id, reservationSource: value })).unwrap();
-      await dispatch(fetchReservationSource()); // refresh list
-      closeEdit();
-    } catch (e) {
-      console.error("Update reservation source failed:", e);
-    }
-  };
+  // drawer states
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [currentSource, setCurrentSource] = useState<ReservationSource | null>(null);
 
   // search + pagination state
   const [query, setQuery] = useState("");
-  const [pageIndex, setPageIndex] = useState(1); // 1-based
+  const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
@@ -152,6 +94,40 @@ export default function ReservationSourcePage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
+  // Drawer handlers
+  const openAddDrawer = () => {
+    dispatch(resetCreateReservationSourceState());
+    setAddDrawerOpen(true);
+  };
+
+  const openUpdateDrawer = (source: ReservationSource) => {
+    dispatch(resetUpdateReservationSourceState());
+    setCurrentSource(source);
+    setUpdateDrawerOpen(true);
+  };
+
+  const handleAddDrawerClose = () => {
+    setAddDrawerOpen(false);
+    dispatch(resetCreateReservationSourceState());
+  };
+
+  const handleUpdateDrawerClose = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentSource(null);
+    dispatch(resetUpdateReservationSourceState());
+  };
+
+  const handleReservationSourceCreated = () => {
+    setAddDrawerOpen(false);
+    dispatch(fetchReservationSource());
+  };
+
+  const handleReservationSourceUpdated = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentSource(null);
+    dispatch(fetchReservationSource());
+  };
+
   return (
     <DashboardLayout>
       <div className="p-4 space-y-4">
@@ -165,18 +141,20 @@ export default function ReservationSourcePage() {
               onChange={(e) => setQuery(e.target.value)}
               className="w-64"
             />
-            <Button type="button" onClick={openCreate}>Add Source</Button>
+            <Button onClick={openAddDrawer}>Add Source</Button>
           </div>
         </div>
 
-        {/* Error / Empty */}
-        {error && (
+        {/* Error Display */}
+        {(error || createError || updateError) && (
           <div className="text-red-600 text-sm border border-red-200 rounded-md p-3 bg-red-50">
-            {error}
+            {error || createError || updateError}
           </div>
         )}
+
+        {/* Empty State */}
         {!loading && !error && filtered.length === 0 && (
-          <div className="text-sm text-muted-foreground border rounded-md p-4">
+          <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
             No reservation sources found.
           </div>
         )}
@@ -186,31 +164,35 @@ export default function ReservationSourcePage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[80px]">#</TableHead>
                 <TableHead className="w-[160px]">Source ID</TableHead>
                 <TableHead>Reservation Source</TableHead>
-                <TableHead className="w-[80px] text-right">Action</TableHead> {/* << NEW */}
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-6 text-center">Loading…</TableCell>
+                  <TableCell colSpan={4} className="py-6 text-center">
+                    Loading reservation sources…
+                  </TableCell>
                 </TableRow>
               ) : (
-                paginated.map((row) => (
-                  <TableRow key={row.reservationSourceID}>
+                paginated.map((row, idx) => (
+                  <TableRow key={row.reservationSourceID} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      {(pageIndex - 1) * pageSize + idx + 1}
+                    </TableCell>
                     <TableCell className="font-medium">{row.reservationSourceID}</TableCell>
                     <TableCell>{row.reservationSource}</TableCell>
                     <TableCell className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(row)}
-                        className="inline-flex items-center justify-center rounded p-2 hover:bg-gray-100 focus:outline-none focus:ring"
-                        aria-label={`Edit reservation source ${row.reservationSourceID}`}
-                        title="More actions"
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openUpdateDrawer(row)}
                       >
-                        <EllipsisVertical className="h-5 w-5" />
-                      </button>
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -219,126 +201,66 @@ export default function ReservationSourcePage() {
           </Table>
         </div>
 
-        {/* Create Reservation Source dialog */}
-        <dialog
-          ref={createDialogRef}
-          className="rounded-lg p-0 backdrop:bg-black/30 open:fixed open:top-1/2 open:left-1/2 open:-translate-x-1/2 open:-translate-y-1/2 open:m-0"
-        >
-          <form method="dialog" className="w-[92vw] max-w-lg">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold">Add Reservation Source</h2>
-            </div>
-            <div className="px-4 py-4 space-y-4">
-              <div className="space-y-1">
-                <label htmlFor="reservationSource" className="text-sm text-gray-600">Source Name</label>
-                <input
-                  id="reservationSource"
-                  name="reservationSource"
-                  value={createValues.reservationSource}
-                  onChange={handleCreateChange}
-                  placeholder="e.g., Website, Walk-in, OTA"
-                  className="w-full px-3 py-2 border rounded text-sm bg-white"
-                  autoFocus
-                />
-              </div>
-              {createError && <div className="text-xs text-red-600">{createError}</div>}
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-              <button type="button" onClick={closeCreate} className="px-3 py-1.5 text-sm border rounded" disabled={creating}>Cancel</button>
-              <button
-                type="button"
-                onClick={handleSaveCreate}
-                className="px-3 py-1.5 text-sm rounded bg-black text-white disabled:opacity-60"
-                disabled={creating || !createValues.reservationSource.trim()}
-              >
-                {creating ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </form>
-        </dialog>
-
-        {/* Edit Reservation Source dialog */}
-        <dialog
-          ref={editDialogRef}
-          className="rounded-lg p-0 backdrop:bg-black/30 open:fixed open:top-1/2 open:left-1/2 open:-translate-x-1/2 open:-translate-y-1/2 open:m-0"
-        >
-          <form method="dialog" className="w-[92vw] max-w-lg">
-            <div className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold">Edit Reservation Source</h2>
-            </div>
-            <div className="px-4 py-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label htmlFor="edit-id" className="text-sm text-gray-600">Source ID</label>
-                  <input
-                    id="edit-id"
-                    name="id"
-                    type="number"
-                    value={editValues.id}
-                    onChange={handleEditChange}
-                    className="w-full px-3 py-2 border rounded text-sm bg-gray-100"
-                    readOnly
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="edit-reservationSource" className="text-sm text-gray-600">Source Name</label>
-                <input
-                  id="edit-reservationSource"
-                  name="reservationSource"
-                  value={editValues.reservationSource}
-                  onChange={handleEditChange}
-                  placeholder="e.g., Website, Walk-in, OTA"
-                  className="w-full px-3 py-2 border rounded text-sm bg-white"
-                  autoFocus
-                />
-              </div>
-
-              {updateError && <div className="text-xs text-red-600">{updateError}</div>}
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
-              <button type="button" onClick={closeEdit} className="px-3 py-1.5 text-sm border rounded" disabled={updating}>Cancel</button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                className="px-3 py-1.5 text-sm rounded bg-black text-white disabled:opacity-60"
-                disabled={updating || !editValues.reservationSource.trim()}
-              >
-                {updating ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </form>
-        </dialog>
-
         {/* Pagination */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
-          <div className="hidden sm:block" />
-          <div className="flex justify-center">
-            <div className="flex items-center gap-4">
-              <button onClick={handlePrev} disabled={!canPrev} className="flex items-center gap-1 text-sm text-black disabled:text-gray-400 disabled:cursor-not-allowed">
-                <ChevronLeft className="h-4 w-4" /> Previous
-              </button>
-              <span className="px-3 py-1 rounded bg-black text-white text-sm">
-                {pageIndex} / {totalPages}
-              </span>
-              <button onClick={handleNext} disabled={!canNext} className="flex items-center gap-1 text-sm text-black disabled:text-gray-400 disabled:cursor-not-allowed">
-                Next <ChevronRight className="h-4 w-4" />
-              </button>
+        {filtered.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
+            <div className="hidden sm:block" />
+            <div className="flex justify-center">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handlePrev}
+                  disabled={!canPrev}
+                  className="flex items-center gap-1 text-sm text-black disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </button>
+                <span className="px-3 py-1 rounded bg-black text-white text-sm">
+                  {pageIndex} / {totalPages}
+                </span>
+                <button
+                  onClick={handleNext}
+                  disabled={!canNext}
+                  className="flex items-center gap-1 text-sm text-black disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="flex items-center gap-2">
+                <label htmlFor="pageSize" className="text-sm text-gray-600">
+                  Rows per page:
+                </label>
+                <select
+                  id="pageSize"
+                  value={pageSize}
+                  onChange={handlePageSizeChange}
+                  className="px-2 py-1 text-sm border rounded bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div className="flex justify-end">
-            <div className="flex items-center gap-2">
-              <label htmlFor="pageSize" className="text-sm text-gray-600">Rows per page:</label>
-              <select id="pageSize" value={pageSize} onChange={handlePageSizeChange} className="px-2 py-1 text-sm border rounded bg-white">
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        )}
+
+        {/* Add Reservation Source Drawer */}
+        <AddReservationSourceDrawer
+          isOpen={addDrawerOpen}
+          onClose={handleAddDrawerClose}
+          onReservationSourceCreated={handleReservationSourceCreated}
+        />
+
+        {/* Update Reservation Source Drawer */}
+        <UpdateReservationSourceDrawer
+          isOpen={updateDrawerOpen}
+          onClose={handleUpdateDrawerClose}
+          source={currentSource}
+          onReservationSourceUpdated={handleReservationSourceUpdated}
+        />
       </div>
     </DashboardLayout>
   );
