@@ -170,6 +170,7 @@ import fetchNameMasReducer from "./slices/fetchNameMasSlice";
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
 import updateNameMasReducer from "./slices/updateNameMasSlice";
+import updateGuestMasReducer from "./slices/updateGuestMasSlice";
 import categoryTypeMasReducer from "./slices/fetchCategoryTypeMasSlice";
 import createCategoryTypeMasReducer from "./slices/createCategoryTypeMasSlice";
 import fetchPMSModuleMasReducer from "./slices/fetchPMSModuleMasSlice";
@@ -225,8 +226,10 @@ import fetchMealPlanByFolioByDateReducer from "./slices/fetchMealPlanByFolioByDa
 import createMealPlanByFolioByDateReducer from "./slices/createMealPlanByFolioByDateSlice";
 import updateMealPlanByFolioByDateReducer from "./slices/updateMealPlanByFolioByDateSlice";
 import updateHotelMasReducer from "./slices/updateHotelMasSlice";
-
-
+import fetchRateCodesReducer from "./slices/fetchRateCodesSlice";
+import fetchRateMasAvailabilityReducer from "./slices/fetchRateMasAvailabilitySlice";
+import fetchRateMasReducer from "./slices/fetchRateMasSlice";
+import fetchHotelRatePlansReducer from "./slices/fetchHotelRatePlanSlice";
 
 const store = configureStore({
   reducer: {
@@ -387,6 +390,7 @@ const store = configureStore({
     createFileUpload: createFileUploadReducer,
     fetchFileUploadByFolioId: fetchFileUploadByFolioIdReducer,
     fetchGuestMas: guestMasReducer,
+    updateGuestMas: updateGuestMasReducer,
     auditMasById: auditMasByIdReducer,
     fetchAuditMasByHotelCode: fetchAuditMasByHotelCodeReducer,
     fetchBasisMas: fetchBasisMasReducer,
@@ -455,6 +459,10 @@ const store = configureStore({
     createMealPlanByFolioByDate: createMealPlanByFolioByDateReducer,
     updateMealPlanByFolioByDate: updateMealPlanByFolioByDateReducer,
     updateHotelMas: updateHotelMasReducer,
+    fetchRateCodes: fetchRateCodesReducer,
+    fetchRateMasAvailability: fetchRateMasAvailabilityReducer,
+    fetchRateMas: fetchRateMasReducer,
+    fetchHotelRatePlans: fetchHotelRatePlansReducer,
   },
 });
 

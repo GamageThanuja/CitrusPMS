@@ -244,14 +244,13 @@ function LoginForm() {
       {/* Left Panel */}
       <div className="flex flex-col justify-center items-center px-6 md:px-16 py-12">
         <div className="w-full max-w-md">
-          <div className="flex items-center justify-center gap-2 text-4xl font-semibold mb-6">
+            <div className="flex items-center justify-center gap-2 text-4xl font-semibold mb-6">
             <img
-              src="/app-icon.png"
+              src="https://citrus-internal.s3.us-east-1.amazonaws.com/citrus_logo_w.png"
               alt="Hotel Mate Logo"
-              className="h-12 w-12"
+              className="h-auto w-[13rem]"
             />
-            Hotel Mate
-          </div>
+            </div>
 
           <Card className="bg-black border border-gray-700 text-white shadow-xl rounded-2xl">
             <CardHeader>
@@ -408,12 +407,11 @@ function LoginForm() {
         >
           <div className="px-8 py-12 text-center">
             <div className="flex items-center justify-center gap-2 mb-4 text-4xl font-semibold">
-              <img
-                src="/app-icon.png"
-                alt="Hotel Mate Logo"
-                className="h-10 w-10"
-              />
-              Hotel Mate
+          <img
+              src="https://citrus-internal.s3.us-east-1.amazonaws.com/citrus_logo.png"
+              alt="Hotel Mate Logo"
+              className="h-auto w-[13rem]"
+            />
             </div>
             <p className="mb-8 text-sm opacity-90">
               Simple Way to Manage Your Property
