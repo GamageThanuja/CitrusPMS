@@ -26,9 +26,6 @@ import {
 import { useAppSelector } from "@/redux/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableHeader,
@@ -37,6 +34,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import { AddMarketDrawer } from "../../../components/drawers/add-market-drawer";
+import { UpdateMarketDrawer } from "../../../components/drawers/update-market-drawer";
 
 // ---- Type ----
 interface MarketUI {
@@ -62,14 +61,9 @@ export default function MarketPage() {
 
   const [filtered, setFiltered] = useState<MarketUI[]>([]);
   const [query, setQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [marketData, setMarketData] = useState({
-    marketName: "",
-    finAct: false, 
-    hotelCode: "",
-    showOnFO: false,
-  });
-  const [editId, setEditId] = useState<number | null>(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [currentMarket, setCurrentMarket] = useState<MarketUI | null>(null);
 
   // Pagination state
   const [pageIndex, setPageIndex] = useState(1);
@@ -121,82 +115,35 @@ export default function MarketPage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
-  const openCreateDialog = () => {
-    setMarketData({
-      marketName: "",
-      finAct: false,
-      hotelCode: "",
-      showOnFO: false,
-    });
-    setEditId(null);
-    setDialogOpen(true);
+  const openAddDrawer = () => {
+    setAddDrawerOpen(true);
   };
 
-  const openEditDialog = (market: MarketUI) => {
-    setMarketData({
-      marketName: market.marketName,
-      finAct: market.finAct ?? false, 
-      hotelCode: market.hotelCode,
-      showOnFO: market.showOnFO ?? false,
-    });
-    setEditId(market.marketID);
-    setDialogOpen(true);
+  const openUpdateDrawer = (market: MarketUI) => {
+    setCurrentMarket(market);
+    setUpdateDrawerOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!marketData.marketName.trim()) {
-      toast.error("Market name cannot be empty");
-      return;
-    }
-
-    try {
-      if (editId !== null) {
-        // UPDATE
-        const action = await dispatch(
-          updateMarketMas({
-            marketID: editId,
-            marketName: marketData.marketName,
-            finAct: marketData.finAct ?? null,
-            hotelCode: marketData.hotelCode || null,
-            showOnFO: marketData.showOnFO,
-          })
-        );
-        if (updateMarketMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to update market");
-          return;
-        }
-        toast.success(`Market "${marketData.marketName}" updated`);
-      } else {
-        // CREATE
-        const action = await dispatch(
-          createMarketMas({
-            marketName: marketData.marketName,
-            finAct: marketData.finAct ?? null,
-            hotelCode: marketData.hotelCode || null,
-            showOnFO: marketData.showOnFO,
-          })
-        );
-        if (createMarketMas.rejected.match(action)) {
-          toast.error(action.payload || "Failed to create market");
-          return;
-        }
-        toast.success(`Market "${marketData.marketName}" created`);
-      }
-
-      setDialogOpen(false);
-      setMarketData({ marketName: "", finAct: false, hotelCode: "", showOnFO: false });
-      setEditId(null);
-      dispatch(fetchMarketMas());
-    } catch {
-      toast.error("Operation failed");
-    }
+  const handleAddDrawerClose = () => {
+    setAddDrawerOpen(false);
   };
 
-  const handleInputChange = (field: keyof typeof marketData, value: string | boolean) => {
-    setMarketData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleUpdateDrawerClose = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentMarket(null);
+  };
+
+  const handleMarketCreated = () => {
+    setAddDrawerOpen(false);
+    dispatch(fetchMarketMas());
+    toast.success("Market created successfully");
+  };
+
+  const handleMarketUpdated = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentMarket(null);
+    dispatch(fetchMarketMas());
+    toast.success("Market updated successfully");
   };
 
   return (
@@ -223,7 +170,7 @@ export default function MarketPage() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button onClick={openCreateDialog}>Add Market</Button>
+            <Button onClick={openAddDrawer}>Add Market</Button>
           </div>
         </div>
 
@@ -234,7 +181,7 @@ export default function MarketPage() {
           </div>
         )}
 
-        {/* Table - Updated to use common component */}
+        {/* Table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -268,7 +215,7 @@ export default function MarketPage() {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        onClick={() => openEditDialog(market)}
+                        onClick={() => openUpdateDrawer(market)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -286,7 +233,7 @@ export default function MarketPage() {
           )}
         </div>
 
-        {/* Pagination Controls - Consistent with venues */}
+        {/* Pagination Controls */}
         {filtered.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
             <div className="hidden sm:block" />
@@ -332,68 +279,20 @@ export default function MarketPage() {
           </div>
         )}
 
-        {/* Create/Edit Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editId !== null ? "Edit Market" : "Create Market"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-2">
-              <div className="space-y-2">
-                <Label htmlFor="marketName">Market Name *</Label>
-                <Input
-                  id="marketName"
-                  placeholder="Enter market name"
-                  value={marketData.marketName}
-                  onChange={(e) => handleInputChange("marketName", e.target.value)}
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="finAct"
-                  checked={marketData.finAct}
-                  onCheckedChange={(checked) => handleInputChange("finAct", checked as boolean)}
-                />
-                <Label htmlFor="finAct">Financial Activity</Label>
-              </div>
+        {/* Add Market Drawer */}
+        <AddMarketDrawer
+          isOpen={addDrawerOpen}
+          onClose={handleAddDrawerClose}
+          onMarketCreated={handleMarketCreated}
+        />
 
-              <div className="space-y-2">
-                <Label htmlFor="hotelCode">Hotel Code</Label>
-                <Input
-                  id="hotelCode"
-                  placeholder="Enter hotel code"
-                  value={marketData.hotelCode}
-                  onChange={(e) => handleInputChange("hotelCode", e.target.value)}
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showOnFO"
-                  checked={marketData.showOnFO}
-                  onCheckedChange={(checked) => handleInputChange("showOnFO", checked as boolean)}
-                />
-                <Label htmlFor="showOnFO">Show on Front Office</Label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={creating || updating}>
-                  {creating || updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : editId !== null ? (
-                    "Update"
-                  ) : (
-                    "Create"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Update Market Drawer */}
+        <UpdateMarketDrawer
+          isOpen={updateDrawerOpen}
+          onClose={handleUpdateDrawerClose}
+          market={currentMarket}
+          onMarketUpdated={handleMarketUpdated}
+        />
       </div>
     </DashboardLayout>
   );
