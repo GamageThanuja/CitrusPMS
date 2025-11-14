@@ -29,13 +29,6 @@ import { useAppSelector } from "@/redux/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
   Table,
   TableHeader,
   TableRow,
@@ -43,6 +36,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import { AddMealAllocationDrawer } from "../../../../components/drawers/add-meal-allocation-drawer";
+import { UpdateMealAllocationDrawer } from "../../../../components/drawers/update-meal-allocation-drawer";
 
 interface MealUI {
   id: number;
@@ -73,18 +68,9 @@ export default function MealAllocationPage() {
 
   const [filtered, setFiltered] = useState<MealUI[]>([]);
   const [query, setQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [mealData, setMealData] = useState({
-    breakfast: "",
-    lunch: "",
-    dinner: "",
-    currency: "",
-    ai: "",
-    hotelCode: "",
-    createdBy: "",
-    lastUpdatedBy: "",
-  });
-  const [editId, setEditId] = useState<number | null>(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [updateDrawerOpen, setUpdateDrawerOpen] = useState(false);
+  const [currentMeal, setCurrentMeal] = useState<MealUI | null>(null);
   const [username, setUsername] = useState<string>("");
 
   // Pagination state
@@ -151,90 +137,39 @@ export default function MealAllocationPage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
-  /** Open create dialog */
-  const openCreateDialog = () => {
-    setMealData({
-      breakfast: "",
-      lunch: "",
-      dinner: "",
-      currency: "",
-      ai: "",
-      hotelCode: "",
-      createdBy: username || "",
-      lastUpdatedBy: username || "",
-    });
-    setEditId(null);
-    setDialogOpen(true);
+  /** Open create drawer */
+  const openAddDrawer = () => {
+    setAddDrawerOpen(true);
   };
 
-  /** Open edit dialog */
-  const openEditDialog = (meal: MealUI) => {
-    setMealData({
-      breakfast: meal.breakfast.toString(),
-      lunch: meal.lunch.toString(),
-      dinner: meal.dinner.toString(),
-      currency: meal.currency,
-      ai: meal.ai.toString(),
-      hotelCode: meal.hotelCode,
-      createdBy: meal.createdBy,
-      lastUpdatedBy: username || meal.lastUpdatedBy,
-    });
-    setEditId(meal.id);
-    setDialogOpen(true);
+  /** Open edit drawer */
+  const openUpdateDrawer = (meal: MealUI) => {
+    setCurrentMeal(meal);
+    setUpdateDrawerOpen(true);
   };
 
-  /** Save handler */
-  const handleSave = async () => {
-    if (!mealData.hotelCode.trim()) {
-      toast.error("Hotel Code is required");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    const payload = {
-      id: editId || 0,
-      breakfast: Number(mealData.breakfast) || 0,
-      lunch: Number(mealData.lunch) || 0,
-      dinner: Number(mealData.dinner) || 0,
-      currency: mealData.currency,
-      ai: Number(mealData.ai) || 0,
-      hotelCode: mealData.hotelCode,
-      createdBy: mealData.createdBy || username || "system",
-      createdOn: now,
-      lastUpdatedBy: username || "system",
-      lastUpdatedOn: now,
-    };
-
-    try {
-      if (editId !== null) {
-        const action = await dispatch(updateMealAllocation(payload));
-        if (updateMealAllocation.rejected.match(action)) {
-          toast.error(action.payload || "Failed to update meal allocation");
-          return;
-        }
-        toast.success("Meal allocation updated successfully");
-      } else {
-        const action = await dispatch(createMealAllocation(payload));
-        if (createMealAllocation.rejected.match(action)) {
-          toast.error(action.payload || "Failed to create meal allocation");
-          return;
-        }
-        toast.success("Meal allocation created successfully");
-      }
-
-      setDialogOpen(false);
-      dispatch(fetchMealAllocation());
-    } catch {
-      toast.error("Operation failed");
-    }
+  /** Close drawers */
+  const handleAddDrawerClose = () => {
+    setAddDrawerOpen(false);
   };
 
-  const handleInputChange = (field: keyof typeof mealData, value: string) => {
-    setMealData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleUpdateDrawerClose = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentMeal(null);
+  };
+
+  /** Success handlers */
+  const handleMealAllocationCreated = () => {
+    setAddDrawerOpen(false);
+    dispatch(fetchMealAllocation());
+    toast.success("Meal allocation created successfully");
+  };
+
+  const handleMealAllocationUpdated = () => {
+    setUpdateDrawerOpen(false);
+    setCurrentMeal(null);
+    dispatch(fetchMealAllocation());
+    toast.success("Meal allocation updated successfully");
   };
 
   return (
@@ -261,7 +196,7 @@ export default function MealAllocationPage() {
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button onClick={openCreateDialog}>Add Allocation</Button>
+            <Button onClick={openAddDrawer}>Add Allocation</Button>
           </div>
         </div>
 
@@ -272,7 +207,7 @@ export default function MealAllocationPage() {
           </div>
         )}
 
-        {/* Table - Updated to use common component */}
+        {/* Table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -326,7 +261,7 @@ export default function MealAllocationPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => openEditDialog(meal)}
+                        onClick={() => openUpdateDrawer(meal)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -344,7 +279,7 @@ export default function MealAllocationPage() {
           )}
         </div>
 
-        {/* Pagination Controls - Consistent with venues */}
+        {/* Pagination Controls */}
         {filtered.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
             <div className="hidden sm:block" />
@@ -390,69 +325,22 @@ export default function MealAllocationPage() {
           </div>
         )}
 
-        {/* Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editId ? "Edit Meal Allocation" : "Create Meal Allocation"}
-              </DialogTitle>
-            </DialogHeader>
+        {/* Add Meal Allocation Drawer */}
+        <AddMealAllocationDrawer
+          isOpen={addDrawerOpen}
+          onClose={handleAddDrawerClose}
+          username={username}
+          onMealAllocationCreated={handleMealAllocationCreated}
+        />
 
-            <div className="space-y-4 mt-2">
-              {["breakfast", "lunch", "dinner", "ai", "currency", "hotelCode"].map(
-                (f) => (
-                  <div key={f} className="space-y-2">
-                    <Label htmlFor={f}>
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </Label>
-                    <Input
-                      id={f}
-                      type={
-                        ["breakfast", "lunch", "dinner", "ai"].includes(f)
-                          ? "number"
-                          : "text"
-                      }
-                      placeholder={`Enter ${f}`}
-                      value={(mealData as any)[f]}
-                      onChange={(e) =>
-                        handleInputChange(
-                          f as keyof typeof mealData,
-                          e.target.value
-                        )
-                      }
-                    />
-                  </div>
-                )
-              )}
-
-              {/* Auto-filled fields */}
-              <div className="space-y-2">
-                <Label>Created By</Label>
-                <Input value={mealData.createdBy} disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Last Updated By</Label>
-                <Input value={mealData.lastUpdatedBy} disabled />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={creating || updating}>
-                  {creating || updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : editId ? (
-                    "Update"
-                  ) : (
-                    "Create"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Update Meal Allocation Drawer */}
+        <UpdateMealAllocationDrawer
+          isOpen={updateDrawerOpen}
+          onClose={handleUpdateDrawerClose}
+          meal={currentMeal}
+          username={username}
+          onMealAllocationUpdated={handleMealAllocationUpdated}
+        />
       </div>
     </DashboardLayout>
   );
