@@ -427,11 +427,6 @@ const menuGroups: MenuGroup[] = [
             icon: LayoutList,
           },
           {
-            name: "New Item",
-            href: "/admin/point-of-sales/new-item",
-            icon: ArrowUpCircle,
-          },
-          {
             name: "POS Center",
             href: "/admin/point-of-sales/POS-center",
             icon: SatelliteDish,
@@ -1555,8 +1550,6 @@ function PageTitle() {
         resolvedTitle = "Item Category";
       else if (path.includes("/admin/point-of-sales/item-list"))
         resolvedTitle = "Item List";
-      else if (path.includes("/admin/point-of-sales/new-item"))
-        resolvedTitle = "New Item";
       else if (path.includes("/admin/point-of-sales/POS-center"))
         resolvedTitle = "POS Center";
       else if (path.includes("/admin/point-of-sales/service-items"))

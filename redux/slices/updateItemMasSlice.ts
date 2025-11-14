@@ -42,12 +42,12 @@ export interface ItemMas {
   costCenterID: number;
   custodianID: number;
   supplierID: number;
-  acqDate: string;
+  acqDate: string | null;
   lifeTimeYears: number;
   lifeTimeMonths: number;
   serviceProvider: string;
   warranty: string;
-  nextServiceDate: string;
+  nextServiceDate: string | null;
   serviceContractNo: string;
   commercialDepreMethodID: number;
   fiscalDepreMethodID: number;
@@ -102,7 +102,7 @@ export interface ItemMas {
   changePriceOnGRN: boolean;
   partNo: string;
   oldPrice: number;
-  oldPriceAsAt: string;
+  oldPriceAsAt: string | null;
   lastPriceUpdateBy: string;
   colour: string;
   askQtyOnSale: boolean;
@@ -113,10 +113,10 @@ export interface ItemMas {
   shotItemCode: string;
   subItemOf: string;
   imageURL: string;
-  lastDepreciatedDate: string;
+  lastDepreciatedDate: string | null;
   depreciationExpenseAccountID: number;
   bookValue: number;
-  bookValueAsAt: string;
+  bookValueAsAt: string | null;
   guardian: string;
   barCode: string;
   nameOnBill: string;
@@ -144,9 +144,34 @@ export const updateItemMas = createAsyncThunk<
   { rejectValue: string }
 >("itemMas/update", async (payload, { rejectWithValue }) => {
   try {
+    // Format dates properly for the API
+    const formattedPayload = {
+      ...payload,
+      // Ensure date fields are properly formatted as ISO strings or null
+      oldPriceAsAt: payload.oldPriceAsAt 
+        ? new Date(payload.oldPriceAsAt).toISOString()
+        : null,
+      createdOn: payload.createdOn 
+        ? new Date(payload.createdOn).toISOString()
+        : new Date().toISOString(),
+      lastModOn: new Date().toISOString(), // Always update lastModOn to current time
+      acqDate: payload.acqDate 
+        ? new Date(payload.acqDate).toISOString()
+        : null,
+      nextServiceDate: payload.nextServiceDate 
+        ? new Date(payload.nextServiceDate).toISOString()
+        : null,
+      lastDepreciatedDate: payload.lastDepreciatedDate 
+        ? new Date(payload.lastDepreciatedDate).toISOString()
+        : null,
+      bookValueAsAt: payload.bookValueAsAt 
+        ? new Date(payload.bookValueAsAt).toISOString()
+        : null,
+    };
+
     const response = await axios.put(
       `${API_BASE_URL}/api/ItemMas/${payload.itemNumber}`,
-      payload
+      formattedPayload
     );
     return response.data;
   } catch (err: any) {
