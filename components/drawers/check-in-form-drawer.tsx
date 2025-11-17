@@ -24,7 +24,7 @@ import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { useCreateReservationLog } from "@/hooks/useCreateReservationLog";
 import { createGuestProfileByRoom } from "@/redux/slices/createGuestProfileByRoomSlice";
 import { updateHousekeepingStatus } from "@/redux/slices/housekeepingStatusSlice";
-import QRCode from "qrcode";
+// import QRCode from "qrcode";
 import { useQRModal } from "@/components/modals/qr-modal";
 
 import { RootState, AppDispatch } from "@/redux/store";
@@ -151,6 +151,9 @@ export function CheckInFormDrawer({
 
     await showQR(url, "Scan this QR code to access the Guest Self-Service");
   }, [bookingDetail?.reservationDetailID, resDetail?.gssKey, showQR]);
+
+  console.log("bookingDetail.reservationDetailID in checkin form: ", bookingDetail.reservationDetailID);
+  console.log("booking detail in checkin form: ", bookingDetail);
   useEffect(() => {
     if (!bookingDetail?.reservationDetailID) return;
     // You can pass either reservationDetailId or gssKey (if you already have it)
