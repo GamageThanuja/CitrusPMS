@@ -234,18 +234,21 @@ const initialState: CreateHotelRatePlansState = {
 
 export const createHotelRatePlans = createAsyncThunk<
   any, // adjust if you know the exact response type
-  CreateHotelRatePlanRequest,
+  CreateHotelRatePlanRequest & { isUpdate?: boolean },
   { rejectValue: string }
 >("hotelRatePlans/create", async (payload, { rejectWithValue }) => {
   try {
-    const url = `${API_BASE_URL}/api/RateMas/CreateHotelRatePlans`;
-    const res = await axios.post(url, payload);
+    const { isUpdate, ...requestPayload } = payload;
+    
+    // Use the same endpoint but with isUpdate query parameter
+    const url = `${API_BASE_URL}/api/RateMas/CreateHotelRatePlans${isUpdate ? '?isUpdate=true' : ''}`;
+    const res = await axios.post(url, requestPayload);
     return res.data;
   } catch (err: any) {
     const msg =
       err?.response?.data?.message ||
       err?.message ||
-      "Failed to create Hotel Rate Plan.";
+      `Failed to ${payload.isUpdate ? 'update' : 'create'} Hotel Rate Plan.`;
     return rejectWithValue(msg);
   }
 });

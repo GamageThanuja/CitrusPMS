@@ -19,11 +19,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getAllRateCodes } from "@/controllers/allRateCodesController";
-import { getHotelRoomTypes } from "@/controllers/hotelRoomTypeController";
-import { getMealPlans } from "@/controllers/mealPlansController";
-import { getAllCurrencies } from "@/controllers/AllCurrenciesController";
-import { getHotelRatePlans } from "@/controllers/hotelRatePlanController";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  fetchRateCodes,
+  selectRateCodes,
+  selectRateCodesLoading,
+  selectRateCodesError,
+} from "@/redux/slices/fetchRateCodesSlice";
+import {
+  fetchRoomTypeMas,
+  selectRoomTypeMas,
+  selectRoomTypeMasLoading,
+  selectRoomTypeMasError,
+} from "@/redux/slices/roomTypeMasSlice";
+import {
+  fetchBasisMas,
+  selectBasisMasItems,
+  selectBasisMasLoading,
+  selectBasisMasError,
+} from "@/redux/slices/fetchBasisMasSlice";
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+} from "@/redux/slices/fetchCurrencyMasSlice";
+import {
+  fetchHotelRatePlans,
+  selectHotelRatePlansItems,
+  selectHotelRatePlansLoading,
+  selectHotelRatePlansError,
+} from "@/redux/slices/fetchHotelRatePlanSlice";
 import { format } from "date-fns";
 
 /** ----------------------------------------------------------------
@@ -163,10 +189,11 @@ export function EditRateDrawer({
           initialData?.roomTypeId ??
           initialData?.hotelRoomTypeID
       ),
-      mealPlanID: toStr(
+      basisID: toStr(
         plan?.mealPlanID ??
-          plan?.mealPlanMaster?.mealPlanID ??
+          plan?.mealPlanMaster?.basisID ??
           initialData?.mealPlanID ??
+          initialData?.basisID ??
           ""
       ),
       currencyCode: currency,
@@ -205,7 +232,7 @@ export function EditRateDrawer({
 
     return defsForRoom.find((def: any) => {
       const defLabel = (
-        def?.mealPlanMaster?.shortCode ||
+        (def?.mealPlanMaster?.shortCode ?? def?.basisMaster?.shortCode) ||
         def?.title ||
         def?.rateCode?.rateCode ||
         ""
@@ -238,7 +265,7 @@ export function EditRateDrawer({
       roomTypeID: toStr(
         data.roomTypeID ?? data.roomTypeId ?? data.hotelRoomTypeID
       ),
-      mealPlanID: toStr(data.mealPlanID),
+      basisID: toStr(data.mealPlanID ?? data.basisID),
       currencyCode: toStr(data.currencyCode),
       sellMode: toStr(data.sellMode),
       rateMode: toStr(data.rateMode),
@@ -261,7 +288,7 @@ export function EditRateDrawer({
     rateCodeID: "",
     rateCode: "",
     roomTypeID: "",
-    mealPlanID: "",
+    basisID: "",
     currencyCode: "",
     sellMode: "",
     rateMode: "",
@@ -280,6 +307,8 @@ export function EditRateDrawer({
   };
 
   /* ------------------------------ State ------------------------------ */
+  const dispatch = useAppDispatch();
+
   const [formData, setFormData] = useState<any>({
     ...defaultForm,
     ...convertInitial(initialData),
@@ -289,81 +318,34 @@ export function EditRateDrawer({
     Record<string, string | undefined>
   >({});
 
-  // Reference lists
-  const [rateCodes, setRateCodes] = useState<
-    { rateCodeID: number; rateCode: string }[]
-  >([]);
-  const [roomTypes, setRoomTypes] = useState<
-    { hotelRoomTypeID: number; roomType: string; adultSpace: number | null }[]
-  >([]);
-  const [mealPlans, setMealPlans] = useState<
-    { mealPlanID: number; mealPlan: string }[]
-  >([]);
-  const [currencies, setCurrencies] = useState<
-    { currencyCode: string; currencyName: string }[]
-  >([]);
+  // Redux selectors for reference lists
+  const rateCodes = useAppSelector(selectRateCodes);
+  const roomTypes = useAppSelector(selectRoomTypeMas);
+  const mealPlans = useAppSelector(selectBasisMasItems);
+  const currencies = useAppSelector(selectCurrencyMasItems);
+  const hotelRatePlans = useAppSelector(selectHotelRatePlansItems);
+
+  // Debug logging
+  console.log("Edit Drawer - mealPlans:", mealPlans);
+  console.log("Edit Drawer - formData.basisID:", formData.basisID);
+  console.log("Edit Drawer - initialData:", initialData);
 
   /* ----------------------- Fetch reference data ---------------------- */
   useEffect(() => {
-    const fn = async () => {
-      try {
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) return;
-        const { accessToken } = JSON.parse(tokenData);
-        const data = await getAllRateCodes({ token: accessToken });
-        setRateCodes((data || []).filter((rc: any) => rc.rateCode));
-      } catch (e) {
-        console.error("Failed to fetch rate codes", e);
-      }
-    };
-    fn();
-  }, []);
+    dispatch(fetchRateCodes());
+  }, [dispatch]);
 
   useEffect(() => {
-    const fn = async () => {
-      try {
-        const propData = localStorage.getItem("selectedProperty");
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!propData || !tokenData) return;
-        const { id: hotelId } = JSON.parse(propData);
-        const { accessToken } = JSON.parse(tokenData);
-        const data = await getHotelRoomTypes({ token: accessToken, hotelId });
-        setRoomTypes((data || []).filter((rt: any) => rt.roomType));
-      } catch (e) {
-        console.error("Failed to fetch room types", e);
-      }
-    };
-    fn();
-  }, []);
+    dispatch(fetchRoomTypeMas());
+  }, [dispatch]);
 
   useEffect(() => {
-    const fn = async () => {
-      try {
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) return;
-        const { accessToken } = JSON.parse(tokenData);
-        const data = await getMealPlans({ token: accessToken });
-        setMealPlans((data || []).filter((mp: any) => mp.mealPlan));
-      } catch (e) {
-        console.error("Failed to fetch meal plans", e);
-      }
-    };
-    fn();
-  }, []);
+    dispatch(fetchBasisMas());
+  }, [dispatch]);
 
   useEffect(() => {
-    const fn = async () => {
-      try {
-        const data = await getAllCurrencies();
-        setCurrencies(
-          (data || []).filter((c: any) => c.currencyCode && c.currencyName)
-        );
-      } catch (e) {
-        console.error("Failed to fetch currencies", e);
-      }
-    };
-    fn();
-  }, []);
+    dispatch(fetchCurrencyMas());
+  }, [dispatch]);
 
   /* ------------------ LIVE hydrate from matched plan ----------------- */
   useEffect(() => {
@@ -374,19 +356,13 @@ export function EditRateDrawer({
       try {
         if (!initialData) return;
 
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        const propData = localStorage.getItem("selectedProperty");
-        if (!tokenData || !propData) return;
+        // dispatch to fetch hotel rate plans if not already available
+        if (!hotelRatePlans || hotelRatePlans.length === 0) {
+          await dispatch(fetchHotelRatePlans()).unwrap();
+        }
 
-        const { accessToken } = JSON.parse(tokenData);
-        const { id: hotelId } = JSON.parse(propData);
-
-        // pull ALL plan defs (same as grid)
-        const planDefs = await getHotelRatePlans({
-          token: accessToken,
-          hotelId,
-          isCmActive: false,
-        });
+        // use the hotel rate plans from Redux store
+        const planDefs = hotelRatePlans;
 
         // resolve identity bits from initialData
         const roomTypeId =
@@ -410,8 +386,9 @@ export function EditRateDrawer({
 
         // narrow to this room
         const defsForRoom = (planDefs || []).filter(
-          (def: any) =>
-            (def.roomTypeID ?? def.hotelRoomType?.hotelRoomTypeID) == roomTypeId
+          (def: any) => 
+            def.roomTypeID == roomTypeId || 
+            def.hotelRoomType?.hotelRoomTypeID == roomTypeId
         );
 
         const matched = findMatchedPlan(
@@ -447,7 +424,7 @@ export function EditRateDrawer({
     const errors: Record<string, string | undefined> = {};
     if (!formData.rateCodeID) errors.rateCodeID = "Rate Code is required.";
     if (!formData.roomTypeID) errors.roomTypeID = "Room Type is required.";
-    if (!formData.mealPlanID) errors.mealPlanID = "Meal Plan is required.";
+    if (!formData.basisID) errors.basisID = "Meal Plan is required.";
     if (!formData.currencyCode) errors.currencyCode = "Currency is required.";
     if (!formData.sellMode) errors.sellMode = "Sell Mode is required.";
     setFormErrors(errors);
@@ -481,12 +458,10 @@ export function EditRateDrawer({
 
   const selectedRoom = useMemo(
     () =>
-      roomTypes.find(
-        (rt) => rt.hotelRoomTypeID.toString() === formData.roomTypeID
-      ),
+      roomTypes.find((rt) => rt.roomTypeID.toString() === formData.roomTypeID),
     [roomTypes, formData.roomTypeID]
   );
-  const maxOccupancy = selectedRoom?.adultSpace || 1;
+  const maxOccupancy = selectedRoom?.maxAdult || 1;
 
   /* ------------------------------- Render ---------------------------- */
   return (
@@ -547,14 +522,14 @@ export function EditRateDrawer({
               value={formData.roomTypeID}
               onValueChange={(v) => {
                 const room = roomTypes.find(
-                  (rt) => rt.hotelRoomTypeID.toString() === v
+                  (rt) => rt.roomTypeID.toString() === v
                 );
                 setFormData((prev: any) => ({
                   ...prev,
                   roomTypeID: v,
                   primaryOccupancy:
-                    room?.adultSpace !== null && room?.adultSpace !== undefined
-                      ? String(room.adultSpace)
+                    room?.maxAdult !== null && room?.maxAdult !== undefined
+                      ? String(room.maxAdult)
                       : "",
                 }));
               }}
@@ -565,8 +540,8 @@ export function EditRateDrawer({
               <SelectContent>
                 {roomTypes.map((rt) => (
                   <SelectItem
-                    key={rt.hotelRoomTypeID}
-                    value={rt.hotelRoomTypeID.toString()}
+                    key={rt.roomTypeID}
+                    value={rt.roomTypeID.toString()}
                   >
                     {rt.roomType}
                   </SelectItem>
@@ -581,9 +556,9 @@ export function EditRateDrawer({
             <Label>Meal Plan</Label>
             <Select
               disabled
-              value={formData.mealPlanID}
+              value={formData.basisID?.toString() || ""}
               onValueChange={(v) =>
-                setFormData((prev: any) => ({ ...prev, mealPlanID: v }))
+                setFormData((prev: any) => ({ ...prev, basisID: v }))
               }
             >
               <SelectTrigger>
@@ -591,16 +566,13 @@ export function EditRateDrawer({
               </SelectTrigger>
               <SelectContent>
                 {mealPlans.map((mp) => (
-                  <SelectItem
-                    key={mp.mealPlanID}
-                    value={mp.mealPlanID.toString()}
-                  >
-                    {mp.mealPlan}
+                  <SelectItem key={mp.basisID} value={mp.basisID.toString()}>
+                    {mp.basis}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <FieldError message={formErrors.mealPlanID} />
+            <FieldError message={formErrors.basisID} />
           </div>
 
           {/* Currency (locked) */}
@@ -694,19 +666,18 @@ export function EditRateDrawer({
           )}
 
           {/* Pricing */}
-          {formData.sellMode === "Per Room" && (
-            <div className="space-y-1">
-              <Label htmlFor="defaultRate">Default Rate</Label>
-              <Input
-                id="defaultRate"
-                name="defaultRate"
-                value={formData.defaultRate}
-                onChange={handleChange}
-              />
-              <CurrencySuffix currency={formData.currencyCode} />
-              <FieldError message={formErrors.defaultRate} />
-            </div>
-          )}
+          {/* Pricing – always show Default Rate */}
+          <div className="space-y-1">
+            <Label htmlFor="defaultRate">Default Rate</Label>
+            <Input
+              id="defaultRate"
+              name="defaultRate"
+              value={formData.defaultRate}
+              onChange={handleChange}
+            />
+            <CurrencySuffix currency={formData.currencyCode} />
+            <FieldError message={formErrors.defaultRate} />
+          </div>
 
           {formData.sellMode === "Per Person" &&
             formData.rateMode === "Manual" && (

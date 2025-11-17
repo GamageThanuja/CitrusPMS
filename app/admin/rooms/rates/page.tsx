@@ -258,7 +258,7 @@ const fetchData = useCallback(async () => {
       decreaseBy: num(formData.decreaseBy, 0),
       hotelID,
       rateCodeID: num(formData.rateCodeID),
-      mealPlanID: num(formData.mealPlanID),
+      mealPlanID: num(formData.basisID ?? formData.mealPlanID),
       currencyCode: formData.currencyCode,
       childRate: childFee,
       createdOn: new Date().toISOString(),
@@ -276,7 +276,7 @@ const fetchData = useCallback(async () => {
         hotelID,
       },
       mealPlanMaster: {
-        mealPlanID: num(formData.mealPlanID),
+        mealPlanID: num(formData.basisID ?? formData.mealPlanID),
       },
       cmid: initialData?.cmid ?? "string",
     };
@@ -286,39 +286,31 @@ const fetchData = useCallback(async () => {
 
   const handleEditRateSubmit = async (data: any) => {
     if (!editingRate) return;
+    console.log("Submitting edit rate data:", data);
     try {
-      const tokensString = localStorage.getItem("hotelmateTokens");
-      if (!tokensString) throw new Error("Authentication tokens not found.");
-      const tokens = JSON.parse(tokensString);
-      const accessToken = tokens.accessToken;
-
+      // Reset previous state
+      dispatch(resetCreateHotelRatePlans());
+      
       // Build the correct payload using the current form + the row being edited
       const payload = buildRatePlanUpdatePayload(data, editingRate);
-
-      // IMPORTANT: Use the single endpoint with isUpdate=true (not PUT /{id})
-      const resp = await fetch(`${BASE_URL}/api/HotelRatePlans?isUpdate=true`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(
-          `Update failed: ${resp.status} ${resp.statusText} - ${errText}`
-        );
+      console.log("Update payload:", payload);
+      
+      // Use the same endpoint but with isUpdate=true parameter
+      const updatePayload = {
+        ...payload,
+        isUpdate: true
+      };
+      
+      // Dispatch create action with update flag
+      const result = await dispatch(createHotelRatePlans(updatePayload));
+      
+      if (createHotelRatePlans.fulfilled.match(result)) {
+        setIsEditDrawerOpen(false);
+        setEditingRate(null);
+        await fetchData();
       }
-
-      // Close + refresh
-      setIsEditDrawerOpen(false);
-      setEditingRate(null);
-      await fetchData();
     } catch (error) {
       console.error("Error editing rate:", error);
-      alert(String(error));
     }
   };
   const handleDeactivateRate = async (
