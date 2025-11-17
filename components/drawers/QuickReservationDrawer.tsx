@@ -525,13 +525,16 @@ export default function QuickReservationDrawer({
   console.log("hotelRatePlans (Redux) ⚽️⚽️⚽️ :", hotelRatePlans);
   console.log("hotelRatePlans loading:", hotelRatePlansLoading);
   console.log("hotelRatePlans error:", hotelRatePlansError);
-  
+
   // Debug rate code data from hotel rate plans
-  console.log("Rate codes from hotel rate plans:", hotelRatePlans.map(plan => ({
-    rateCodeID: plan.rateCodeID,
-    rateCode: plan.rateCode?.rateCode,
-    description: plan.rateCode?.description,
-  })));
+  console.log(
+    "Rate codes from hotel rate plans:",
+    hotelRatePlans.map((plan) => ({
+      rateCodeID: plan.rateCodeID,
+      rateCode: plan.rateCode?.rateCode,
+      description: plan.rateCode?.description,
+    }))
+  );
 
   console.log("checked in clicked:", isCheckedIn);
 
@@ -643,7 +646,7 @@ export default function QuickReservationDrawer({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelId = selectedProperty?.id;
-    
+
     if (hotelId) {
       dispatch(fetchHotelRatePlans({ hotelId }));
     }
@@ -666,10 +669,10 @@ export default function QuickReservationDrawer({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelId = selectedProperty?.id;
-    
+
     if (hotelId) {
       const params: any = { hotelId };
-      
+
       // Add optional filters if they exist
       if (rateCode && !isNaN(Number(rateCode))) {
         params.rateCodeID = Number(rateCode);
@@ -680,7 +683,7 @@ export default function QuickReservationDrawer({
       if (currency) {
         params.currencyCode = currency;
       }
-      
+
       dispatch(fetchHotelRatePlans(params));
     }
   }, [dispatch, rateCode, selectedMealPlan, currency]);
@@ -1545,13 +1548,15 @@ export default function QuickReservationDrawer({
     );
     console.log("Selected Rate Plan:", selectedRatePlan);
     console.log("Rate Code ID:", selectedRatePlan?.rateCodeID);
-    
+
     // Log meal plan info being sent
     console.log("🍽️ MEAL PLAN DEBUG:");
     console.log("Selected meal plan ID (selectedMealPlan):", selectedMealPlan);
     console.log("Selected meal plan name (mealPlanName):", mealPlanName);
     console.log("Available meal plans (basisMas):", mealPlans);
-    console.log("Note: Frontend correctly uses basisMas table, backend error references MealPlanMas table");
+    console.log(
+      "Note: Frontend correctly uses basisMas table, backend error references MealPlanMas table"
+    );
 
     // Log the payload exactly as it will be sent
     console.log(
@@ -2043,8 +2048,11 @@ export default function QuickReservationDrawer({
     try {
       setRateLoading((p) => ({ ...p, [idx]: true }));
 
-      console.log("Fetching calculated rate with mealPlanId (from basisMas):", Number(selectedMealPlan || 0));
-      
+      console.log(
+        "Fetching calculated rate with mealPlanId (from basisMas):",
+        Number(selectedMealPlan || 0)
+      );
+
       const res = await (
         dispatch(
           fetchCalculatedRate({
@@ -2912,13 +2920,15 @@ export default function QuickReservationDrawer({
                           }}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={
-                              hotelRatePlansLoading 
-                                ? "Loading rate plans..." 
-                                : hotelRatePlans.length === 0 
-                                ? "No rate plans available" 
-                                : "Select rate plan"
-                            } />
+                            <SelectValue
+                              placeholder={
+                                hotelRatePlansLoading
+                                  ? "Loading rate plans..."
+                                  : hotelRatePlans.length === 0
+                                  ? "No rate plans available"
+                                  : "Select rate plan"
+                              }
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {hotelRatePlansLoading ? (

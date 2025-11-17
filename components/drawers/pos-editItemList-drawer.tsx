@@ -147,7 +147,7 @@ export default function PosEditItemListDrawer({
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-4rem)] px-5 pb-5 pt-3">
-          <div className="space-y-4">
+          <div className="space-y-4 px-2">
             {/* Top fields */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
@@ -199,7 +199,7 @@ export default function PosEditItemListDrawer({
             </div>
 
             {/* Flags */}
-            <div className="border rounded-md p-3 space-y-2">
+            <div className="border rounded-md p-3 space-y-2 px-2">
               <p className="text-sm font-medium text-gray-700">
                 POS Flags &amp; Options
               </p>

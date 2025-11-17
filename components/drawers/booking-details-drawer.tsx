@@ -67,7 +67,7 @@ import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
 import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { getFolioByReservationDetailId } from "@/controllers/folioController";
 // import { getRateDetailsByReservationDetailId } from "@/controllers/rateDetailsController";
-import { getReservationById } from "@/controllers/reservationController";
+// import { getReservationById } from "@/controllers/reservationController";
 import { getGuestProfileById } from "@/controllers/guestProfileMasterController";
 import { getGuestRoomMasterProfilesByReservationDetailId } from "@/controllers/guestProfileByRoomMasterController";
 import {
@@ -99,6 +99,12 @@ import {
   selectGuestMasError,
   clearGuestMas,
 } from "@/redux/slices/fetchGuestMasSlice";
+import {
+  fetchReservationDetailsById,
+  selectReservationDetailsItems,
+  selectReservationDetailsLoading,
+  selectReservationDetailsError,
+} from "@/redux/slices/fetchreservtaionByIdSlice";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { useStoredCurrencyCode } from "@/hooks/useStoredCurrencyCode";
@@ -315,15 +321,7 @@ export default function BookingDetailsDrawer({
 
   const fetchReservationDataById = async (reservationId: number) => {
     try {
-      const storedToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem("hotelmateTokens")
-          : null;
-      const token = storedToken ? JSON.parse(storedToken).accessToken : null;
-
-      if (!token) throw new Error("Token not found");
-
-      const reservation = await getReservationById({ token, reservationId });
+      const reservation = fetchReservationDetailsById({ reservationId });
       return reservation;
     } catch (error) {
       console.error("Failed to fetch full reservation:", error);
@@ -335,9 +333,9 @@ export default function BookingDetailsDrawer({
     if (!reservationId) return;
 
     const loadReservation = async () => {
-      const data = await fetchReservationDataById(reservationId);
+      const data = fetchReservationDetailsById({ reservationId });
       if (data) {
-        setBookingData(data); // Set complete reservation data
+        setBookingData(data);
       }
     };
 
