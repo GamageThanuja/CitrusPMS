@@ -68,7 +68,6 @@ export interface HotelRatePlanItem {
   rateDate: string | null; // ISO or null
   defaultRate: number | null;
 
-  // pax1..pax18 etc.
   pax1: number | null;
   pax2: number | null;
   pax3: number | null;
@@ -98,18 +97,17 @@ export interface HotelRatePlanItem {
   increaseBy: number | null;
   decreaseBy: number | null;
 
-  // keep any unknown props
   [k: string]: any;
 }
 
-/* ---------- Query params ---------- */
+/* ---------- Query params (no hotelId now) ---------- */
 
 export interface FetchHotelRatePlansParams {
-  hotelId?: number;       // if omitted, we’ll try localStorage.selectedProperty.id
   rateCodeID?: number;
   roomTypeID?: number;
   mealPlanID?: number;
   currencyCode?: string;
+  isCmActive?: boolean;
 }
 
 /* ---------- State ---------- */
@@ -139,36 +137,18 @@ export const fetchHotelRatePlans = createAsyncThunk<
     (params ?? {}) as FetchHotelRatePlansParams;
 
   try {
-    // Try to derive hotelId from localStorage if not provided
-    let hotelId = safeParams.hotelId;
-    if (
-      (hotelId == null || Number.isNaN(hotelId)) &&
-      typeof window !== "undefined"
-    ) {
-      const propRaw = localStorage.getItem("selectedProperty");
-      if (propRaw) {
-        try {
-          const parsed = JSON.parse(propRaw);
-          if (parsed?.id != null) {
-            hotelId = Number(parsed.id);
-          }
-        } catch {
-        }
-      }
-    }
-
     const query: Record<string, any> = {};
-    if (hotelId != null) query.hotelId = hotelId;
+
+    if (safeParams.isCmActive !== undefined) {
+      query.isCmActive = safeParams.isCmActive;
+    }
     if (safeParams.rateCodeID != null) query.rateCodeID = safeParams.rateCodeID;
     if (safeParams.roomTypeID != null) query.roomTypeID = safeParams.roomTypeID;
     if (safeParams.mealPlanID != null) query.mealPlanID = safeParams.mealPlanID;
-    if (safeParams.currencyCode)
-      query.currencyCode = safeParams.currencyCode;
+    if (safeParams.currencyCode) query.currencyCode = safeParams.currencyCode;
 
     const qs = new URLSearchParams(query as any).toString();
-    const url = `${API_BASE_URL}/api/RateMas/GetHotelRatePlans${
-      qs ? `?${qs}` : ""
-    }`;
+    const url = `${API_BASE_URL}/api/RateMas/GetHotelRatePlans${qs ? `?${qs}` : ""}`;
 
     const res = await axios.get(url);
     const data = Array.isArray(res.data)
