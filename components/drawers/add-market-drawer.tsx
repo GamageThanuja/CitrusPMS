@@ -115,7 +115,8 @@ export function AddMarketDrawer({
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      {/* <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto"> */}
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Create New Market</SheetTitle>
         </SheetHeader>
