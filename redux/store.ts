@@ -1,4 +1,3 @@
-import fetchReservationDetailsByIdReducer from "./slices/fetchreservtaionByIdSlice";
 import fetchAvailableRoomTypesReducer from "./slices/fetchAvailableRoomTypesSlice";
 import userMasAuthReducer from "./slices/userMasAuthSlice";
 import frontdeskReducer from "./slices/frontdeskSlice";
@@ -230,6 +229,7 @@ import fetchRateCodesReducer from "./slices/fetchRateCodesSlice";
 import fetchRateMasAvailabilityReducer from "./slices/fetchRateMasAvailabilitySlice";
 import fetchRateMasReducer from "./slices/fetchRateMasSlice";
 import fetchHotelRatePlansReducer from "./slices/fetchHotelRatePlanSlice";
+import fetchReservationDetailsByIdReducer from "@/redux/slices/fetchreservtaionByIdSlice";
 
 const store = configureStore({
   reducer: {
@@ -463,6 +463,7 @@ const store = configureStore({
     fetchRateMasAvailability: fetchRateMasAvailabilityReducer,
     fetchRateMas: fetchRateMasReducer,
     fetchHotelRatePlans: fetchHotelRatePlansReducer,
+    fetchReservationDetailsById: fetchReservationDetailsByIdReducer,
   },
 });
 

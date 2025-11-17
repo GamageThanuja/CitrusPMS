@@ -263,9 +263,9 @@ export default function PosAddItemListDrawer({
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-4rem)] px-5 pb-5 pt-3">
-          <div className="space-y-4">
+          <div className="space-y-4 px-2">
             {/* Top fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 ">
               <div className="space-y-1">
                 <label className="text-sm text-gray-600">Item Type</label>
                 <Input
