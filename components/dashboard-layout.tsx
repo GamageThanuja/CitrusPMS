@@ -504,6 +504,7 @@ const menuGroups: MenuGroup[] = [
           },
           { name: "Rooms", href: "/admin/rooms/rooms", icon: BedDouble },
           { name: "Room Type", href: "/admin/rooms/roomType", icon: Home },
+          { name: "Rates", href: "/admin/rooms/rates", icon: DollarSign },
         ],
       },
       {
@@ -1585,6 +1586,7 @@ function PageTitle() {
         resolvedTitle = "Admin Rooms";
       else if (path.includes("/admin/rooms/roomType"))
         resolvedTitle = "Admin Room Type";
+      else if (path.includes("/admin/rooms/rates")) resolvedTitle = "Rates";
       else if (path.includes("/admin/transactions/approvals"))
         resolvedTitle = "Approvals";
       else if (path.includes("/admin/transactions/change-res-status"))
