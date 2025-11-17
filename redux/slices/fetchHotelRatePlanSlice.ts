@@ -153,7 +153,6 @@ export const fetchHotelRatePlans = createAsyncThunk<
             hotelId = Number(parsed.id);
           }
         } catch {
-          // ignore parse error, hotelId stays undefined
         }
       }
     }

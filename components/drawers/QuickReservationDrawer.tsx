@@ -3570,7 +3570,7 @@ export default function QuickReservationDrawer({
           </div>
         </div>
       )}
-      <AddTravelAgentDrawer
+      {/* <AddTravelAgentDrawer
         isOpen={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
         onCreated={(agent) => {
@@ -3580,7 +3580,7 @@ export default function QuickReservationDrawer({
           // Refresh list so it appears in the options (no page reload)
           dispatch(fetchNameMas({ nameType: "customer" }));
         }}
-      />
+      /> */}
       <AddRateDrawer
         isOpen={isAddRateDrawerOpen}
         onClose={() => setIsAddRateDrawerOpen(false)}

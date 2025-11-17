@@ -92,7 +92,7 @@ import { getNameMasters } from "@/controllers/nameMasterController";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { fetchMealPlans } from "@/redux/slices/mealPlanSlice";
 import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
-import { AddTravelAgentDrawer } from "./add-travel-agent-drawer";
+// import { AddTravelAgentDrawer } from "./add-travel-agent-drawer";
 import {
   fetchCalculatedRate,
   selectCalculatedRate,
@@ -2111,7 +2111,7 @@ export default function BusinessBlockDrawer({
           </div>
         </div>
       )}
-      <AddTravelAgentDrawer
+      {/* <AddTravelAgentDrawer
         isOpen={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
         onCreated={(agent) => {
@@ -2121,7 +2121,7 @@ export default function BusinessBlockDrawer({
           // Refresh list so it appears in the options (no page reload)
           dispatch(fetchNameMasterByHotel());
         }}
-      />
+      /> */}
     </>
   );
 }

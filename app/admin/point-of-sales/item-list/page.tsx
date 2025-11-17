@@ -15,6 +15,23 @@ import {
 } from "@/redux/slices/fetchItemMasSlice";
 
 import {
+  createItemMas,
+  selectCreateItemMasLoading,
+  selectCreateItemMasSuccess,
+  selectCreateItemMasError,
+  resetCreateItemMasState,
+  type ItemMasData,
+} from "@/redux/slices/createItemMasSlice";
+
+import {
+  updateItemMas,
+  selectUpdateItemMasLoading,
+  selectUpdateItemMasSuccess,
+  selectUpdateItemMasError,
+  resetUpdateItemMasState,
+} from "@/redux/slices/updateItemMasSlice";
+
+import {
   Table,
   TableHeader,
   TableRow,
@@ -25,6 +42,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import PosAddItemListDrawer from "@/components/drawers/pos-addItemList-drawer";
+import PosEditItemListDrawer from "@/components/drawers/pos-editItemList-drawer"; // ⬅️ import edit drawer
 
 type BoolFilter = "all" | "checked" | "unchecked";
 
@@ -35,12 +53,23 @@ export default function ItemListPage() {
   const loading = useSelector((s: RootState) => selectItemMasLoading(s));
   const error = useSelector((s: RootState) => selectItemMasError(s));
 
+  // Create item state
+  const createLoading = useSelector((s: RootState) => selectCreateItemMasLoading(s));
+  const createSuccess = useSelector((s: RootState) => selectCreateItemMasSuccess(s));
+  const createError = useSelector((s: RootState) => selectCreateItemMasError(s));
+
+  // Update item state
+  const updateLoading = useSelector((s: RootState) => selectUpdateItemMasLoading(s));
+  const updateSuccess = useSelector((s: RootState) => selectUpdateItemMasSuccess(s));
+  const updateError = useSelector((s: RootState) => selectUpdateItemMasError(s));
+
   // Pagination state
   const [pageIndex, setPageIndex] = useState(1); // 1-based
   const [pageSize, setPageSize] = useState(10);
 
   // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ItemMas | null>(null);
 
   // Text filters
@@ -62,6 +91,27 @@ export default function ItemListPage() {
   useEffect(() => {
     dispatch(fetchItemMas(undefined));
   }, [dispatch]);
+
+  // Handle successful item creation
+  useEffect(() => {
+    if (createSuccess) {
+      setAddDrawerOpen(false);
+      dispatch(resetCreateItemMasState());
+      // Refresh the items list
+      dispatch(fetchItemMas(undefined));
+    }
+  }, [createSuccess, dispatch]);
+
+  // Handle successful item update
+  useEffect(() => {
+    if (updateSuccess) {
+      setEditDrawerOpen(false);
+      setSelectedItem(null);
+      dispatch(resetUpdateItemMasState());
+      // Refresh the items list
+      dispatch(fetchItemMas(undefined));
+    }
+  }, [updateSuccess, dispatch]);
 
   const filtered = useMemo(() => {
     const matchesBool = (val: boolean, f: BoolFilter) => {
@@ -129,8 +179,8 @@ export default function ItemListPage() {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const canPrev = pageIndex > 1 && !loading;
-  const canNext = !loading && pageIndex < totalPages;
+  const canPrev = pageIndex > 1 && !loading && !updateLoading;
+  const canNext = !loading && !updateLoading && pageIndex < totalPages;
 
   const handlePrev = () => canPrev && setPageIndex((p) => p - 1);
   const handleNext = () => canNext && setPageIndex((p) => p + 1);
@@ -165,18 +215,143 @@ export default function ItemListPage() {
   // Open drawer in "add" mode
   const handleAddItem = () => {
     setSelectedItem(null);
-    setDrawerOpen(true);
+    setAddDrawerOpen(true);
   };
 
   // Open drawer in "edit" mode
   const handleEdit = (item: ItemMas) => {
     setSelectedItem(item);
-    setDrawerOpen(true);
+    setEditDrawerOpen(true); // ⬅️ open edit drawer
   };
 
-  const handleSaveFromDrawer = (values: Partial<ItemMas>) => {
-    console.log("Save from drawer:", values);
-    // TODO: create/update APIs + refresh
+  const handleSaveNew = (values: Partial<ItemMas>) => {
+    console.log("Save NEW item from drawer:", values);
+    
+    // Convert the partial ItemMas to ItemMasData format
+    const itemData: ItemMasData = {
+      finAct: values.finAct ?? false,
+      itemID: 0, // Will be assigned by the API
+      itemNumber: values.itemNumber ?? "",
+      description: values.description ?? "",
+      extDescription: values.extDescription ?? "",
+      uomid: values.uomid ?? 0,
+      itemTypeID: values.itemTypeID ?? 0,
+      categoryID: values.categoryID ?? 0,
+      salesTaxID: values.salesTaxID ?? 0,
+      price: values.price ?? 0,
+      cost: values.cost ?? 0,
+      binLocation: values.binLocation ?? "",
+      notes: values.notes ?? "",
+      reorderPoint: values.reorderPoint ?? 0,
+      restockLevel: values.restockLevel ?? 0,
+      picturePath: values.picturePath ?? "",
+      notDiscountable: values.notDiscountable ?? false,
+      cannotPurchase: values.cannotPurchase ?? false,
+      cannotInvoDecimal: values.cannotInvoDecimal ?? false,
+      waighMustEnter: values.waighMustEnter ?? false,
+      itemMessage: values.itemMessage ?? "",
+      createdBy: values.createdBy ?? 0,
+      createdOn: new Date().toISOString(),
+      lastModBy: values.lastModBy ?? 0,
+      lastModOn: new Date().toISOString(),
+      cogsAccountID: values.cogsAccountID ?? 0,
+      salesAccountID: values.salesAccountID ?? 0,
+      inventoryAssetsAccID: values.inventoryAssetsAccID ?? 0,
+      lowestSellingPrice: values.lowestSellingPrice ?? 0,
+      packagingSize: values.packagingSize ?? "",
+      messageClient: values.messageClient ?? "",
+      cannotInvoInsufQty: values.cannotInvoInsufQty ?? false,
+      subCompanyID: values.subCompanyID ?? 0,
+      serialNo: values.serialNo ?? "",
+      costCenterID: values.costCenterID ?? 0,
+      custodianID: values.custodianID ?? 0,
+      supplierID: values.supplierID ?? 0,
+      acqDate: values.acqDate ?? null,
+      lifeTimeYears: values.lifeTimeYears ?? 0,
+      lifeTimeMonths: values.lifeTimeMonths ?? 0,
+      serviceProvider: values.serviceProvider ?? "",
+      warranty: values.warranty ?? "",
+      nextServiceDate: values.nextServiceDate ?? null,
+      serviceContractNo: values.serviceContractNo ?? "",
+      commercialDepreMethodID: values.commercialDepreMethodID ?? 0,
+      fiscalDepreMethodID: values.fiscalDepreMethodID ?? 0,
+      profitMargin: values.profitMargin ?? 0,
+      vat: values.vat ?? false,
+      nbt: values.nbt ?? false,
+      sinhalaDes: values.sinhalaDes ?? "",
+      brandID: values.brandID ?? 0,
+      kitItem: values.kitItem ?? false,
+      buid: values.buid ?? 0,
+      serialNumbered: values.serialNumbered ?? false,
+      preferedSupplierID: values.preferedSupplierID ?? 0,
+      backColour: values.backColour ?? "",
+      limitWholesaleQtyAtCHK: values.limitWholesaleQtyAtCHK ?? false,
+      limitWholesaleQtyAt: values.limitWholesaleQtyAt ?? 0,
+      maxWholesaleQtyCHK: values.maxWholesaleQtyCHK ?? false,
+      maxWholesaleQty: values.maxWholesaleQty ?? 0,
+      discountRTNarration: values.discountRTNarration ?? "",
+      discountWSNarration: values.discountWSNarration ?? "",
+      limitRetailQtyAtCHK: values.limitRetailQtyAtCHK ?? false,
+      limitRetailQtyAt: values.limitRetailQtyAt ?? 0,
+      maxRetialQtyCHK: values.maxRetialQtyCHK ?? false,
+      maxRetailQty: values.maxRetailQty ?? 0,
+      isPick: values.isPick ?? false,
+      rtPrice: values.rtPrice ?? 0,
+      wsPrice: values.wsPrice ?? 0,
+      itemMessage_Client: values.itemMessage_Client ?? "",
+      showOnPOS: values.showOnPOS ?? false,
+      isKOT: values.isKOT ?? false,
+      isBOT: values.isBOT ?? false,
+      posCenter: values.posCenter ?? "",
+      rackNo: values.rackNo ?? "",
+      isTrading: values.isTrading ?? false,
+      isTaxIncluded: values.isTaxIncluded ?? false,
+      isSCIncluded: values.isSCIncluded ?? false,
+      baseItemCatID: values.baseItemCatID ?? 0,
+      oldItemCode: values.oldItemCode ?? "",
+      small: values.small ?? false,
+      regular: values.regular ?? false,
+      large: values.large ?? false,
+      guestPrice: values.guestPrice ?? 0,
+      childPrice: values.childPrice ?? 0,
+      guidePrice: values.guidePrice ?? 0,
+      driverPrice: values.driverPrice ?? 0,
+      isRecipe: values.isRecipe ?? false,
+      isAIEntitled: values.isAIEntitled ?? false,
+      sku: values.sku ?? "",
+      useBatchPriceOnSale: values.useBatchPriceOnSale ?? false,
+      discountPercentage: values.discountPercentage ?? 0,
+      discountID: values.discountID ?? 0,
+      isFastCheckOut: values.isFastCheckOut ?? false,
+      changePriceOnGRN: values.changePriceOnGRN ?? false,
+      partNo: values.partNo ?? "",
+      oldPrice: values.oldPrice ?? 0,
+      oldPriceAsAt: values.oldPriceAsAt ?? null,
+      lastPriceUpdateBy: values.lastPriceUpdateBy ?? "",
+      colour: values.colour ?? "",
+      askQtyOnSale: values.askQtyOnSale ?? false,
+      isAskSKU: values.isAskSKU ?? false,
+      skuid: values.skuid ?? 0,
+      isShotItem: values.isShotItem ?? false,
+      shotItemID: values.shotItemID ?? 0,
+      shotItemCode: values.shotItemCode ?? "",
+      subItemOf: values.subItemOf ?? "",
+      imageURL: values.imageURL ?? "",
+      lastDepreciatedDate: values.lastDepreciatedDate ?? null,
+      depreciationExpenseAccountID: values.depreciationExpenseAccountID ?? 0,
+      bookValue: values.bookValue ?? 0,
+      bookValueAsAt: values.bookValueAsAt ?? null,
+      guardian: values.guardian ?? "",
+      barCode: values.barCode ?? "",
+      nameOnBill: values.nameOnBill ?? "",
+    };
+
+    dispatch(createItemMas(itemData));
+  };
+
+  const handleSaveEdit = (updated: ItemMas) => {
+    console.log("Save EDITED item from drawer:", updated);
+    dispatch(updateItemMas(updated));
   };
 
   return (
@@ -190,13 +365,15 @@ export default function ItemListPage() {
               View / Edit / Filter POS Items
             </p>
           </div>
-          <Button onClick={handleAddItem}>Add Items</Button>
+          <Button onClick={handleAddItem} disabled={createLoading || updateLoading}>
+            {createLoading ? "Adding..." : "Add Items"}
+          </Button>
         </div>
 
         {/* Error */}
-        {error && (
+        {(error || createError || updateError) && (
           <div className="text-red-600 border border-red-300 rounded p-3 bg-red-50">
-            {error}
+            {error || createError || updateError}
           </div>
         )}
 
@@ -206,7 +383,7 @@ export default function ItemListPage() {
 
           <Table className="min-w-full text-sm">
             <TableHeader>
-              {/* Header labels row (like GuestProfiles) */}
+              {/* Header labels row */}
               <TableRow>
                 <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Item Type
@@ -246,9 +423,8 @@ export default function ItemListPage() {
                 </TableHead>
               </TableRow>
 
-              {/* Filter inputs row (matching GuestProfiles style) */}
+              {/* Filter row */}
               <TableRow className="border-t border-gray-200">
-                {/* Item Type */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fItemType}
@@ -256,8 +432,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Base Category */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fBaseCat}
@@ -265,8 +439,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Category */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fCategory}
@@ -274,8 +446,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Code */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fCode}
@@ -283,8 +453,6 @@ export default function ItemListPage() {
                     className="w-full border rounded px-2 py-1 text-sm"
                   />
                 </TableHead>
-
-                {/* Item Name */}
                 <TableHead className="px-3 py-2">
                   <input
                     value={fName}
@@ -293,7 +461,7 @@ export default function ItemListPage() {
                   />
                 </TableHead>
 
-                {/* OnPOS filter dropdown */}
+                {/* Bool filters */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fOnPOS}
@@ -305,8 +473,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* KOT */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fKOT}
@@ -318,8 +484,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* BOT */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fBOT}
@@ -331,8 +495,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* AI Ent. */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fAIEnt}
@@ -344,12 +506,12 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* Trading */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fTrading}
-                    onChange={(e) => setFTrading(e.target.value as BoolFilter)}
+                    onChange={(e) =>
+                      setFTrading(e.target.value as BoolFilter)
+                    }
                     className="w-full border rounded px-2 py-1 text-sm"
                   >
                     <option value="all">All</option>
@@ -357,8 +519,6 @@ export default function ItemListPage() {
                     <option value="unchecked">Unchecked</option>
                   </select>
                 </TableHead>
-
-                {/* AskQty */}
                 <TableHead className="px-3 py-2 text-center">
                   <select
                     value={fAskQty}
@@ -371,13 +531,12 @@ export default function ItemListPage() {
                   </select>
                 </TableHead>
 
-                {/* Action (no filter) */}
                 <TableHead className="px-3 py-2" />
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {loading ? (
+              {(loading || createLoading || updateLoading) ? (
                 <TableRow>
                   <TableCell colSpan={12} className="py-6 text-center">
                     Loading items…
@@ -430,7 +589,7 @@ export default function ItemListPage() {
                         size="icon"
                         variant="outline"
                         className="h-8 w-8 p-0"
-                        onClick={() => handleEdit(item)}
+                        onClick={() => handleEdit(item)} // ⬅️ opens edit drawer
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -488,12 +647,20 @@ export default function ItemListPage() {
           </div>
         )}
 
-        {/* POS Add / Edit Drawer */}
+        {/* POS Add Drawer */}
         <PosAddItemListDrawer
-          isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          isOpen={addDrawerOpen}
+          onClose={() => setAddDrawerOpen(false)}
+          selectedItem={null}
+          onSave={handleSaveNew}
+        />
+
+        {/* POS Edit Drawer */}
+        <PosEditItemListDrawer
+          isOpen={editDrawerOpen}
+          onClose={() => setEditDrawerOpen(false)}
           selectedItem={selectedItem}
-          onSave={handleSaveFromDrawer}
+          onSave={handleSaveEdit}
         />
       </div>
     </DashboardLayout>

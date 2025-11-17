@@ -33,6 +33,12 @@ import {
   selectCurrencyMasLoading,
   selectCurrencyMasError,
 } from "@/redux/slices/fetchCurrencyMasSlice";
+import {
+  fetchHotelRatePlans,
+  selectHotelRatePlansItems,
+  selectHotelRatePlansLoading,
+  selectHotelRatePlansError,
+} from "@/redux/slices/fetchHotelRatePlanSlice";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Select,
@@ -99,6 +105,20 @@ export default function AvailabilityPage() {
     number | undefined
   >(undefined);
 
+  // Rate editing dialog state
+  const [isRateDialogOpen, setIsRateDialogOpen] = React.useState(false);
+  const [editingRate, setEditingRate] = React.useState<{
+    roomType: string;
+    roomTypeId: number;
+    paxCount: number;
+    date: Date;
+    currentRate: number;
+    mealPlan: string;
+    rateCode: string;
+    currencyCode: string;
+  } | null>(null);
+  const [newRateValue, setNewRateValue] = React.useState("");
+
   const dates = React.useMemo(
     () => Array.from({ length: gridDays }, (_, i) => addDays(startDate, i)),
     [startDate, gridDays]
@@ -123,6 +143,18 @@ export default function AvailabilityPage() {
   const availabilityLoading = useSelector(selectRateMasAvailabilityLoading);
   const availabilityError = useSelector(selectRateMasAvailabilityError);
 
+  // Debug log to check data structure
+  React.useEffect(() => {
+    if (availabilityItems && availabilityItems.length > 0) {
+      console.log("=== Availability Items Debug ===");
+      console.log("Items count:", availabilityItems.length);
+      console.log("First item:", availabilityItems[0]);
+      if (availabilityItems[0]?.hotelRates) {
+        console.log("Hotel rates in first item:", availabilityItems[0].hotelRates);
+      }
+    }
+  }, [availabilityItems]);
+
   const roomTypes = useSelector(selectRoomTypeMas);
   const roomTypesLoading = useSelector(selectRoomTypeMasLoading);
   const roomTypesError = useSelector(selectRoomTypeMasError);
@@ -132,11 +164,18 @@ export default function AvailabilityPage() {
   const currenciesLoading = useSelector(selectCurrencyMasLoading);
   const currenciesError = useSelector(selectCurrencyMasError);
 
+  // ✅ Hotel Rate Plans state
+  const hotelRatePlans = useSelector(selectHotelRatePlansItems);
+  const hotelRatePlansLoading = useSelector(selectHotelRatePlansLoading);
+  const hotelRatePlansError = useSelector(selectHotelRatePlansError);
+
   useEffect(() => {
     dispatch(fetchRateCodes());
     dispatch(fetchRateMas());
     dispatch(fetchRoomTypeMas());
     dispatch(fetchCurrencyMas()); // ✅ fetch all currencies (no params)
+    dispatch(fetchHotelRatePlans()); // ✅ fetch hotel rate plans
+    dispatch(fetchHotelRatePlans()); // ✅ fetch hotel rate plans
   }, [dispatch]);
 
   useEffect(() => {
@@ -249,57 +288,119 @@ export default function AvailabilityPage() {
     return map;
   }, [availabilityItems]);
 
-  // Rates: roomTypeID -> occupancy -> date -> defaultRate
-  const ratesByRoom = useMemo(() => {
-    const map = new Map<number, Map<number, Map<string, number>>>();
-    (availabilityItems ?? []).forEach((item) => {
-      // Handle both roomTypeID and roomTypeId (API inconsistency)
-      const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
-      if (!roomId) return;
+  // Hotel Rate Plans: organize by roomTypeID and date with meal plan and rate code info
+  const hotelRatePlansByRoom = useMemo(() => {
+    const map = new Map<number, Map<string, any[]>>();
+    
+    (hotelRatePlans ?? []).forEach((plan: any) => {
+      const roomId = Number(plan.roomTypeID ?? 0);
+      if (!roomId || !plan.rateDate) return;
+      
+      const dateKey = format(new Date(plan.rateDate), "yyyy-MM-dd");
+      
+      if (!map.has(roomId)) map.set(roomId, new Map());
+      const dateMap = map.get(roomId)!;
+      
+      if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
+      dateMap.get(dateKey)!.push(plan);
+    });
+    
+    return map;
+  }, [hotelRatePlans]);
 
-      // console.log("Processing item:", item); // Debug log
+  // Rates: roomTypeID -> occupancy -> date -> rateValue
+const ratesByRoom = useMemo(() => {
+  const map = new Map<number, Map<number, Map<string, number>>>();
 
-      // If item has hotelRates array, process each rate
-      if (item.hotelRates && Array.isArray(item.hotelRates) && item.hotelRates.length > 0) {
-        item.hotelRates.forEach((rate: any) => {
-          const occ = Number(rate.primaryOccupancy ?? 1);
-          // Process availability dates if they exist
-          if (item.availability && Array.isArray(item.availability)) {
-            item.availability.forEach((avail: any) => {
-              const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
-              if (!map.has(roomId)) map.set(roomId, new Map());
-              const occMap = map.get(roomId)!;
-              if (!occMap.has(occ)) occMap.set(occ, new Map());
-              const dateMap = occMap.get(occ)!;
-              dateMap.set(dateKey, item.averageRate ?? 0);
-            });
+  // helper to upsert into the nested map
+  const upsert = (roomId: number, occ: number, dateKey: string, value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return;
+
+    if (!map.has(roomId)) map.set(roomId, new Map());
+    const occMap = map.get(roomId)!;
+
+    if (!occMap.has(occ)) occMap.set(occ, new Map());
+    const dateMap = occMap.get(occ)!;
+
+    dateMap.set(dateKey, value);
+  };
+
+  // Process availability items with hotelRates data (main data source)
+  (availabilityItems ?? []).forEach((item: any) => {
+    const roomId = Number(item.roomTypeId ?? item.roomTypeID ?? 0);
+    if (!roomId) return;
+
+    // Process hotelRates array if it exists
+    if (Array.isArray(item.hotelRates) && item.hotelRates.length > 0) {
+      item.hotelRates.forEach((rate: any) => {
+        if (!rate.rateDate) return;
+        
+        const dateKey = format(new Date(rate.rateDate), "yyyy-MM-dd");
+
+        // Process pax1 to pax18 rates
+        for (let occ = 1; occ <= 18; occ++) {
+          const paxKey = `pax${occ}`;
+          const paxValue = rate[paxKey];
+          if (typeof paxValue === "number" && paxValue > 0) {
+            upsert(roomId, occ, dateKey, paxValue);
           }
-        });
-      } else {
-        // Fallback for when no hotelRates array or empty hotelRates
-        const occ = Number(item.primaryOccupancy ?? item.adultCount ?? 2); // Default to 2 adults
-        if (item.availability && Array.isArray(item.availability)) {
-          item.availability.forEach((avail: any) => {
-            const dateKey = format(new Date(avail.date), "yyyy-MM-dd");
-            if (!map.has(roomId)) map.set(roomId, new Map());
-            const occMap = map.get(roomId)!;
-            if (!occMap.has(occ)) occMap.set(occ, new Map());
-            const dateMap = occMap.get(occ)!;
-            dateMap.set(dateKey, item.averageRate ?? 0);
-          });
-        } else if (item.rateDate) {
-          // Old format fallback
-          const dateKey = format(new Date(item.rateDate), "yyyy-MM-dd");
-          if (!map.has(roomId)) map.set(roomId, new Map());
-          const occMap = map.get(roomId)!
-          if (!occMap.has(occ)) occMap.set(occ, new Map());
-          const dateMap = occMap.get(occ)!;
-          dateMap.set(dateKey, item.averageRate ?? 0);
+        }
+
+        // Process default rate if available
+        if (typeof rate.defaultRate === "number" && rate.defaultRate > 0) {
+          const primaryOcc = 2; // Default to 2 pax if not specified
+          upsert(roomId, primaryOcc, dateKey, rate.defaultRate);
+        }
+
+        // Process child rate
+        if (typeof rate.child === "number" && rate.child > 0) {
+          upsert(roomId, 0, dateKey, rate.child); // Use 0 for child occupancy
+        }
+      });
+    }
+    // Fallback: if no hotelRates, try to use item-level rates
+    else if (item.rateDate || item.averageRate) {
+      const dateKey = item.rateDate ? format(new Date(item.rateDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+      
+      // Use averageRate as fallback
+      if (typeof item.averageRate === "number" && item.averageRate > 0) {
+        for (let occ = 1; occ <= 3; occ++) { // Show for first 3 occupancies
+          upsert(roomId, occ, dateKey, item.averageRate);
         }
       }
-    });
-    return map;
-  }, [availabilityItems]);
+    }
+  });
+
+  // Process hotel rate plans as additional data source
+  (hotelRatePlans ?? []).forEach((plan: any) => {
+    const roomId = Number(plan.roomTypeID ?? 0);
+    if (!roomId || !plan.rateDate) return;
+
+    const dateKey = format(new Date(plan.rateDate), "yyyy-MM-dd");
+
+    // Default rate for primary occupancy
+    if (typeof plan.defaultRate === "number" && plan.defaultRate > 0) {
+      const primaryOcc = Number(plan.primaryOccupancy ?? 2);
+      upsert(roomId, primaryOcc, dateKey, plan.defaultRate);
+    }
+
+    // Pax-specific rates (pax1 to pax18)
+    for (let occ = 1; occ <= 18; occ++) {
+      const paxKey = `pax${occ}`;
+      const paxValue = plan[paxKey];
+      if (typeof paxValue === "number" && paxValue > 0) {
+        upsert(roomId, occ, dateKey, paxValue);
+      }
+    }
+
+    // Child rate
+    if (typeof plan.child === "number" && plan.child > 0) {
+      upsert(roomId, 0, dateKey, plan.child);
+    }
+  });
+
+  return map;
+}, [availabilityItems, hotelRatePlans]);
 
   // Distinct roomTypeIDs present in availability
   const roomTypeIds = useMemo(() => {
@@ -314,6 +415,57 @@ export default function AvailabilityPage() {
 
   const handleNoop = () => {};
   const headerTitle = "Rate and Availability";
+
+  // Handle rate cell click to open edit dialog
+  const handleRateClick = (roomTypeId: number, roomType: string, paxCount: number, date: Date, currentRate: number, mealPlan: string, rateCode: string, currencyCode: string) => {
+    setEditingRate({
+      roomType,
+      roomTypeId,
+      paxCount,
+      date,
+      currentRate,
+      mealPlan,
+      rateCode,
+      currencyCode
+    });
+    setNewRateValue(currentRate > 0 ? currentRate.toString() : "");
+    setIsRateDialogOpen(true);
+  };
+
+  // Handle saving rate changes (placeholder for future API integration)
+  const handleSaveRate = () => {
+    if (!editingRate || !newRateValue) return;
+    
+    const rateValue = parseFloat(newRateValue);
+    if (isNaN(rateValue) || rateValue < 0) {
+      alert("Please enter a valid rate value");
+      return;
+    }
+
+    // TODO: Integrate with API when available
+    console.log("Saving rate:", {
+      roomTypeId: editingRate.roomTypeId,
+      paxCount: editingRate.paxCount,
+      date: format(editingRate.date, "yyyy-MM-dd"),
+      newRate: rateValue,
+      mealPlan: editingRate.mealPlan,
+      rateCode: editingRate.rateCode
+    });
+
+    // Show success message (temporary)
+    alert(`Rate updated successfully for ${editingRate.roomType} - ${editingRate.paxCount} pax on ${format(editingRate.date, "MMM dd, yyyy")}`);
+    
+    setIsRateDialogOpen(false);
+    setEditingRate(null);
+    setNewRateValue("");
+  };
+
+  // Handle dialog close
+  const handleCloseRateDialog = () => {
+    setIsRateDialogOpen(false);
+    setEditingRate(null);
+    setNewRateValue("");
+  };
 
   return (
     <DashboardLayout>
@@ -692,52 +844,161 @@ export default function AvailabilityPage() {
                             })}
                           </TableRow>
 
-                          {/* Rate rows per occupancy */}
-                          {occKeys.map((occ) => {
-                            const dateMap = occMap!.get(occ)!;
-                            return (
-                              <TableRow
-                                key={`${roomTypeID}-occ-${occ}`}
-                                className="border-b border-gray-400 border-opacity-40"
-                              >
-                                <TableCell className="p-1 text-muted-foreground text-xs border-r border-gray-400 border-opacity-40">
-                                  <div className="flex flex-col pl-4">
-                                    <span className="font-semibold">
-                                      {roomLabel}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                      <span>
-                                        Rate{" "}
-                                        <small className="text-muted-foreground">
-                                          (default)
-                                        </small>
-                                      </span>
-                                      <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
-                                        <User className="w-4 h-4" />
-                                        <span>{occ}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
-                                        <Tag className="w-4 h-4" />
-                                        <span>Standard</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                {dates.map((d) => {
-                                  const dateKey = format(d, "yyyy-MM-dd");
-                                  const val = dateMap.get(dateKey);
-                                  return (
-                                    <TableCell
-                                      key={`${roomTypeID}-occ-${occ}-${dateKey}`}
-                                      className="text-center p-1 text-xs border-r border-gray-400 border-opacity-40 hover:bg-accent"
-                                    >
-                                      {typeof val === "number" ? val : "-"}
-                                    </TableCell>
-                                  );
-                                })}
-                              </TableRow>
+                          {/* Rate rows with meal plan and rate code info */}
+                          {(() => {
+                            // Get room info from availability items for this room type
+                            const roomInfo = availabilityItems.find(item => 
+                              Number(item.roomTypeId ?? item.roomTypeID) === roomTypeID
                             );
-                          })}
+                            
+                            // Get hotel rate plans for this room type to get meal plan basis and currency
+                            const roomRatePlans = new Map<string, any>();
+                            dates.forEach(date => {
+                              const dateKey = format(date, "yyyy-MM-dd");
+                              const plansForDate = hotelRatePlansByRoom.get(roomTypeID)?.get(dateKey) || [];
+                              plansForDate.forEach(plan => {
+                                const key = `${plan.rateCodeID}-${plan.mealPlanID}`;
+                                if (!roomRatePlans.has(key)) {
+                                  roomRatePlans.set(key, plan);
+                                }
+                              });
+                            });
+                            
+                            const uniqueRatePlans = Array.from(roomRatePlans.values());
+                            
+                            if (roomInfo) {
+                              const rateCodeName = roomInfo.rateCode;
+                              
+                              // Get meal plan basis and currency from hotel rate plans if available
+                              const ratePlan = uniqueRatePlans[0]; // Use first rate plan for meal plan info
+                              const mealPlanBasis = ratePlan?.mealPlanMaster?.basis || roomInfo.mealPlan || "FB";
+                              const currencyCode = ratePlan?.currencyCode || "USD";
+                              
+                              // Show all available pax rates (1-18) that actually exist in the data
+                              const availablePax = [];
+                              for (let pax = 1; pax <= 18; pax++) {
+                                if (occMap?.has(pax)) {
+                                  availablePax.push(pax);
+                                }
+                              }
+                              
+                              return availablePax.map((paxCount) => {
+                                const dateMap = occMap?.get(paxCount);
+                                
+                                return (
+                                  <TableRow
+                                    key={`${roomTypeID}-pax-${paxCount}`}
+                                    className="border-b border-gray-400 border-opacity-40"
+                                  >
+                                    <TableCell className="p-1 text-muted-foreground text-xs border-r border-gray-400 border-opacity-40">
+                                      <div className="flex flex-col pl-4">
+                                        <span className="font-semibold">
+                                          {roomLabel}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-primary">
+                                            {mealPlanBasis} ({currencyCode})
+                                          </span>
+                                          <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
+                                            <User className="w-4 h-4" />
+                                            <span>{paxCount}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
+                                            <Tag className="w-4 h-4" />
+                                            <span className="bg-gray-100 px-1 rounded text-gray-600">
+                                              {rateCodeName || "IBE"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    {dates.map((d) => {
+                                      const dateKey = format(d, "yyyy-MM-dd");
+                                      const val = dateMap?.get(dateKey);
+                                      return (
+                                        <TableCell
+                                          key={`${roomTypeID}-pax-${paxCount}-${dateKey}`}
+                                          className="text-center p-1 text-xs border-r border-gray-400 border-opacity-40 hover:bg-accent cursor-pointer"
+                                          onClick={() => {
+                                            const currentRate = typeof val === "number" ? val : 0;
+                                            handleRateClick(
+                                              roomTypeID,
+                                              roomLabel,
+                                              paxCount,
+                                              d,
+                                              currentRate,
+                                              mealPlanBasis,
+                                              rateCodeName || "IBE",
+                                              currencyCode
+                                            );
+                                          }}
+                                        >
+                                          {typeof val === "number" ? Math.round(val) : "-"}
+                                        </TableCell>
+                                      );
+                                    })}
+                                  </TableRow>
+                                );
+                              });
+                            } else {
+                              // Fallback to generic occupancy display
+                              return occKeys.map((occ) => {
+                                const dateMap = occMap!.get(occ)!;
+                                return (
+                                  <TableRow
+                                    key={`${roomTypeID}-occ-${occ}`}
+                                    className="border-b border-gray-400 border-opacity-40"
+                                  >
+                                    <TableCell className="p-1 text-muted-foreground text-xs border-r border-gray-400 border-opacity-40">
+                                      <div className="flex flex-col pl-4">
+                                        <span className="font-semibold">
+                                          {roomLabel}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-primary">
+                                            FB (USD)
+                                          </span>
+                                          <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
+                                            <User className="w-4 h-4" />
+                                            <span>{occ}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
+                                            <Tag className="w-4 h-4" />
+                                            <span className="bg-gray-100 px-1 rounded text-gray-600">IBE</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    {dates.map((d) => {
+                                      const dateKey = format(d, "yyyy-MM-dd");
+                                      const val = dateMap.get(dateKey);
+                                      return (
+                                        <TableCell
+                                          key={`${roomTypeID}-occ-${occ}-${dateKey}`}
+                                          className="text-center p-1 text-xs border-r border-gray-400 border-opacity-40 hover:bg-accent cursor-pointer"
+                                          onClick={() => {
+                                            const currentRate = typeof val === "number" ? val : 0;
+                                            handleRateClick(
+                                              roomTypeID,
+                                              roomLabel,
+                                              occ,
+                                              d,
+                                              currentRate,
+                                              "FB",
+                                              "IBE",
+                                              "USD"
+                                            );
+                                          }}
+                                        >
+                                          {typeof val === "number" ? Math.round(val) : "-"}
+                                        </TableCell>
+                                      );
+                                    })}
+                                  </TableRow>
+                                );
+                              });
+                            }
+                          })()}
                         </React.Fragment>
                       );
                     })}
@@ -748,99 +1009,134 @@ export default function AvailabilityPage() {
         </Card>
       </div>
 
-      {/* Rate Override Dialog (still static for now) */}
-      <Dialog open={false} onOpenChange={handleNoop}>
-        <DialogContent className="overflow-visible">
+      {/* Value Override Dialog */}
+      <Dialog open={isRateDialogOpen} onOpenChange={setIsRateDialogOpen}>
+        <DialogContent className="overflow-visible max-w-lg">
           <DialogHeader>
             <DialogTitle>Value Override</DialogTitle>
             <DialogDescription asChild>
               <div className="text-sm text-muted-foreground">
-                <div className="mb-1">
-                  <span className="font-medium">Room Type:</span> Deluxe Room
-                  <span className="ml-3 inline-flex items-center gap-1 text-muted-foreground text-sm">
-                    <User className="h-4 w-4" /> 2
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="font-medium">Plan:</span> BB
-                </div>
+                {editingRate && (
+                  <>
+                    <div className="mb-1">
+                      <span className="font-medium">Room Type:</span> {editingRate.roomType}
+                      <span className="ml-3 inline-flex items-center gap-1 text-muted-foreground text-sm">
+                        <User className="h-4 w-4" /> {editingRate.paxCount}
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="font-medium">Plan:</span> {editingRate.mealPlan}_{editingRate.rateCode}
+                    </div>
+                  </>
+                )}
               </div>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mb-2">
-            <label className="text-sm font-medium mb-1 block">
-              Restriction
-            </label>
-            <Select defaultValue="Rate" disabled>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Restriction" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Rate">Rate</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Restriction</label>
+              <Select defaultValue="Rate" disabled>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Restriction" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rate">Rate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium">Current Price</span>
-            <span className="text-base font-bold">120 USD</span>
-          </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Current Price</span>
+              <span className="text-base font-bold">
+                {editingRate?.currentRate ? `${editingRate.currentRate} ${editingRate.currencyCode}` : `300 ${editingRate?.currencyCode || "USD"}`}
+              </span>
+            </div>
 
-          <div className="mb-2">
-            <label className="text-sm font-medium mb-1 block">Value</label>
-            <Input type="number" className="py-1.5" placeholder="Enter value" />
-            <span className="block text-xs text-muted-foreground mt-1">
-              Preview will appear here
-            </span>
-          </div>
-
-          <div className="mb-2">
-            <label className="text-sm font-medium">Custom Date Range</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="mt-0.5 w-full justify-start text-left font-normal py-1.5"
-                >
-                  Select date range
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                side="bottom"
-                sideOffset={6}
-                collisionPadding={8}
-                className="p-4"
+            <div className="flex items-center gap-2">
+              <Button 
+                variant={newRateValue === editingRate?.currentRate?.toString() ? "default" : "outline"}
+                size="sm"
+                className="px-4"
+                onClick={() => setNewRateValue(editingRate?.currentRate?.toString() || "300")}
               >
-                Calendar here
-              </PopoverContent>
-            </Popover>
-          </div>
+                SET
+              </Button>
+              <Button variant="outline" size="sm" className="px-3">+</Button>
+              <Button variant="outline" size="sm" className="px-3">-</Button>
+              <div className="ml-auto">
+                <Button variant="outline" size="sm" className="px-3">%</Button>
+              </div>
+            </div>
 
-          <div className="mb-2">
-            <label className="text-sm font-medium">Enter Number of Days</label>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              placeholder="Number of Days"
-              className="mt-0.5 py-1.5"
-            />
-            <div className="text-sm mt-1">
-              Calculated Range: Jan 01, 2025 - Jan 07, 2025
+            <div>
+              <label className="text-sm font-medium mb-1 block">Value</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newRateValue}
+                  onChange={(e) => setNewRateValue(e.target.value)}
+                  placeholder="300"
+                  className="flex-1"
+                  autoFocus
+                />
+                <span className="text-sm font-medium text-muted-foreground min-w-[40px]">
+                  {editingRate?.currencyCode || "USD"}
+                </span>
+              </div>
+              <span className="block text-xs text-muted-foreground mt-1">
+                Price will be set to {newRateValue || "300"} {editingRate?.currencyCode || "USD"}
+              </span>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block">Custom Date Range</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    {editingRate ? `${format(editingRate.date, "MMM dd, yyyy")} - ${format(editingRate.date, "MMM dd, yyyy")}` : "Select date range"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4 text-sm" align="start">
+                  Calendar here
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block">Enter Number of Days</label>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                defaultValue={1}
+                placeholder="1"
+                className="w-full"
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                Calculated Range: {editingRate ? `${format(editingRate.date, "MMM dd, yyyy")} - ${format(editingRate.date, "MMM dd, yyyy")}` : "Nov 23, 2025 - Nov 23, 2025"}
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button
               variant="secondary"
-              onClick={handleNoop}
+              onClick={handleCloseRateDialog}
               className="flex items-center gap-1"
             >
               <XCircle className="h-4 w-4" /> Cancel
             </Button>
-            <Button onClick={handleNoop} className="flex items-center gap-1">
+            <Button 
+              onClick={handleSaveRate}
+              className="flex items-center gap-1"
+              disabled={!newRateValue || parseFloat(newRateValue) < 0}
+            >
               <Save className="h-4 w-4" /> Save
             </Button>
           </DialogFooter>
