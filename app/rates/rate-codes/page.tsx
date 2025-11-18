@@ -53,6 +53,12 @@ import {
   selectHotelRatePlansError,
 } from "@/redux/slices/fetchHotelRatePlanSlice";
 
+import { useAppDispatch } from "@/redux/hooks";
+import {
+  createHotelRatePlans,
+  type CreateHotelRatePlanRequest,
+} from "@/redux/slices/createHotelRatePlansSlice";
+
 export default function RatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
@@ -63,7 +69,7 @@ export default function RatesPage() {
   const [showRawOverlay, setShowRawOverlay] = useState(false);
   const [videoUrl] = useState<string>("");
 
-  const dispatch = useDispatch<any>();
+  const dispatch = useAppDispatch();
 
   // 🔹 Rate codes state (for later use)
   const rateCodes = useSelector(selectRateCodes);
@@ -145,10 +151,20 @@ export default function RatesPage() {
     }, {});
   }, [hotelRatePlans, searchQuery]);
 
-  const handleAddRateSubmit = (data: any) => {
-    console.log("AddRateDrawer submitted data (no API call):", data);
+ const handleAddRateSubmit = async (data: CreateHotelRatePlanRequest) => {
+  try {
+    console.log("Creating hotel rate plan with payload:", data);
+    await dispatch(createHotelRatePlans(data)).unwrap();
+
+    // After successful create, refresh the list:
+    await dispatch(fetchHotelRatePlans());
+
     setIsAddDrawerOpen(false);
-  };
+  } catch (error) {
+    console.error("Failed to create hotel rate plan:", error);
+    // optionally show a toast here
+  }
+};
 
   const handleEditRateOpen = (rate: any) => {
     setEditingRate(rate);

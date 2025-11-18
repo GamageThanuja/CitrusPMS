@@ -51,7 +51,7 @@ import updateHotelSlice from "./slices/updateHotelSlice";
 import updateHotelRoomTypeImageSlice from "./slices/updateHotelRoomTypeImageSlice";
 import hotelRoomTypeImageSlice from "./slices/createHotelRoomTypeImageSlice";
 import extendReservationReducer from "./slices/extendReservationSlice";
-import cancelReservationSlice from "./slices/cancelReservationSlice";
+// import cancelReservationSlice from "./slices/cancelReservationSlice";
 import updateHotelRoomTypeSlice from "./slices/updateHotelRoomTypeSlice";
 import reservationRemarkSlice from "./slices/reservationRemarkSlice";
 import guestProfileRemarkSlice from "./slices/createGuestProfileRemarkSlice";
@@ -231,9 +231,9 @@ import fetchRateMasReducer from "./slices/fetchRateMasSlice";
 import fetchHotelRatePlansReducer from "./slices/fetchHotelRatePlanSlice";
 import fetchReservationDetailsByIdReducer from "@/redux/slices/fetchreservtaionByIdSlice";
 import createHotelRatePlansReducer from "./slices/createHotelRatePlansSlice";
-
 import addRoomTypeMasReducer from './slices/addRoomTypeMasSlice';
 import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
+import cancelReservationReducer from "./slices/cancelReservationSlice";
 
 const store = configureStore({
   reducer: {
@@ -287,7 +287,7 @@ const store = configureStore({
     updateHotelRoomTypeImage: updateHotelRoomTypeImageSlice,
     hotelRoomTypeImage: hotelRoomTypeImageSlice,
     extendReservation: extendReservationReducer,
-    cancelReservation: cancelReservationSlice,
+    // cancelReservation: cancelReservationSlice,
     updateHotelRoomType: updateHotelRoomTypeSlice,
     reservationRemark: reservationRemarkSlice,
     guestProfileRemark: guestProfileRemarkSlice,
@@ -471,6 +471,7 @@ const store = configureStore({
      createHotelRatePlans: createHotelRatePlansReducer,
     addRoomTypeMas: addRoomTypeMasReducer,
     updateRoomTypeMas: updateRoomTypeMasReducer,
+    cancelReservation: cancelReservationReducer,
   },
 });
 
