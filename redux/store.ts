@@ -161,6 +161,7 @@ import auditMasByIdReducer from "./slices/fetchAuditMasByIdSlice";
 import fetchAuditMasByHotelCodeReducer from "@/redux/slices/fetchAuditMasByHotelCodeSlice";
 import fetchBasisMasReducer from "./slices/fetchBasisMasSlice";
 import createBasisMasReducer from "./slices/createBasisMasSlice";
+import updateBasisMasReducer from "./slices/updateBasisMasSlice";
 import editBasisMasByBasisKeyReducer from "./slices/editBasisMasByBasisKeySlice";
 import fetchMealAllocationReducer from "./slices/fetchMealAllocationSlice";
 import createCategoryMasReducer from "./slices/createCategoryMasSlice";
@@ -401,6 +402,7 @@ const store = configureStore({
     fetchAuditMasByHotelCode: fetchAuditMasByHotelCodeReducer,
     fetchBasisMas: fetchBasisMasReducer,
     createBasisMas: createBasisMasReducer,
+    updateBasisMas: updateBasisMasReducer,
     editBasisMasByBasisKey: editBasisMasByBasisKeyReducer,
     createCategoryMas: createCategoryMasReducer,
     updateCategoryMas: updateCategoryMasReducer,
