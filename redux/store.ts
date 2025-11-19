@@ -97,7 +97,7 @@ import updatePosCenterTaxConfigSlice from "./slices/updatePosCenterTaxConfigSlic
 import updateHotelPosCenterSlice from "./slices/updateHotelPosCenterSlice";
 import fetchCategoriesSlice from "./slices/fetchCategoriesSlice";
 import fetchHotelByGuidSlice from "./slices/fetchHotelByGuidSlice";
-import changeReservationDateSlice from "./slices/changeReservationDateSlice";
+import changeReservationDateReducer from "./slices/changeReservationDateSlice";
 import reservationAddRoomSlice from "./slices/reservationAddRoomSlice";
 import reportMasterSlice from "./slices/reportMasterSlice";
 import emailSendSlice from "./slices/emailSendSlice";
@@ -336,7 +336,7 @@ const store = configureStore({
     updateHotelPosCenter: updateHotelPosCenterSlice,
     fetchCategories: fetchCategoriesSlice,
     hotelByGuid: fetchHotelByGuidSlice,
-    changeReservationDate: changeReservationDateSlice,
+  changeReservationDate: changeReservationDateReducer,
     reservationAddRoom: reservationAddRoomSlice,
     reportMaster: reportMasterSlice,
     emailSend: emailSendSlice,
