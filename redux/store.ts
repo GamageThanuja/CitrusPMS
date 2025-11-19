@@ -234,6 +234,8 @@ import createHotelRatePlansReducer from "./slices/createHotelRatePlansSlice";
 import addRoomTypeMasReducer from './slices/addRoomTypeMasSlice';
 import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
 import cancelReservationReducer from "./slices/cancelReservationSlice";
+import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReasonSlice";
+
 
 const store = configureStore({
   reducer: {
@@ -472,6 +474,7 @@ const store = configureStore({
     addRoomTypeMas: addRoomTypeMasReducer,
     updateRoomTypeMas: updateRoomTypeMasReducer,
     cancelReservation: cancelReservationReducer,
+    fetchCancellationReason: fetchCancellationReasonReducer,
   },
 });
 
