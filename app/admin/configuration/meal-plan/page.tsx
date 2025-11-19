@@ -163,7 +163,7 @@ export default function MealPlanPage() {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-semibold">Meal Plans (Basis Master)</h1>
+          <h1 className="text-xl font-semibold">Meal Plans</h1>
           <div className="flex gap-2">
             <Input
               placeholder="Search by Basis ID, Basis, CM Rate ID, or Description…"
