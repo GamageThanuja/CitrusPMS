@@ -16,14 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 import type { AppDispatch } from "@/redux/store";
-import type { MealPlanByFolioByDate } from "@/redux/slices/fetchMealPlanByFolioByDateSlice";
-import { updateMealPlanByFolioByDate } from "@/redux/slices/updateMealPlanByFolioByDateSlice";
+import type { BasisMasItem } from "@/redux/slices/fetchBasisMasSlice";
+import { updateBasisMas } from "@/redux/slices/updateBasisMasSlice";
 
 type EditMealPlanDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
-  row?: MealPlanByFolioByDate | null; // row to edit
-  onUpdated?: (updated: MealPlanByFolioByDate) => void; // optional callback to parent
+  row?: BasisMasItem | null; // row to edit
+  onUpdated?: (updated: BasisMasItem) => void; // optional callback to parent
 };
 
 export default function EditMealPlanDrawer({
@@ -34,7 +34,7 @@ export default function EditMealPlanDrawer({
 }: EditMealPlanDrawerProps) {
   const dispatch = useDispatch<AppDispatch>();
 
-  const [values, setValues] = useState<MealPlanByFolioByDate | null>(null);
+  const [values, setValues] = useState<BasisMasItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -65,8 +65,8 @@ export default function EditMealPlanDrawer({
 
   const handleSave = async () => {
     if (!values) return;
-    if (!values.mealPlan.trim()) {
-      setErrorMsg("Meal Plan is required.");
+    if (!values.basis?.trim()) {
+      setErrorMsg("Basis (meal plan code) is required.");
       return;
     }
 
@@ -74,24 +74,20 @@ export default function EditMealPlanDrawer({
       setSaving(true);
       setErrorMsg(null);
 
-      const payload: MealPlanByFolioByDate = {
-        recordID: values.recordID,
-        folioID: Number(values.folioID),
-        dt: values.dt, // keep original string (e.g. "2025-11-14T00:00:00")
-        mealPlan: values.mealPlan,
-        ai: values.ai,
+      const payload: BasisMasItem = {
+        ...values,
+        basisID: Number(values.basisID ?? 0),
+        showOnIBE: Boolean(values.showOnIBE),
       };
 
-      const result = await dispatch(
-        updateMealPlanByFolioByDate(payload)
-      ).unwrap();
+      const result = await dispatch(updateBasisMas(payload)).unwrap();
 
-      onUpdated?.(result as MealPlanByFolioByDate);
+      onUpdated?.(result as BasisMasItem);
       onClose();
     } catch (err: any) {
-      console.error("Failed to update meal plan:", err);
+      console.error("Failed to update basis:", err);
       setErrorMsg(
-        err?.message || "Failed to update meal plan. Please try again."
+        err?.message || "Failed to update basis. Please try again."
       );
     } finally {
       setSaving(false);
@@ -103,13 +99,8 @@ export default function EditMealPlanDrawer({
     onClose();
   };
 
-  const title = "Edit Meal Plan";
-  const displayDate =
-    values?.dt && values.dt.includes("T")
-      ? values.dt.split("T")[0]
-      : values?.dt ?? "";
-
-  const isSaveDisabled = saving || !values || !values.mealPlan.trim();
+  const title = "Edit Meal Plan (Basis)";
+  const isSaveDisabled = saving || !values || !values.basis?.trim();
 
   return (
     <Sheet
@@ -135,61 +126,65 @@ export default function EditMealPlanDrawer({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Record ID */}
+              {/* Basis ID */}
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Record ID</label>
+                <label className="text-sm text-gray-600">Basis ID</label>
                 <Input
-                  value={values.recordID}
+                  value={values.basisID}
                   disabled
                   className="bg-gray-50"
                 />
               </div>
 
-              {/* Folio ID */}
-              <div className="space-y-1">
-                <label className="text-sm text-gray-600">Folio ID</label>
-                <Input
-                  value={values.folioID}
-                  disabled
-                  className="bg-gray-50"
-                />
-              </div>
-
-              {/* Date */}
-              <div className="space-y-1">
-                <label className="text-sm text-gray-600">Date</label>
-                <Input
-                  value={displayDate}
-                  disabled
-                  className="bg-gray-50"
-                />
-              </div>
-
-              {/* Meal Plan */}
+              {/* Basis / Meal Plan Code */}
               <div className="space-y-1">
                 <label className="text-sm text-gray-600">
-                  Meal Plan 
+                  Meal Plan Code (Basis) <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  name="mealPlan"
-                  value={values.mealPlan}
+                  name="basis"
+                  value={values.basis}
                   onChange={handleChange}
-                  placeholder="e.g., HB, AI, BB"
+                  placeholder="e.g., BB, HB, FB, AI"
                 />
               </div>
 
-              {/* AI flag */}
+              {/* CM Rate ID */}
+              <div className="space-y-1">
+                <label className="text-sm text-gray-600">CM Rate ID</label>
+                <Input
+                  name="cmRateID"
+                  value={values.cmRateID}
+                  onChange={handleChange}
+                  placeholder="Channel manager rate ID (optional)"
+                />
+              </div>
+
+              {/* Show on IBE */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="ai"
-                  checked={values.ai}
+                  name="showOnIBE"
+                  checked={values.showOnIBE}
                   onChange={handleChange}
                   className="h-4 w-4"
                 />
                 <span className="text-sm text-gray-600">
-                  AI (All Inclusive)
+                  Show on IBE (booking engine)
                 </span>
+              </div>
+
+              {/* Description on IBE */}
+              <div className="space-y-1">
+                <label className="text-sm text-gray-600">
+                  Description (IBE)
+                </label>
+                <Input
+                  name="descOnIBE"
+                  value={values.descOnIBE}
+                  onChange={handleChange}
+                  placeholder="Short description shown on booking engine"
+                />
               </div>
 
               {errorMsg && (

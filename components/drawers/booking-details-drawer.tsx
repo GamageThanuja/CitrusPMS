@@ -573,9 +573,9 @@ export default function BookingDetailsDrawer({
         ]);
       }
 
-      // refresh the "bookingData" you render status from
+      // refresh the "booking" you render status from
       const fresh = await fetchReservationDataById(reservationId);
-      if (fresh) setBookingData(fresh);
+      if (fresh) setBooking(fresh);
     }
 
     setCheckInOpen(false);

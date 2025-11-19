@@ -16,16 +16,17 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 import {
-  createMealPlanByFolioByDate,
-} from "@/redux/slices/createMealPlanByFolioByDateSlice";
+  createBasisMas,
+} from "@/redux/slices/createBasisMasSlice";
 import type { AppDispatch } from "@/redux/store";
-import type { MealPlanByFolioByDate } from "@/redux/slices/fetchMealPlanByFolioByDateSlice";
+import type { BasisMasItem } from "@/redux/slices/fetchBasisMasSlice";
 
 type AddMealPlanDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  // kept here in case you still pass it from somewhere, but not used now
   initialFolioID?: number;
-  onCreated?: (created: MealPlanByFolioByDate) => void; // optional callback to parent
+  onCreated?: (created: BasisMasItem | null) => void; // optional callback to parent
 };
 
 export default function AddMealPlanDrawer({
@@ -37,23 +38,25 @@ export default function AddMealPlanDrawer({
   const dispatch = useDispatch<AppDispatch>();
 
   const [values, setValues] = useState({
-    folioID: initialFolioID ?? 0,
-    dt: new Date().toISOString().slice(0, 10),
-    mealPlan: "",
-    ai: false,
+    basisID: 0,
+    basis: "",
+    cmRateID: "",
+    showOnIBE: false,
+    descOnIBE: "",
   });
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Reset form when opening / initialFolioID changes
+  // Reset form when opening
   useEffect(() => {
     if (isOpen) {
       setValues({
-        folioID: initialFolioID ?? 0,
-        dt: new Date().toISOString().slice(0, 10),
-        mealPlan: "",
-        ai: false,
+        basisID: 0,
+        basis: "",
+        cmRateID: "",
+        showOnIBE: false,
+        descOnIBE: "",
       });
       setErrorMsg(null);
     }
@@ -74,21 +77,21 @@ export default function AddMealPlanDrawer({
       setSaving(true);
 
       const payload = {
-        recordID: 0,
-        folioID: Number(values.folioID),
-        dt: values.dt,              // same format you used in page
-        mealPlan: values.mealPlan,
-        ai: values.ai,
+        basisID: Number(values.basisID) || 0, // server can ignore on create
+        basis: values.basis.trim(),
+        cmRateID: values.cmRateID.trim(),
+        showOnIBE: values.showOnIBE,
+        descOnIBE: values.descOnIBE.trim(),
       };
 
       const created = await dispatch(
-        createMealPlanByFolioByDate(payload)
+        createBasisMas(payload)
       ).unwrap();
 
-      onCreated?.(created as MealPlanByFolioByDate);
+      onCreated?.(created as BasisMasItem | null);
       onClose();
     } catch (err: any) {
-      console.error("Failed to create meal plan:", err);
+      console.error("Failed to create BasisMas:", err);
       setErrorMsg(
         err?.message || "Failed to create meal plan. Please try again."
       );
@@ -106,9 +109,7 @@ export default function AddMealPlanDrawer({
 
   const isSaveDisabled =
     saving ||
-    !values.mealPlan.trim() ||
-    !values.dt ||
-    !values.folioID;
+    !values.basis.trim(); // basis is required
 
   return (
     <Sheet
@@ -128,59 +129,68 @@ export default function AddMealPlanDrawer({
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-4rem)] px-5 pb-5 pt-3">
-          <div className="space-y-4">
-            {/* Folio ID */}
+          <div className="space-y-4 px-2">
+            {/* Basis ID (optional / mostly for reference) */}
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">
-                Folio ID <span className="text-red-500">*</span>
-              </label>
+              <label className="text-sm text-gray-600">Basis ID</label>
               <Input
-                name="folioID"
+                name="basisID"
                 type="number"
-                value={values.folioID}
+                value={values.basisID}
                 onChange={handleChange}
-                placeholder="Enter Folio ID"
+                placeholder="0 (auto)"
               />
             </div>
 
-            {/* Date */}
+            {/* Basis Code */}
             <div className="space-y-1">
               <label className="text-sm text-gray-600">
-                Date <span className="text-red-500">*</span>
+                Basis / Meal Plan Code <span className="text-red-500">*</span>
               </label>
               <Input
-                name="dt"
-                type="date"
-                value={values.dt}
+                name="basis"
+                value={values.basis}
                 onChange={handleChange}
+                placeholder="e.g., BB, HB, FB, AI"
               />
             </div>
 
-            {/* Meal Plan */}
+            {/* CM Rate ID */}
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">
-                Meal Plan <span className="text-red-500">*</span>
-              </label>
+              <label className="text-sm text-gray-600">CM Rate ID</label>
               <Input
-                name="mealPlan"
-                value={values.mealPlan}
+                name="cmRateID"
+                value={values.cmRateID}
                 onChange={handleChange}
-                placeholder="e.g., HB, AI, BB"
+                placeholder="Channel manager rate ID (optional)"
               />
             </div>
 
-            {/* AI flag */}
+            {/* Show on IBE */}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                name="ai"
-                checked={values.ai}
+                name="showOnIBE"
+                checked={values.showOnIBE}
                 onChange={handleChange}
                 className="h-4 w-4"
               />
               <span className="text-sm text-gray-600">
-                AI (All Inclusive)
+                Show on IBE
               </span>
+            </div>
+
+            {/* Description on IBE */}
+            <div className="space-y-1">
+              <label className="text-sm text-gray-600">
+                Description (IBE)
+              </label>
+              <Input
+                name="descOnIBE"
+                value={values.descOnIBE}
+                onChange={handleChange}
+                placeholder="Short description to show on booking engine"
+              />
             </div>
 
             {errorMsg && (
