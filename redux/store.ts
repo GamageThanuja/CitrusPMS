@@ -219,6 +219,7 @@ import updateVenueMasReducer from "./slices/updateVenueMasSlice";
 import createVenueMasReducer from "./slices/createVenueMasSlice";
 import createMealAllocationReducer from "./slices/createMealAllocationSlice";
 import updateMealAllocationReducer from "./slices/updateMealAllocationSlice";
+import deleteMealAllocationReducer from "./slices/deleteMealAllocationSlice";
 import createNationalityMasReducer from "./slices/createNationalityMasSlice";
 import updateNationalityMasReducer from "./slices/updateNationalityMasSlice";
 import fetchUserMasReducer from "./slices/fetchUserMasSlice";
@@ -460,6 +461,7 @@ const store = configureStore({
     createVenueMas: createVenueMasReducer,
     createMealAllocation: createMealAllocationReducer,
     updateMealAllocation: updateMealAllocationReducer,
+    deleteMealAllocation: deleteMealAllocationReducer,
     createNationalityMas: createNationalityMasReducer,
     updateNationalityMas: updateNationalityMasReducer,
     fetchUserMas: fetchUserMasReducer,

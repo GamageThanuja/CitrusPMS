@@ -34,18 +34,22 @@ const initialState: UpdateMealAllocationState = {
   data: null,
 };
 
-/** ---- Thunk: PUT /api/MealAllocation/{hotelCode} ---- */
+/** ---- Thunk: PUT /api/MealAllocation/{id} ---- */
 export const updateMealAllocation = createAsyncThunk<
   MealAllocationItem,
   UpdateMealAllocationPayload,
   { rejectValue: string }
 >("mealAllocation/update", async (payload, { rejectWithValue }) => {
   try {
+    if (!payload.id) {
+      return rejectWithValue("ID is required for updating meal allocation.");
+    }
+
     if (!payload.hotelCode) {
       return rejectWithValue("Hotel Code is required for updating meal allocation.");
     }
 
-    const url = `${API_BASE_URL}/api/MealAllocation/${payload.hotelCode}`;
+    const url = `${API_BASE_URL}/api/MealAllocation/${payload.id}`;
     const res = await axios.put(url, payload);
     return res.data as MealAllocationItem;
   } catch (err: any) {
