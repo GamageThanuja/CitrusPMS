@@ -113,7 +113,7 @@ import hotelEmployeesByHotelSlice from "./slices/hotelEmployeesByHotelSlice";
 import updateHotelEmployeeSlice from "./slices/updateHotelEmployeeSlice";
 import deleteHotelEmployeeSlice from "./slices/deleteHotelEmployeeSlice";
 import createHousekeepingLogReducer from "./slices/createHousekeepingLogSlice";
-import noShowSlice from "./slices/noShowSlice";
+import noShowReservationReducer from "./slices/noShowSlice";
 import updatePasswordReducer from "./slices/updatePasswordSlice";
 import reservationStatusSlice from "./slices/updateStatusByReservationDetailID";
 import createPosCenterReducer from "./slices/createPosCenterSlice";
@@ -237,6 +237,7 @@ import addRoomTypeMasReducer from './slices/addRoomTypeMasSlice';
 import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
 import cancelReservationReducer from "./slices/cancelReservationSlice";
 import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReasonSlice";
+import reasonsByCategoryReducer from "./slices/reasonsByCategorySlice";
 
 
 const store = configureStore({
@@ -353,7 +354,7 @@ const store = configureStore({
     updateHotelEmployee: updateHotelEmployeeSlice,
     deleteHotelEmployee: deleteHotelEmployeeSlice,
     createHousekeepingLog: createHousekeepingLogReducer,
-    noShow: noShowSlice,
+    noShowReservation: noShowReservationReducer,
     updatePassword: updatePasswordReducer,
     reservationStatus: reservationStatusSlice,
     createPosCenter: createPosCenterReducer,
@@ -479,6 +480,7 @@ const store = configureStore({
     updateRoomTypeMas: updateRoomTypeMasReducer,
     cancelReservation: cancelReservationReducer,
     fetchCancellationReason: fetchCancellationReasonReducer,
+    reasonsByCategory: reasonsByCategoryReducer,
   },
 });
 
