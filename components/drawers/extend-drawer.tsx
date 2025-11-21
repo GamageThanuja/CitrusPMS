@@ -13,45 +13,65 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getAllCurrencies } from "@/controllers/AllCurrenciesController";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   extendReservation,
   resetExtendReservationState,
 } from "@/redux/slices/extendReservationSlice";
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+} from "@/redux/slices/fetchCurrencyMasSlice";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
   const dispatch = useAppDispatch();
-  const { loading, error, success } = useAppSelector(
+
+  // extendReservation slice
+  const { loading, error } = useAppSelector(
     (state) => state.extendReservation
   );
 
+  // currencyMas slice
+  const currencyItems = useAppSelector(selectCurrencyMasItems);
+  const currencyLoading = useAppSelector(selectCurrencyMasLoading);
+  const currencyError = useAppSelector(selectCurrencyMasError);
+
   const [extendTill, setExtendTill] = useState("");
   const [rate, setRate] = useState("");
-  const [feedbackMessage, setFeedbackMessage] = useState(null);
-  const [currencies, setCurrencies] = useState([]);
+  const [feedbackMessage, setFeedbackMessage] = useState<any>(null);
   const [selectedCurrency, setSelectedCurrency] = useState("");
-  const [groupRooms, setGroupRooms] = useState([]);
-  const [selectedRoomIds, setSelectedRoomIds] = useState([]);
+  const [groupRooms, setGroupRooms] = useState<any[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
   const [isGroup, setIsGroup] = useState(false);
-  const [singleRoomMeta, setSingleRoomMeta] = useState(null);
+  const [singleRoomMeta, setSingleRoomMeta] = useState<any>(null);
 
+  /** ---- Load currencies via Redux ---- */
   useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        const data = await getAllCurrencies();
-        setCurrencies(data);
-        setSelectedCurrency(data?.[0]?.currencyCode || "");
-      } catch (error) {
-        console.error("Failed to fetch currencies:", error);
-      }
-    };
+    dispatch(fetchCurrencyMas());
+  }, [dispatch]);
 
-    fetchCurrencies();
-  }, []);
+  /** ---- Set default currency when items load ---- */
+  useEffect(() => {
+    if (!selectedCurrency && currencyItems.length > 0) {
+      setSelectedCurrency(currencyItems[0].currencyCode);
+    }
+  }, [currencyItems, selectedCurrency]);
 
+  /** ---- Handle currency load error ---- */
+  useEffect(() => {
+    if (currencyError) {
+      console.error("Failed to fetch currencies:", currencyError);
+      toast.error("Failed to load currencies", {
+        description: currencyError,
+      });
+    }
+  }, [currencyError]);
+
+  /** ---- When drawer opens, prep state & load group rooms ---- */
   useEffect(() => {
     if (open && bookingDetail) {
       dispatch(resetExtendReservationState());
@@ -63,7 +83,6 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
       setExtendTill("");
       setFeedbackMessage(null);
 
-      // Fetch group rooms if any
       const fetchGroupRooms = async () => {
         try {
           const token = JSON.parse(localStorage.getItem("hotelmateTokens"));
@@ -80,7 +99,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
 
           if (rooms.length > 1) {
             setGroupRooms(rooms);
-            setSelectedRoomIds(rooms.map((r) => r.reservationDetailID));
+            setSelectedRoomIds(rooms.map((r: any) => r.reservationDetailID));
             setIsGroup(true);
           } else {
             setSingleRoomMeta(rooms[0] || null);
@@ -95,25 +114,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
     }
   }, [open, bookingDetail, dispatch]);
 
-  useEffect(() => {
-    if (success) {
-      toast("Stay extended successfully!", {
-        description: new Date(extendTill).toLocaleDateString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-        className: "bg-background border border-border text-center",
-        duration: 3000,
-      });
-
-      onExtend(extendTill, rate);
-      onClose();
-    }
-  }, [success]);
-
-  // put this inside the component (above handleSubmit)
+  // Resolve roomId from various possible field names
   const resolveRoomId = (room, fallbackA, fallbackB) =>
     room?.roomID ??
     room?.roomId ??
@@ -123,7 +124,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
     fallbackB?.roomId ??
     null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!extendTill || !rate) {
@@ -153,11 +154,15 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
       return;
     }
 
-    setFeedbackMessage(null);
+    if (!selectedCurrency) {
+      setFeedbackMessage({
+        type: "error",
+        message: "Please select a currency",
+      });
+      return;
+    }
 
-    const hotelCode = JSON.parse(
-      localStorage.getItem("selectedProperty")
-    )?.hotelCode;
+    setFeedbackMessage(null);
 
     try {
       const roomsToExtend = isGroup
@@ -166,10 +171,8 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
           )
         : [bookingDetail];
 
-      // Run each room extension, log payload & response, and toast success/error
       const results = await Promise.allSettled(
         roomsToExtend.map(async (room) => {
-          // for single reservations, room === bookingDetail; fall back to singleRoomMeta
           const roomId = resolveRoomId(room, singleRoomMeta, bookingDetail);
 
           if (!roomId) {
@@ -189,7 +192,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
               room.reservationDetailID ?? bookingDetail.reservationDetailID
             ),
             reservationMasterId: Number(bookingDetail.reservationID),
-            roomId: Number(roomId), // ✅ now present for single + group
+            roomId: Number(roomId),
             newCheckOutDate: new Date(extendTill).toISOString(),
             oldCheckOutDate: new Date(
               room.checkOUT || bookingDetail.checkOut
@@ -230,10 +233,9 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
       const failures = results.filter((r) => r.status === "rejected");
       const partialErrors = results
         .filter((r) => r.status === "rejected")
-        .map((r) => r.reason);
+        .map((r: any) => r.reason);
 
-      // ❌ Toast errors (per failure) + log details
-      failures.forEach((f, idx) => {
+      failures.forEach((_, idx) => {
         console.error("[ExtendReservation] Failed:", partialErrors[idx]);
         toast.error("Failed to extend a room", {
           description:
@@ -245,7 +247,6 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
         });
       });
 
-      // If all succeeded, keep your original success UX
       if (failures.length === 0) {
         toast("Stay extended successfully!", {
           description: new Date(extendTill).toLocaleDateString("en-US", {
@@ -258,18 +259,9 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
           duration: 3000,
         });
 
-        onExtend({
-          // if group, send all detail IDs you extended
-          reservationDetailIDs: roomsToExtend.map((r) =>
-            Number(r.reservationDetailID ?? bookingDetail.reservationDetailID)
-          ),
-          newCheckOutISO: new Date(extendTill).toISOString(),
-          rate: rateValue,
-          currencyCode: selectedCurrency,
-        });
+        onExtend(extendTill, rate);
         onClose();
       } else {
-        // Show a banner message too (keeps your existing UI pattern)
         setFeedbackMessage({
           type: "error",
           message: `Extended ${results.length - failures.length} room(s). ${
@@ -277,19 +269,14 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
           } failed. Check console for details.`,
         });
       }
-    } catch (err) {
-      // This catch is for unexpected top-level errors
+    } catch (err: any) {
       console.error("❌ Unexpected error while extending:", err);
       setFeedbackMessage({
         type: "error",
-        message:
-          typeof err === "string"
-            ? err
-            : err?.message || "Failed to extend stay.",
+        message: err?.message || "Failed to extend stay.",
       });
       toast.error("Failed to extend stay.", {
-        description:
-          typeof err === "string" ? err : err?.message || "Unknown error",
+        description: err?.message || "Unknown error",
         className: "bg-background border border-border text-center",
         duration: 3500,
       });
@@ -338,7 +325,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
                     onChange={(e) => {
                       setSelectedRoomIds(
                         e.target.checked
-                          ? groupRooms.map((r) => r.reservationDetailID)
+                          ? groupRooms.map((r: any) => r.reservationDetailID)
                           : []
                       );
                     }}
@@ -347,7 +334,7 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
                 </label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {groupRooms.map((room) => (
+                {groupRooms.map((room: any) => (
                   <div
                     key={room.reservationDetailID}
                     className={`p-4 border rounded-lg transition-all ${
@@ -430,11 +417,11 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
                     className="w-full border rounded-md h-10 px-2"
                     value={selectedCurrency}
                     onChange={(e) => setSelectedCurrency(e.target.value)}
-                    disabled={loading}
+                    disabled={loading || currencyLoading}
                   >
-                    {currencies.map((currency) => (
+                    {currencyItems.map((currency) => (
                       <option
-                        key={currency.currencyId}
+                        key={currency.currencyID}
                         value={currency.currencyCode}
                       >
                         {currency.currencyCode}
@@ -445,7 +432,11 @@ export function ExtendDrawer({ bookingDetail, open, onClose, onExtend }) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || currencyLoading}
+            >
               {loading ? "PROCESSING..." : "EXTEND STAY"}
             </Button>
           </form>

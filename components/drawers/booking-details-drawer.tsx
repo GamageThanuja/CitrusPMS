@@ -198,7 +198,7 @@ export default function BookingDetailsDrawer({
   console.log("booking detail drawer bookingDetail 000000: ", bookingDetail);
 
   const reservationDetailId = bookingDetail?.reservationDetailID;
-console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
+  console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
 
   const reservationId = bookingDetail?.reservationID;
 
@@ -719,7 +719,7 @@ console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
     }
 
     setIsMarkingNoShow(true);
-    
+
     try {
       // Map drawer output → NoShowReservationPayload
       const payload = {

@@ -57,7 +57,8 @@ import reservationRemarkSlice from "./slices/reservationRemarkSlice";
 import guestProfileRemarkSlice from "./slices/createGuestProfileRemarkSlice";
 import fetchReservationRemarksSlice from "./slices/fetchReservationRemarksByDetailIdSlice";
 import fetchuGestProfileRemarkSlice from "./slices/getGuestProfileRemarkSlice";
-import shortenReservationSlice from "./slices/shortenReservationSlice";
+// import shortenReservationSlice from "./slices/shortenReservationSlice";
+import shortenReservationReducer from "./slices/shortenReservationSlice";
 import availabilitySlice from "./slices/availabilitySlice";
 import rateAvailabilityReducer from "./slices/availabilitySlice";
 import rateCodeSlice from "./slices/rateCodeSlice";
@@ -298,7 +299,7 @@ const store = configureStore({
     guestProfileRemark: guestProfileRemarkSlice,
     fetchReservationRemarks: fetchReservationRemarksSlice,
     fetchuGestProfileRemark: fetchuGestProfileRemarkSlice,
-    shortenReservation: shortenReservationSlice,
+    // shortenReservation: shortenReservationSlice,
     availability: availabilitySlice,
     rateAvailability: rateAvailabilityReducer,
     rateCode: rateCodeSlice,
@@ -481,6 +482,7 @@ const store = configureStore({
     cancelReservation: cancelReservationReducer,
     fetchCancellationReason: fetchCancellationReasonReducer,
     reasonsByCategory: reasonsByCategoryReducer,
+    shortenReservation: shortenReservationReducer,
   },
 });
 
