@@ -20,11 +20,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getAllRateCodes } from "@/controllers/allRateCodesController";
-import { getHotelRoomTypes } from "@/controllers/hotelRoomTypeController";
-import { getMealPlans } from "@/controllers/mealPlansController";
-import { getAllCurrencies } from "@/controllers/AllCurrenciesController";
-import { createHotelRatePlan } from "@/controllers/hotelRatePlanController";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  fetchRateCodes,
+  selectRateCodes,
+  selectRateCodesLoading,
+  selectRateCodesError,
+} from "@/redux/slices/fetchRateCodesSlice";
+import {
+  fetchRoomTypeMas,
+  selectRoomTypeMas,
+  selectRoomTypeMasLoading,
+  selectRoomTypeMasError,
+} from "@/redux/slices/roomTypeMasSlice";
+import {
+  fetchBasisMas,
+  selectBasisMasItems,
+  selectBasisMasLoading,
+  selectBasisMasError,
+} from "@/redux/slices/fetchBasisMasSlice";
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+} from "@/redux/slices/fetchCurrencyMasSlice";
+import type { CreateHotelRatePlanRequest } from "@/redux/slices/createHotelRatePlansSlice";
 import VideoOverlay from "../videoOverlay";
 import VideoButton from "../videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -86,127 +107,39 @@ export function AddRateDrawer({
   const FieldError = ({ message }: { message?: string }) =>
     message ? <p className="text-sm text-red-500 mt-1">{message}</p> : null;
 
-  const [rateCodes, setRateCodes] = useState<
-    { rateCodeID: number; rateCode: string }[]
-  >([]);
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const rateCodes = useAppSelector(selectRateCodes);
+  const rateCodesLoading = useAppSelector(selectRateCodesLoading);
+  const rateCodesError = useAppSelector(selectRateCodesError);
 
   useEffect(() => {
-    const fetchRateCodes = async () => {
-      try {
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) {
-          console.error("Token not found in localStorage");
-          return;
-        }
+    dispatch(fetchRateCodes());
+  }, [dispatch]);
 
-        const { accessToken } = JSON.parse(tokenData);
-        const data = await getAllRateCodes({ token: accessToken });
-
-        const validRateCodes = data.filter((rc: any) => rc.rateCode);
-        setRateCodes(validRateCodes);
-      } catch (error) {
-        console.error("Failed to fetch rate codes:", error);
-      }
-    };
-
-    fetchRateCodes();
-  }, []);
-
-  const [roomTypes, setRoomTypes] = useState<
-    { hotelRoomTypeID: number; roomType: string; adultSpace: number | null }[]
-  >([]);
+  const roomTypes = useAppSelector(selectRoomTypeMas);
+  const roomTypesLoading = useAppSelector(selectRoomTypeMasLoading);
+  const roomTypesError = useAppSelector(selectRoomTypeMasError);
 
   useEffect(() => {
-    const fetchRoomTypes = async () => {
-      try {
-        const propData = localStorage.getItem("selectedProperty");
-        if (!propData) {
-          console.error("Hotel not selected");
-          return;
-        }
+    dispatch(fetchRoomTypeMas());
+  }, [dispatch]);
 
-        const { id: hotelId } = JSON.parse(propData);
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) {
-          console.error("Token not found in localStorage");
-          return;
-        }
-
-        const { accessToken } = JSON.parse(tokenData);
-
-        const data = await getHotelRoomTypes({
-          token: accessToken,
-          hotelId,
-        });
-
-        const validRoomTypes = data.filter((rt: any) => rt.roomType);
-        setRoomTypes(validRoomTypes);
-      } catch (error) {
-        console.error("Error fetching room types:", error);
-      }
-    };
-
-    fetchRoomTypes();
-  }, []);
-
-  const [mealPlans, setMealPlans] = useState<
-    { mealPlanID: number; mealPlan: string }[]
-  >([]);
+  const mealPlans = useAppSelector(selectBasisMasItems);
+  const mealPlansLoading = useAppSelector(selectBasisMasLoading);
+  const mealPlansError = useAppSelector(selectBasisMasError);
 
   useEffect(() => {
-    const fetchMealPlans = async () => {
-      try {
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) {
-          console.error("Token not found in localStorage");
-          return;
-        }
+    dispatch(fetchBasisMas());
+  }, [dispatch]);
 
-        const { accessToken } = JSON.parse(tokenData);
-
-        const data = await getMealPlans({
-          token: accessToken,
-        });
-        console.log("data");
-
-        const validMealPlans = data.filter((mp: any) => mp.mealPlan);
-        setMealPlans(validMealPlans);
-      } catch (error) {
-        console.error("Error fetching meal plans:", error);
-      }
-    };
-
-    fetchMealPlans();
-  }, []);
-
-  const [currencies, setCurrencies] = useState<
-    { currencyCode: string; currencyName: string }[]
-  >([]);
+  const currencies = useAppSelector(selectCurrencyMasItems);
+  const currenciesLoading = useAppSelector(selectCurrencyMasLoading);
+  const currenciesError = useAppSelector(selectCurrencyMasError);
 
   useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        const tokenData = localStorage.getItem("hotelmateTokens");
-        if (!tokenData) {
-          console.error("Token not found in localStorage");
-          return;
-        }
-
-        const { accessToken } = JSON.parse(tokenData);
-
-        const data = await getAllCurrencies();
-
-        const validCurrencies = data.filter(
-          (c: any) => c.currencyCode && c.currencyName
-        );
-        setCurrencies(validCurrencies);
-      } catch (error) {
-        console.error("Error fetching currencies:", error);
-      }
-    };
-
-    fetchCurrencies();
-  }, []);
+    dispatch(fetchCurrencyMas());
+  }, [dispatch]);
 
   const CurrencySuffix = ({ currency }: { currency: string }) => (
     <span className="text-sm text-muted-foreground ml-2">{currency || ""}</span>
@@ -232,104 +165,100 @@ export function AddRateDrawer({
     return isNaN(num) ? null : num;
   };
 
-  const submitRatePlan = async (formData: any) => {
-    try {
-      const tokenData = localStorage.getItem("hotelmateTokens");
-      if (!tokenData) throw new Error("Access token not found in localStorage");
+  const buildRatePlanPayload = (formData: any): CreateHotelRatePlanRequest => {
+    const propertyData = localStorage.getItem("selectedProperty");
+    const { id: hotelId } = propertyData
+      ? JSON.parse(propertyData)
+      : { id: null };
 
-      const { accessToken } = JSON.parse(tokenData);
+    // Derive names for the title
+    const selectedMealPlanName =
+      mealPlans.find((mp) => mp.basisID.toString() === formData.mealPlanID)
+        ?.basis || "";
+    const finalTitle = `${formData.rateCode || "N/A"}-${
+      selectedMealPlanName || "N/A"
+    }`;
 
-      const propertyData = localStorage.getItem("selectedProperty");
-      const { id: hotelId } = propertyData
-        ? JSON.parse(propertyData)
-        : { id: null };
+    // Build payload according to createHotelRatePlansSlice interface
+    const payload: CreateHotelRatePlanRequest = {
+      recordID: 0,
+      hotelRatePlanID: 0,
+      rateDate: new Date().toISOString().split("T")[0],
+      defaultRate: parseOptionalFloat(formData.defaultRate) ?? 0,
+      pax1: 0,
+      pax2: 0,
+      pax3: 0,
+      pax4: 0,  
+      pax5: 0,
+      pax6: 0,
+      pax7: 0,
+      pax8: 0,
+      pax9: 0,
+      pax10: 0,
+      pax11: 0,
+      pax12: 0,
+      pax13: 0,
+      pax14: 0,
+      pax15: 0,
+      pax16: 0,
+      pax17: 0,
+      pax18: 0,
+      child: parseOptionalFloat(formData.childrenFee) ?? 0,
+      dateFrom: formData.dateFrom ? new Date(formData.dateFrom).toISOString() : new Date().toISOString(),
+      dateTo: formData.dateTo ? new Date(formData.dateTo).toISOString() : new Date().toISOString(),
+      sellMode: formData.sellMode || "Per Room",
+      rateMode: formData.rateMode || "Per Room",
+      roomTypeID: parseOptionalInt(formData.roomTypeID) ?? 0,
+      primaryOccupancy: parseOptionalInt(formData.primaryOccupancy) ?? 1,
+      increaseBy: parseOptionalFloat(formData.increaseBy) ?? 0,
+      decreaseBy: parseOptionalFloat(formData.decreaseBy) ?? 0,
+      hotelID: hotelId ?? 0,
+      hotelMaster: {
+        hotelID: hotelId ?? 0,
+      },
+      rateCodeID: parseOptionalInt(formData.rateCodeID) ?? 0,
+      rateCode: {
+        rateCodeID: parseOptionalInt(formData.rateCodeID) ?? 0,
+        rateCode: formData.rateCode || "",
+      },
+      title: finalTitle,
+      hotelRoomType: {
+        hotelRoomTypeID: parseOptionalInt(formData.roomTypeID) ?? 0,
+        hotelID: hotelId ?? 0,
+        roomType: selectedRoom?.roomType || "",
+        adultSpace: selectedRoom?.maxAdult || 0,
+        childSpace: selectedRoom?.maxChild || 0,
+      },
+      mealPlanID: parseOptionalInt(formData.mealPlanID) ?? 0,
+      mealPlanMaster: {
+        basisID: parseOptionalInt(formData.mealPlanID) ?? 0,
+        basis: selectedMealPlanName,
+      },
+      currencyCode: formData.currencyCode || "USD",
+      childRate: parseOptionalFloat(formData.childrenFee) ?? 0,
+      createdOn: new Date().toISOString(),
+      createdBy: "system",
+      hotelRates: [],
+      cmid: "string",
+    };
 
-      // Derive names for the title
-      const selectedMealPlanName =
-        mealPlans.find((mp) => mp.mealPlanID.toString() === formData.mealPlanID)
-          ?.mealPlan || "";
-      // formData.rateCode (name) is already set when formData.rateCodeID is selected
-      const finalTitle = `${formData.rateCode || "N/A"}-${
-        selectedMealPlanName || "N/A"
-      }`;
-
-      // --- PATCH: Use new hotelRatePlanDtoData conditional logic ---
-      const hotelRatePlanDtoData: any = {
-        recordID: 0,
-        hotelRatePlanID: 0,
-        rateDate: new Date().toISOString().split("T")[0],
-        dateFrom: formData.dateFrom
-          ? new Date(formData.dateFrom).toISOString()
-          : null,
-        dateTo: formData.dateTo
-          ? new Date(formData.dateTo).toISOString()
-          : null,
-        sellMode: formData.sellMode,
-        roomTypeID: parseOptionalInt(formData.roomTypeID),
-        hotelID: hotelId,
-        rateCodeID: parseOptionalInt(formData.rateCodeID),
-        title: finalTitle,
-        mealPlanID: parseOptionalInt(formData.mealPlanID),
-        currencyCode: formData.currencyCode || null,
-        childRate: parseOptionalFloat(formData.childrenFee) ?? 0,
-        createdOn: new Date().toISOString(),
-        createdBy: "string",
-        child: parseOptionalFloat(formData.childrenFee) ?? 0,
-      };
-      // Always include primaryOccupancy and defaultRate regardless of sellMode
-      hotelRatePlanDtoData.primaryOccupancy =
-        parseOptionalInt(formData.primaryOccupancy) ?? 1;
-      hotelRatePlanDtoData.defaultRate = parseOptionalFloat(
-        formData.defaultRate
-      );
-      // Override defaultRate for Per Person + Manual mode
-      if (
-        formData.sellMode === "Per Person" &&
-        formData.rateMode === "Manual"
-      ) {
-        const maxOccupancy = parseOptionalInt(formData.primaryOccupancy) ?? 1;
-        const maxRateKey = `rateFor${maxOccupancy}`;
-        const maxRate = parseOptionalFloat(formData[maxRateKey]);
-        if (maxRate !== null) {
-          hotelRatePlanDtoData.defaultRate = maxRate;
-        }
+    // Set pax rates based on sell mode and rate mode
+    if (formData.sellMode === "Per Person" && formData.rateMode === "Manual") {
+      const maxOccupancy = parseOptionalInt(formData.primaryOccupancy) ?? 1;
+      for (let i = 1; i <= maxOccupancy; i++) {
+        const rateKey = `rateFor${i}`;
+        const userRate = parseOptionalFloat(formData[rateKey]) ?? 0;
+        (payload as any)[`pax${i}`] = userRate;
       }
-
-      if (formData.sellMode === "Per Person") {
-        hotelRatePlanDtoData.rateMode = formData.rateMode;
+      // Set defaultRate to the max occupancy rate for Manual mode
+      const maxRateKey = `rateFor${maxOccupancy}`;
+      const maxRate = parseOptionalFloat(formData[maxRateKey]);
+      if (maxRate !== null) {
+        payload.defaultRate = maxRate;
       }
-
-      if (
-        formData.sellMode === "Per Person" &&
-        formData.rateMode === "Manual"
-      ) {
-        const maxOccupancy = parseOptionalInt(formData.primaryOccupancy) ?? 1;
-        for (let i = 1; i <= maxOccupancy; i++) {
-          const key = `rateFor${i}`;
-          const paxKey = `pax${i}`;
-          hotelRatePlanDtoData[paxKey] = parseOptionalFloat(formData[key]) ?? 0;
-        }
-      }
-
-      if (formData.sellMode === "Per Person" && formData.rateMode === "Auto") {
-        hotelRatePlanDtoData.increaseBy =
-          parseOptionalFloat(formData.increaseBy) ?? 0;
-        hotelRatePlanDtoData.decreaseBy =
-          parseOptionalFloat(formData.decreaseBy) ?? 0;
-      }
-      // --- END PATCH ---
-
-      await createHotelRatePlan({
-        token: accessToken,
-        payload: hotelRatePlanDtoData,
-      });
-
-      // console.log("Rate plan created successfully:", result);
-      // return result;
-    } catch (error) {
-      console.error("Error creating rate plan:", error);
-      throw error;
     }
+
+    return payload;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,31 +274,22 @@ export function AddRateDrawer({
 
       if (name === "sellMode") {
         if (value === "Per Room") {
-          // When switching to "Per Room", rateMode is not applicable for payload.
-          // Clear fields relevant only to "Per Person"
           updated = {
             ...updated,
-            rateMode: "", // Reset internal rateMode state, not used in payload for "Per Room"
+            rateMode: "", 
             rateFor1: "",
             rateFor2: "",
             childrenFee: "",
-            // primaryOccupancy should retain its value derived from the selected room's adultSpace
-            // It will be used in the payload for "Per Room" mode.
             increaseBy: "",
             decreaseBy: "",
-            // defaultRate is used by "Per Room", so don't clear it here.
           };
         } else if (value === "Per Person") {
-          // When switching to "Per Person", defaultRate is used by "Auto" mode,
-          // but not by "Manual" mode. Clearing it forces re-evaluation.
           updated = {
             ...updated,
-            defaultRate: "", // Clear defaultRate, user will set it if in "Auto" mode.
+            defaultRate: "", 
           };
         }
       }
-
-      // This logic applies when rateMode itself is changed (which only happens if sellMode is "Per Person")
       if (name === "rateMode" && updated.sellMode === "Per Person") {
         if (value === "Manual") {
           updated = {
@@ -411,7 +331,6 @@ export function AddRateDrawer({
       errors.dateTo = "Date To cannot be earlier than Date From.";
     }
 
-    // Conditional validations
     if (formData.sellMode === "Per Room") {
       if (!formData.defaultRate.trim())
         errors.defaultRate = "Default Rate is required.";
@@ -445,10 +364,6 @@ export function AddRateDrawer({
             errors.primaryOccupancy =
               "Default Occupancy (from room type) must be at least 1.";
         }
-        // Default Rate for P.P/Auto is hardcoded to 100 in payload, UI input is for user reference or future change.
-        // If UI input for defaultRate is to be validated:
-        // if (!formData.defaultRate.trim()) errors.defaultRate = "Default Rate is required.";
-        // else if (isNaN(parseFloat(formData.defaultRate))) errors.defaultRate = "Default Rate must be a valid number.";
         if (
           formData.increaseBy.trim() &&
           isNaN(parseFloat(formData.increaseBy))
@@ -478,10 +393,9 @@ export function AddRateDrawer({
     }
     setIsSubmitting(true); // Start loading
     try {
-      await submitRatePlan(formData);
-      onSubmit(formData);
+      const finalFormData = buildRatePlanPayload(formData);
+      await onSubmit(finalFormData);
       onClose();
-      window.location.href = "/rooms/rates";
     } catch (err) {
       console.error("Rate plan submission failed:", err);
     } finally {
@@ -491,9 +405,9 @@ export function AddRateDrawer({
 
   // --- PATCH: Calculate selectedRoom and maxOccupancy for Per Person + Auto mode ---
   const selectedRoom = roomTypes.find(
-    (rt) => rt.hotelRoomTypeID.toString() === formData.roomTypeID
+    (rt) => rt.roomTypeID.toString() === formData.roomTypeID
   );
-  const maxOccupancy = selectedRoom?.adultSpace || 1;
+  const maxOccupancy = selectedRoom?.maxAdult || 1;
   // --- END PATCH ---
 
   return (
@@ -556,15 +470,15 @@ export function AddRateDrawer({
               value={formData.roomTypeID?.toString() || ""}
               onValueChange={(v) => {
                 const selectedRoom = roomTypes.find(
-                  (rt) => rt.hotelRoomTypeID.toString() === v
+                  (rt) => rt.roomTypeID.toString() === v
                 );
                 setFormData((prev) => ({
                   ...prev,
                   roomTypeID: v,
                   primaryOccupancy:
-                    selectedRoom?.adultSpace !== null &&
-                    selectedRoom?.adultSpace !== undefined
-                      ? selectedRoom.adultSpace.toString()
+                    selectedRoom?.maxAdult !== null &&
+                    selectedRoom?.maxAdult !== undefined
+                      ? selectedRoom.maxAdult.toString()
                       : "",
                 }));
                 setFormErrors((prevErrors) => ({
@@ -580,8 +494,8 @@ export function AddRateDrawer({
               <SelectContent>
                 {roomTypes.map((rt) => (
                   <SelectItem
-                    key={rt.hotelRoomTypeID}
-                    value={String(rt.hotelRoomTypeID)}
+                    key={rt.roomTypeID}
+                    value={String(rt.roomTypeID)}
                   >
                     {rt.roomType}
                   </SelectItem>
@@ -608,8 +522,8 @@ export function AddRateDrawer({
               </SelectTrigger>
               <SelectContent>
                 {mealPlans.map((mp) => (
-                  <SelectItem key={mp.mealPlanID} value={String(mp.mealPlanID)}>
-                    {mp.mealPlan}
+                  <SelectItem key={mp.basisID} value={String(mp.basisID)}>
+                    {mp.basis}
                   </SelectItem>
                 ))}
               </SelectContent>

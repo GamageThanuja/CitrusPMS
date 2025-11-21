@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/redux/store";
+import { AppDispatch } from "@/redux/store";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,115 +17,107 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import AddMealPlanDrawer from "@/components/drawers/add-mealPlan-drawer";
-import {
-  fetchMealPlanByFolioByDate,
-  selectMealPlanByFolioByDateData,
-  selectMealPlanByFolioByDateLoading,
-  selectMealPlanByFolioByDateError,
-  type MealPlanByFolioByDate,
-} from "@/redux/slices/fetchMealPlanByFolioByDateSlice";
-
-import {
-  createMealPlanByFolioByDate,
-  selectCreateMealPlanByFolioByDateLoading,
-  selectCreateMealPlanByFolioByDateError,
-} from "@/redux/slices/createMealPlanByFolioByDateSlice";
-
-import {
-  updateMealPlanByFolioByDate,
-  selectUpdateMealPlanByFolioByDateLoading,
-  selectUpdateMealPlanByFolioByDateSuccess,
-  selectUpdateMealPlanByFolioByDateError,
-} from "@/redux/slices/updateMealPlanByFolioByDateSlice";
-
 import EditMealPlanDrawer from "@/components/drawers/edit-mealPlan-drawer";
+
+// BasisMas listing
+import {
+  fetchBasisMas,
+  selectBasisMasItems,
+  selectBasisMasLoading,
+  selectBasisMasError,
+  type BasisMasItem,
+} from "@/redux/slices/fetchBasisMasSlice";
+
+// Create BasisMas selectors
+import {
+  selectCreateBasisMasLoading,
+  selectCreateBasisMasError,
+} from "@/redux/slices/createBasisMasSlice";
+
+// ✅ use updateBasisMas slice instead of updateMealPlanByFolioByDate
+import {
+  updateBasisMas,
+  selectUpdateBasisMasLoading,
+  selectUpdateBasisMasSuccess,
+  selectUpdateBasisMasError,
+} from "@/redux/slices/updateBasisMasSlice";
 
 export default function MealPlanPage() {
   const dispatch = useDispatch<AppDispatch>();
 
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
-
-  const loading = useSelector(selectMealPlanByFolioByDateLoading);
-  const error = useSelector(selectMealPlanByFolioByDateError);
-  const data = useSelector(selectMealPlanByFolioByDateData);
-
-  const creating = useSelector(selectCreateMealPlanByFolioByDateLoading);
-  const createError = useSelector(selectCreateMealPlanByFolioByDateError);
-
-  const updating = useSelector(selectUpdateMealPlanByFolioByDateLoading);
-  const updateSuccess = useSelector(selectUpdateMealPlanByFolioByDateSuccess);
-  const updateError = useSelector(selectUpdateMealPlanByFolioByDateError);
-
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<MealPlanByFolioByDate | null>(
-    null
-  );
+  const [selectedRow, setSelectedRow] = useState<BasisMasItem | null>(null);
+
+  // BasisMas selectors
+  const loading = useSelector(selectBasisMasLoading);
+  const error = useSelector(selectBasisMasError);
+  const data = useSelector(selectBasisMasItems);
+
+  // Create BasisMas selectors
+  const creating = useSelector(selectCreateBasisMasLoading);
+  const createError = useSelector(selectCreateBasisMasError);
+
+  // Update BasisMas selectors
+  const updating = useSelector(selectUpdateBasisMasLoading);
+  const updateSuccess = useSelector(selectUpdateBasisMasSuccess);
+  const updateError = useSelector(selectUpdateBasisMasError);
 
   const [query, setQuery] = useState("");
   const [pageIndex, setPageIndex] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const createDialogRef = useRef<HTMLDialogElement | null>(null);
-  const editDialogRef = useRef<HTMLDialogElement | null>(null);
-
-  const [createValues, setCreateValues] = useState({
-    folioID: 0,
-    dt: new Date().toISOString().slice(0, 10),
-    mealPlan: "",
-    ai: false,
-  });
-
-  const [editValues, setEditValues] = useState<MealPlanByFolioByDate | null>(
-    null
-  );
-
-  // Fetch all meal plans on mount
+  /** ---- INITIAL LOAD (BasisMas) ---- */
   useEffect(() => {
-    dispatch(fetchMealPlanByFolioByDate({}));
+    dispatch(fetchBasisMas(undefined));
   }, [dispatch]);
 
-  // Handle update success
+  /** ---- UPDATE / ERROR HANDLERS ---- */
   useEffect(() => {
     if (updateSuccess) {
-      toast.success("Meal plan updated successfully");
-      // Refresh data after successful update
+      toast.success("Meal plan (basis) updated successfully");
       refreshData();
     }
   }, [updateSuccess]);
 
-  // Handle update error
   useEffect(() => {
     if (updateError) {
       toast.error(`Update failed: ${updateError}`);
     }
   }, [updateError]);
 
-  // Handle create error
   useEffect(() => {
     if (createError) {
       toast.error(`Create failed: ${createError}`);
     }
   }, [createError]);
 
-  // Refresh data function
+  /** ---- REFRESH (BasisMas) ---- */
   const refreshData = () => {
-    dispatch(fetchMealPlanByFolioByDate({}));
+    dispatch(fetchBasisMas(undefined));
   };
 
-  // Search + filter
+  /** ---- SEARCH + FILTER (BasisMas fields) ---- */
   const filtered = useMemo(() => {
     if (!query.trim()) return data;
     const q = query.toLowerCase();
-    return data.filter(
-      (m) =>
-        String(m.recordID).includes(q) ||
-        m.mealPlan.toLowerCase().includes(q) ||
-        String(m.folioID).includes(q) ||
-        m.dt.toLowerCase().includes(q)
-    );
+
+    return data.filter((m) => {
+      const basisID = String(m.basisID ?? "").toLowerCase();
+      const basis = (m.basis ?? "").toLowerCase();
+      const cmRateID = (m.cmRateID ?? "").toLowerCase();
+      const descOnIBE = (m.descOnIBE ?? "").toLowerCase();
+
+      return (
+        basisID.includes(q) ||
+        basis.includes(q) ||
+        cmRateID.includes(q) ||
+        descOnIBE.includes(q)
+      );
+    });
   }, [data, query]);
 
-  // Pagination
+  /** ---- PAGINATION ---- */
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const canPrev = pageIndex > 1 && !loading;
   const canNext = !loading && pageIndex < totalPages;
@@ -143,94 +135,27 @@ export default function MealPlanPage() {
     return filtered.slice(start, end);
   }, [filtered, pageIndex, pageSize]);
 
-  /** ---- CREATE ---- */
+  /** ---- CREATE (Drawer trigger only) ---- */
   const openCreate = () => setAddDrawerOpen(true);
 
   const handleCreated = () => {
     refreshData();
   };
 
-  const handleCreateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setCreateValues((p) => ({
-      ...p,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSaveCreate = async () => {
-    try {
-      const payload = {
-        recordID: 0,
-        folioID: createValues.folioID,
-        dt: createValues.dt,
-        mealPlan: createValues.mealPlan,
-        ai: createValues.ai,
-      };
-
-      const result = await dispatch(
-        createMealPlanByFolioByDate(payload)
-      ).unwrap();
-
-      if (result) {
-        toast.success("Meal plan created successfully");
-        createDialogRef.current?.close();
-        refreshData();
-      }
-    } catch (err) {
-      console.error("Create failed:", err);
-      // Error is handled by the useEffect above
-    }
-  };
-
   /** ---- EDIT ---- */
-  const openEdit = (row: MealPlanByFolioByDate) => {
+  const openEdit = (row: BasisMasItem) => {
     setSelectedRow(row);
     setEditDrawerOpen(true);
   };
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setEditValues(
-      (p) => p && { ...p, [name]: type === "checkbox" ? checked : value }
-    );
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editValues) return;
-
+  // (optional helper if you want to update from page instead of inside drawer)
+  const handleSaveEdit = async (updatedValues: BasisMasItem) => {
     try {
-      // Ensure we're sending the complete object with recordID
-      const updatePayload: MealPlanByFolioByDate = {
-        recordID: editValues.recordID,
-        folioID: editValues.folioID,
-        dt: editValues.dt,
-        mealPlan: editValues.mealPlan,
-        ai: editValues.ai,
-      };
-
-      await dispatch(updateMealPlanByFolioByDate(updatePayload)).unwrap();
-      // The useEffect will handle the success message and data refresh
-      editDialogRef.current?.close();
+      await dispatch(updateBasisMas(updatedValues)).unwrap();
+      setEditDrawerOpen(false);
     } catch (err) {
       console.error("Update failed:", err);
-      // Error is handled by the useEffect above
     }
-  };
-
-  const closeEditDialog = () => {
-    editDialogRef.current?.close();
-    setEditValues(null);
-  };
-
-  const closeCreateDialog = () => {
-    createDialogRef.current?.close();
-    setCreateValues({
-      folioID: 0,
-      dt: new Date().toISOString().slice(0, 10),
-      mealPlan: "",
-      ai: false,
-    });
   };
 
   return (
@@ -241,7 +166,7 @@ export default function MealPlanPage() {
           <h1 className="text-xl font-semibold">Meal Plans</h1>
           <div className="flex gap-2">
             <Input
-              placeholder="Search by ID, meal plan, folio, or date…"
+              placeholder="Search by Basis ID, Basis, CM Rate ID, or Description…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-64"
@@ -257,23 +182,23 @@ export default function MealPlanPage() {
           </div>
         </div>
 
-        {/* Error or Empty */}
+        {/* Error */}
         {error && (
           <div className="text-red-600 border border-red-300 rounded p-3 bg-red-50">
             {error}
           </div>
         )}
 
-        {/* Table - Updated to use common component */}
+        {/* Table (BasisMas) */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Record ID</TableHead>
-                <TableHead className="w-[100px]">Folio ID</TableHead>
-                <TableHead className="w-[120px]">Date</TableHead>
-                <TableHead>Meal Plan</TableHead>
-                <TableHead className="w-[80px]">AI</TableHead>
+                <TableHead className="w-[100px]">Basis ID</TableHead>
+                <TableHead>Basis</TableHead>
+                <TableHead className="w-[150px]">CM Rate ID</TableHead>
+                <TableHead className="w-[120px]">Show on IBE</TableHead>
+                <TableHead>Description (IBE)</TableHead>
                 <TableHead className="w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -286,12 +211,12 @@ export default function MealPlanPage() {
                 </TableRow>
               ) : (
                 paginated.map((m) => (
-                  <TableRow key={m.recordID} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{m.recordID}</TableCell>
-                    <TableCell>{m.folioID}</TableCell>
-                    <TableCell>{m.dt.split("T")[0]}</TableCell>
-                    <TableCell>{m.mealPlan}</TableCell>
-                    <TableCell>{m.ai ? "Yes" : "No"}</TableCell>
+                  <TableRow key={m.basisID} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{m.basisID}</TableCell>
+                    <TableCell>{m.basis}</TableCell>
+                    <TableCell>{m.cmRateID}</TableCell>
+                    <TableCell>{m.showOnIBE ? "Yes" : "No"}</TableCell>
+                    <TableCell>{m.descOnIBE}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"
@@ -315,7 +240,7 @@ export default function MealPlanPage() {
           )}
         </div>
 
-        {/* Pagination Controls - Consistent with other pages */}
+        {/* Pagination */}
         {filtered.length > 0 && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
             <div className="hidden sm:block" />
@@ -361,6 +286,7 @@ export default function MealPlanPage() {
           </div>
         )}
 
+        {/* Drawers */}
         <AddMealPlanDrawer
           isOpen={addDrawerOpen}
           onClose={() => setAddDrawerOpen(false)}
@@ -372,7 +298,6 @@ export default function MealPlanPage() {
           onClose={() => setEditDrawerOpen(false)}
           row={selectedRow}
           onUpdated={() => {
-            // refresh list on successful update
             refreshData();
           }}
         />

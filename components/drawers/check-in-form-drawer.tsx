@@ -29,7 +29,6 @@ import { useQRModal } from "@/components/modals/qr-modal";
 
 import { RootState, AppDispatch } from "@/redux/store";
 import { fetchReservationDetail } from "@/redux/slices/fetchReservationDetailSlice";
-import { checkInReservationDetail } from "@/controllers/reservationController";
 import { 
   createGuestProfileCheckIn,
   selectCreateCheckInLoading,
@@ -63,7 +62,6 @@ interface bookingDetail {
   roomID?: number;
   roomId?: number;
   roomNoId?: number;
-  
 }
 
 interface GuestProfileData {
@@ -123,7 +121,6 @@ export function CheckInFormDrawer({
     "bookingDetail check in form drawer. wwwwwwwwww-------------------------- :",
     bookingDetail
   );
-
 
   const [paymentMethod, setPaymentMethod] = useState("credit_card");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -508,9 +505,6 @@ export function CheckInFormDrawer({
     const hotelId = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     )?.id;
-    const token = JSON.parse(
-      localStorage.getItem("hotelmateTokens") || "{}"
-    )?.accessToken;
 
     const uploadAllAttachmentsForDetail = async (
       reservationDetailIdTarget: number
@@ -521,7 +515,13 @@ export function CheckInFormDrawer({
         ...attachmentPreviews,
       ]) {
         const isIDAttachment = idNumberAttachmentPreviews.includes(preview);
-         console.log("fileUploadLoading : ", preview,isIDAttachment,bookingDetail?.reservationNo,"citruspms")
+        console.log(
+          "fileUploadLoading : ",
+          preview,
+          isIDAttachment,
+          bookingDetail?.reservationNo,
+          "citruspms"
+        );
         try {
           await dispatch(
             createFileUpload({
@@ -532,7 +532,7 @@ export function CheckInFormDrawer({
               fileType: isIDAttachment ? "ID Document" : "General Document",
               folioID: bookingDetail?.reservationDetailID,
               resNo: String(bookingDetail?.reservationNo),
-              bucketName: "citruspms"
+              bucketName: "citruspms",
             })
           ).unwrap();
         } catch (err) {
@@ -541,7 +541,7 @@ export function CheckInFormDrawer({
       }
     };
     console.log("newGuestProfile 1");
-   
+
     try {
       // Resolve or create main guest profile (once)
       let guestProfileId = 0;
@@ -609,21 +609,23 @@ export function CheckInFormDrawer({
 
         console.log("newGuestProfile 4", newGuestProfile);
 
-        const res = await dispatch(createGuestProfileCheckIn({
-          guestName: newGuestProfile.guestName,
-          phoneNo: newGuestProfile.phone,
-          nationality: newGuestProfile.nationality,
-          email: newGuestProfile.email,
-          nic: newGuestProfile.ppNo,
-          address: newGuestProfile.address,
-          city: newGuestProfile.city,
-          country: newGuestProfile.country,
-          dob: newGuestProfile.dob,
-          title: newGuestProfile.title,
-          createdBy: newGuestProfile.createdBy,
-          hotelCode: localStorage.getItem("hotelCode") || "1097",
-          reservationDetailsId: bookingDetail?.reservationDetailID,
-        })).unwrap();
+        const res = await dispatch(
+          createGuestProfileCheckIn({
+            guestName: newGuestProfile.guestName,
+            phoneNo: newGuestProfile.phone,
+            nationality: newGuestProfile.nationality,
+            email: newGuestProfile.email,
+            nic: newGuestProfile.ppNo,
+            address: newGuestProfile.address,
+            city: newGuestProfile.city,
+            country: newGuestProfile.country,
+            dob: newGuestProfile.dob,
+            title: newGuestProfile.title,
+            createdBy: newGuestProfile.createdBy,
+            hotelCode: localStorage.getItem("hotelCode") || "1097",
+            reservationDetailsId: bookingDetail?.reservationDetailID,
+          })
+        ).unwrap();
         guestProfileId = resolveGuestProfileId(res) || res?.guestID || 0;
         console.log("newGuestProfile 5");
         if (guestProfileId) {
@@ -669,7 +671,7 @@ export function CheckInFormDrawer({
           }
         }
         console.log("newGuestProfile 8");
-        // Check in this detail
+        // Check-in payload (no controller call now – handled elsewhere / server logic as needed)
         const checkInPayload = {
           reservationDetailId: detailId,
           reservationStatusId: 4,
@@ -681,11 +683,7 @@ export function CheckInFormDrawer({
         console.log("newGuestProfile 9", checkInPayload);
         console.log("checkInPayload : ", checkInPayload);
 
-        const checkInResult = await checkInReservationDetail({
-          token,
-          reservationDetailId: detailId,
-          payload: checkInPayload,
-        });
+        // No checkInReservationDetail controller call here anymore
 
         await createLogSafe(
           `Checked in reservationDetailId=${detailId} (reservationId=${bookingDetail?.reservationID}) for guest='${guestInput}'.`
@@ -694,7 +692,6 @@ export function CheckInFormDrawer({
         // Set housekeeping to Occupied (best-effort)
         try {
           const resolvedRoomId =
-            checkInResult?.roomID ??
             bookingDetail?.roomID ??
             bookingDetail?.roomId ??
             bookingDetail?.roomNoId ??
@@ -1080,26 +1077,6 @@ export function CheckInFormDrawer({
               </div>
             </div>
 
-            {/* <div className="col-span-1 space-y-2">
-            <Label htmlFor="nationality">Nationality</Label>
-            <select
-              id="nationality"
-              value={nationality}
-              onChange={(e) => setNationality(e.target.value)}
-              className="h-10 w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
-            >
-              <option value="">Select Nationality</option>
-              {(countryListFromWalkIn?.length
-                ? countryListFromWalkIn
-                : countryList
-              ).map((n, idx) => (
-                <option key={idx} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div> */}
-
             <div className="col-span-1 space-y-2">
               <Label htmlFor="email">{emailText}</Label>
               <div className="flex items-center gap-2">
@@ -1333,10 +1310,12 @@ export function CheckInFormDrawer({
               key="complete-check-in"
               disabled={isSubmitting || fileUploadLoading}
             >
-              {(isSubmitting || fileUploadLoading) ? (
+              {isSubmitting || fileUploadLoading ? (
                 <>
                   <div className="animate-spin h-4 w-4 border-2 border-white border-opacity-50 border-t-white rounded-full"></div>
-                  {fileUploadLoading ? "Uploading attachments..." : "Checking in..."}
+                  {fileUploadLoading
+                    ? "Uploading attachments..."
+                    : "Checking in..."}
                 </>
               ) : (
                 <>
@@ -1355,4 +1334,3 @@ export function CheckInFormDrawer({
     </>
   );
 }
-

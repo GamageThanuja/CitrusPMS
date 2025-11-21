@@ -1,16 +1,25 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-// ✅ match slice file & key
-import { getReasons } from "@/controllers/reasonsMasterController";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+
 import {
   cancelReservation,
   resetCancelReservationState,
-} from "@/redux/slices/cancelReservationByRoomSlice";
+  selectCancelReservationLoading,
+} from "@/redux/slices/cancelReservationSlice";
+
+import {
+  fetchCancellationReasons,
+  selectCancellationReasonItems,
+  selectCancellationReasonLoading,
+  selectCancellationReasonError,
+} from "@/redux/slices/fetchCancellationReasonSlice";
+
 import { sendCustomEmail } from "@/redux/slices/emailSendSlice";
 import { useHotelLogo } from "@/hooks/useHotelLogo";
 
@@ -40,7 +49,6 @@ type DrawerProps = {
 type ReasonItem = {
   id: string;
   reason: string;
-  category: string;
 };
 
 export function CancelBookingDrawer({
@@ -50,15 +58,26 @@ export function CancelBookingDrawer({
 }: DrawerProps) {
   const dispatch = useAppDispatch();
 
-  // ✅ selector path matches slice key you will add to store: state.cancelReservationByRoom
-  const { loading } = useAppSelector((s) => s.cancelReservationByRoom);
-  console.log("booking detail cancel : ", bookingDetail);
+  // from new cancelReservationSlice
+  const loading = useAppSelector(selectCancelReservationLoading);
 
-  const [reasonsList, setReasonsList] = useState<ReasonItem[]>([]);
+  // from new fetchCancellationReasonSlice
+  const cancellationReasons = useAppSelector(selectCancellationReasonItems);
+  const reasonsLoading = useAppSelector(selectCancellationReasonLoading);
+  const reasonsError = useAppSelector(selectCancellationReasonError);
+
+  const reasonsList: ReasonItem[] = useMemo(
+    () =>
+      (cancellationReasons || []).map((r) => ({
+        id: String(r.id),
+        reason: r.reason,
+      })),
+    [cancellationReasons]
+  );
+
   const [cancelReason, setCancelReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { logoUrl } = useHotelLogo();
-
   const buildCancelEmailHTML = ({
     logoUrl,
     hotelName,
@@ -165,33 +184,13 @@ export function CancelBookingDrawer({
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchReasons = async () => {
-      try {
-        const tokensRaw = localStorage.getItem("hotelmateTokens");
-        const tokens = tokensRaw ? JSON.parse(tokensRaw) : null;
-        const accessToken = tokens?.accessToken;
-        if (!accessToken) return;
-
-        const reasons = await getReasons({ token: accessToken });
-        const filtered: ReasonItem[] = (reasons || [])
-          .filter((r: any) => r?.category === "Reservation Cancellation")
-          .map((r: any) => ({
-            id: String(r.reasonId),
-            reason: r.reason,
-            category: r.category,
-          }));
-        setReasonsList(filtered);
-      } catch (err) {
-        console.error("Failed to fetch cancellation reasons", err);
-      }
-    };
-
     // Reset state each time the drawer opens
     setCancelReason("");
     setIsSubmitting(false);
     dispatch(resetCancelReservationState());
 
-    fetchReasons();
+    // 🔄 new API call via Redux thunk
+    dispatch(fetchCancellationReasons());
   }, [isOpen, dispatch]);
 
   const handleConfirm = async () => {
@@ -352,11 +351,22 @@ export function CancelBookingDrawer({
               required
             >
               <option value="">Select a reason</option>
-              {reasonsList.map((r) => (
-                <option key={r.id} value={r.reason}>
-                  {r.reason}
-                </option>
-              ))}
+
+              {reasonsLoading && (
+                <option disabled>Loading reasons...</option>
+              )}
+
+              {reasonsError && !reasonsLoading && (
+                <option disabled>Failed to load reasons</option>
+              )}
+
+              {!reasonsLoading &&
+                !reasonsError &&
+                reasonsList.map((r) => (
+                  <option key={r.id} value={r.reason}>
+                    {r.reason}
+                  </option>
+                ))}
             </select>
           </div>
         </div>

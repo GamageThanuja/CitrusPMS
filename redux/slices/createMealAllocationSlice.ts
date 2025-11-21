@@ -6,7 +6,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 /** ---- Types ---- */
 export interface CreateMealAllocationPayload {
-  id?: number;
   breakfast: number;
   lunch: number;
   dinner: number;
@@ -14,9 +13,9 @@ export interface CreateMealAllocationPayload {
   ai: number;
   hotelCode: string;
   createdBy: string;
-  createdOn: string;
-  lastUpdatedBy: string;
-  lastUpdatedOn: string;
+  createdOn?: string;
+  lastUpdatedBy?: string;
+  lastUpdatedOn?: string;
 }
 
 export interface CreateMealAllocationState {

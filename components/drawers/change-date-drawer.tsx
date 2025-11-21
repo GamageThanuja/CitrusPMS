@@ -158,7 +158,7 @@ export function ChangeDateDrawer({
   });
 
   const [localMealPlan, setLocalMealPlan] = useState<string>(
-    (basisFromReservation || mealPlan || "RO").toUpperCase()
+    (basisFromReservation || mealPlan).toUpperCase()
   );
 
   const { success } = useSelector((s: any) => s.changeReservationDate || {});
@@ -206,10 +206,10 @@ export function ChangeDateDrawer({
       oldCheckInDate: oldCheckInDate.toISOString(),
       oldCheckOutDate: oldCheckOut.toISOString(),
       newCheckOutDate: newCheckOutDate.toISOString(),
-      hotelCode: 0, // overridden in slice by selectedProperty.id
+      hotelCode: localStorage.getItem("hotelCode"), // overridden in slice by selectedProperty.id
       rate: Number(localRate) || 0,
-      currencyCode: (localCurrency || "LKR").toUpperCase(),
-      mealPlan: (localMealPlan || "RO").toUpperCase(),
+      currencyCode: (localCurrency).toUpperCase(),
+      mealPlan: (localMealPlan ).toUpperCase(),
     };
 
     const action = await dispatch(changeReservationDate(payload));

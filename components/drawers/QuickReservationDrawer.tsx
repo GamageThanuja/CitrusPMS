@@ -109,10 +109,10 @@ import {
   type HotelRatePlanItem,
 } from "@/redux/slices/fetchHotelRatePlanSlice";
 
-import { RateCode } from "@/types/rateCode";
-import { HotelRatePlan } from "@/types/hotelRatePlan";
-import { HotelRoomNumber } from "@/types/hotelRoomNumber";
-import { HotelRoomType } from "@/types/hotelRoomType";
+// import { RateCode } from "@/types/rateCode";
+// import { HotelRatePlan } from "@/types/hotelRatePlan";
+// import { HotelRoomNumber } from "@/types/hotelRoomNumber";
+// import { HotelRoomType } from "@/types/hotelRoomType";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { Label } from "../ui/label";
@@ -131,7 +131,7 @@ import "react-date-picker/dist/DatePicker.css";
 import "react-calendar/dist/Calendar.css";
 import "react-time-picker/dist/TimePicker.css";
 // import { checkInReservation } from "@/redux/slices/checkInSlice";
-import { fetchReservationById } from "@/redux/slices/reservationSlice";
+
 import { toast } from "sonner";
 // import { fetchHotelRoomTypes } from "@/redux/slices/hotelRoomTypesSlice";
 import { log } from "node:console";
@@ -714,49 +714,49 @@ export default function QuickReservationDrawer({
     );
   };
 
-  // Fetch hotel room numbers on mount
-  useEffect(() => {
-    const fetchRoomNumbers = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const selectedProperty = JSON.parse(
-          localStorage.getItem("selectedProperty") || "{}"
-        );
-        const response = await getHotelRoomNumbersByHotelId({
-          token: tokens.accessToken,
-          hotelId: selectedProperty.id,
-        });
-        setRoomNumbers(response);
-      } catch (err) {
-        console.error("Failed to fetch room numbers", err);
-      }
-    };
-    fetchRoomNumbers();
-  }, []);
+  // // Fetch hotel room numbers on mount
+  // useEffect(() => {
+  //   const fetchRoomNumbers = async () => {
+  //     try {
+  //       const tokens = JSON.parse(
+  //         localStorage.getItem("hotelmateTokens") || "{}"
+  //       );
+  //       const selectedProperty = JSON.parse(
+  //         localStorage.getItem("selectedProperty") || "{}"
+  //       );
+  //       const response = await getHotelRoomNumbersByHotelId({
+  //         token: tokens.accessToken,
+  //         hotelId: selectedProperty.id,
+  //       });
+  //       setRoomNumbers(response);
+  //     } catch (err) {
+  //       console.error("Failed to fetch room numbers", err);
+  //     }
+  //   };
+  //   fetchRoomNumbers();
+  // }, []);
 
   // Fetch hotel room types on mount
-  useEffect(() => {
-    const fetchRoomTypes = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const selectedProperty = JSON.parse(
-          localStorage.getItem("selectedProperty") || "{}"
-        );
-        const types = await getHotelRoomTypes({
-          token: tokens.accessToken,
-          hotelId: selectedProperty.id,
-        });
-        setRoomTypes(types);
-      } catch (err) {
-        console.error("Failed to fetch room types", err);
-      }
-    };
-    fetchRoomTypes();
-  }, []);
+  // useEffect(() => {
+  //   const fetchRoomTypes = async () => {
+  //     try {
+  //       const tokens = JSON.parse(
+  //         localStorage.getItem("hotelmateTokens") || "{}"
+  //       );
+  //       const selectedProperty = JSON.parse(
+  //         localStorage.getItem("selectedProperty") || "{}"
+  //       );
+  //       const types = await getHotelRoomTypes({
+  //         token: tokens.accessToken,
+  //         hotelId: selectedProperty.id,
+  //       });
+  //       setRoomTypes(types);
+  //     } catch (err) {
+  //       console.error("Failed to fetch room types", err);
+  //     }
+  //   };
+  //   fetchRoomTypes();
+  // }, []);
 
   // Rate codes are now fetched from hotel rate plans Redux state
   // No need for separate rate codes API call
@@ -1045,8 +1045,6 @@ export default function QuickReservationDrawer({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelId = selectedProperty?.id;
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const accessToken = tokens?.accessToken;
     const propertyId = selectedProperty?.propertyID || selectedProperty?.id;
 
     const guestProfilePayload = {
@@ -1081,46 +1079,6 @@ export default function QuickReservationDrawer({
     if (typeof setGuestProfileForCheckIn === "function") {
       setGuestProfileForCheckIn(parsedGuestData);
     }
-
-    // let guestProfileId: number | null = null;
-    // if (!repeatGuest && !selectedGuestProfileId) {
-    //   const guestProfilePayload = {
-    //     profileId: 0,
-    //     hotelId: hotelId || 0,
-    //     title: "",
-    //     guestName: guestName || "",
-    //     dob: new Date(systemDate).toISOString(),
-    //     address: "",
-    //     city: "",
-    //     zipCode: "",
-    //     country: selectedCountry || "",
-    //     nationality: "",
-    //     ppNo: "",
-    //     phone: mobile,
-    //     email: guestEmail,
-    //     createdOn: new Date(systemDate).toISOString(),
-    //     createdBy: fullName || "system",
-    //     updatedOn: new Date(systemDate).toISOString(),
-    //     updatedBy: fullName || "system",
-    //   };
-
-    //   try {
-    //     const guestData = await createGuestProfile({
-    //       token: accessToken,
-    //       payload: guestProfilePayload,
-    //     });
-    //     console.log("Guest profile created:", guestData);
-    //     guestProfileId = guestData?.profileId;
-    //     if (!guestProfileId) {
-    //       console.error("Guest Profile ID not found in response");
-    //       return;
-    //     }
-    //   } catch (error) {
-    //     console.error("Failed to create guest profile", error);
-    //     return;
-    //   }
-    // }
-    // --- END guest profile POST ---
 
     let guestProfileId: number | null = null;
 
@@ -1535,33 +1493,9 @@ export default function QuickReservationDrawer({
       },
       dateTime: new Date(systemDate).toISOString(),
     };
-
-    console.log(
-      "Booking Payload 🏀🏀🏀:",
-      JSON.stringify(bookingPayload, null, 2)
-    );
-    console.log("hotelRatePlans aaaaaabbb 🏨🏨🏨🏨🏨🏨🏨🏨🏨:", testState);
-
     // Log the matched rate plan and rate code ID
     const selectedRatePlan = hotelRatePlans.find(
       (plan) => plan.hotelRatePlanID.toString() === walkInFormData.rateType
-    );
-    console.log("Selected Rate Plan:", selectedRatePlan);
-    console.log("Rate Code ID:", selectedRatePlan?.rateCodeID);
-
-    // Log meal plan info being sent
-    console.log("🍽️ MEAL PLAN DEBUG:");
-    console.log("Selected meal plan ID (selectedMealPlan):", selectedMealPlan);
-    console.log("Selected meal plan name (mealPlanName):", mealPlanName);
-    console.log("Available meal plans (basisMas):", mealPlans);
-    console.log(
-      "Note: Frontend correctly uses basisMas table, backend error references MealPlanMas table"
-    );
-
-    // Log the payload exactly as it will be sent
-    console.log(
-      "Booking Payload in the Quick Reservation drawer:",
-      bookingPayload
     );
 
     try {
@@ -1590,334 +1524,137 @@ export default function QuickReservationDrawer({
           roomNumber: rooms?.[0]?.room ? String(rooms[0].room) : "",
         });
 
-        // Now fetch full reservation details (your code already does this)
-        const reservationResult = await dispatch(
-          fetchReservationById(reservationID)
-        );
         console.log("hi2");
-        if (fetchReservationById.fulfilled.match(reservationResult)) {
-          const reservationData = reservationResult.payload;
-          const reservationRooms = reservationData.rooms || [];
-          const guestProfileId = reservationData.guestProfileId;
+        // Reservation created successfully, proceed with cleanup
+        onCreated?.();
+        
+        try {
+          // Send notification emails if needed
+          const guestTo = getGuestEmail();
+          const hotelTo = getHotelEmail();
 
-          const firstRoomNo =
-            reservationRooms?.[0]?.roomNo ??
-            reservationRooms?.[0]?.room_no ??
-            reservationRooms?.[0]?.room?.roomNo ??
-            "";
-          console.log("hi4");
-          // // Re-log creation with concrete IDs (optional but useful)
-          // await createLogSafe("Reservation created (details resolved)", {
-          //   reservationId: Number(
-          //     reservationData?.reservationID || reservationID || 0
-          //   ),
-          //   reservationDetailId: Number(firstDetailId || 0),
-          //   reservationNo:
-          //     reservationData?.reservationNo?.toString() || reservationNoForLog,
-          //   roomNumber: String(firstRoomNo || ""),
-          // });
-          console.log("hi5");
-          // Step 2: Loop through each room and dispatch check-in
-          for (const r of reservationRooms) {
-            // be defensive about field casing across APIs
-            const reservationDetailID =
-              r.reservationDetailID ?? r.reservation_detail_id ?? r.id;
-            const reservationStatusId =
-              r?.reservationStatusMaster?.reservationStatusID ??
-              r?.reservation_status_id ??
-              r?.statusId;
-            console.log("hi6");
-            // if (!reservationDetailID || !guestProfileId) {
-            //   console.warn("❌ Missing data for check-in:", {
-            //     reservationDetailID,
-            //     reservationStatusId,
-            //     guestProfileId,
-            //   });
-            //   console.log("hi7");
-            //   await createLogSafe("Check-in skipped (missing data)", {
-            //     reservationId: Number(
-            //       reservationData?.reservationID || reservationID || 0
-            //     ),
-            //     reservationDetailId: Number(reservationDetailID || 0),
-            //     reservationNo:
-            //       reservationData?.reservationNo?.toString() ||
-            //       reservationNoForLog,
-            //     roomNumber: String(roomNumberForLog || ""),
-            //   });
-            //   continue;
-            // }
-            console.log("hi8");
-            const checkInPayload = {
-              reservationDetailId: reservationDetailID,
-              reservationStatusId: 4, // checked-in status
-              checkINat: new Date(systemDate).toISOString(),
-              checkedInBy: "System",
-              guestProfileId,
-              isRepeatGuest: false,
-            };
-            console.log("hi9");
-            if (isCheckedIn) {
-              try {
-                const checkInResult = await checkInReservationDetail({
-                  token: accessToken,
-                  reservationDetailId: reservationDetailID,
-                  payload: checkInPayload,
-                });
+          if (guestTo || hotelTo) {
+            const nightsCount = Math.max(
+              1,
+              differenceInDays(checkOutDate!, checkInDate!)
+            );
 
-                if (checkInResult?.success) {
-                  console.log(
-                    "✅ Check-in success for Room ID:",
-                    reservationDetailID
-                  );
-                  await createLogSafe("Checked in room", {
-                    reservationId: Number(
-                      reservationData?.reservationID || reservationID || 0
-                    ),
-                    reservationDetailId: Number(reservationDetailID),
-                    reservationNo:
-                      reservationData?.reservationNo?.toString() ||
-                      reservationNoForLog,
-                    roomNumber: String(roomNumberForLog || ""),
-                  });
-                } else {
-                  console.error(
-                    "❌ Check-in failed for Room ID:",
-                    reservationDetailID,
-                    checkInResult?.error || checkInResult
-                  );
-                  await createLogSafe("Check-in failed", {
-                    reservationId: Number(
-                      reservationData?.reservationID || reservationID || 0
-                    ),
-                    reservationDetailId: Number(reservationDetailID),
-                    reservationNo:
-                      reservationData?.reservationNo?.toString() ||
-                      reservationNoForLog,
-                    roomNumber: String(roomNumberForLog || ""),
-                  });
-                }
-              } catch (err) {
-                console.error("❌ Error during check-in dispatch:", err);
-                await createLogSafe("Check-in error (dispatch threw)", {
-                  reservationId: Number(
-                    reservationData?.reservationID || reservationID || 0
-                  ),
-                  reservationDetailId: Number(reservationDetailID),
-                  reservationNo:
-                    reservationData?.reservationNo?.toString() ||
-                    reservationNoForLog,
-                  roomNumber: String(roomNumberForLog || ""),
-                });
-              }
-            } else {
-              console.log("checkin not clicked");
-              console.log("hi9 a");
-              // await createLogSafe("Reservation created without check-in", {
-              //   reservationId: Number(
-              //     reservationData?.reservationID || reservationID || 0
-              //   ),
-              //   reservationDetailId: Number(reservationDetailID),
-              //   reservationNo:
-              //     reservationData?.reservationNo?.toString() ||
-              //     reservationNoForLog,
-              //   roomNumber: String(roomNumberForLog || ""),
-              // });
-            }
-          }
-          console.log("hi11");
-          onCreated?.();
-          try {
-            // addresses
-            const guestTo = getGuestEmail();
-            const hotelTo = getHotelEmail();
+            const hotelObj = JSON.parse(getLS("selectedProperty") || "{}");
+            const hotelName = hotelObj?.name || "Your Hotel";
+            const hotelCurrency = hotelObj?.hotelCurrency || currency || "USD";
+            const bkNo = refNo || `RES-${Date.now()}`;
 
-            // Only proceed if we have at least one destination
-            if (guestTo || hotelTo) {
-              // Nights for average (treat same-day as 1 night in UI/email)
-              const nightsCount = Math.max(
-                1,
-                differenceInDays(checkOutDate!, checkInDate!)
+            // Build email rooms data from UI state
+            const emailRooms = uiRoomsAtSubmit.map((r) => {
+              const rt = roomTypes.find(
+                (x) => String(x.hotelRoomTypeID) === String(r.roomType)
+              ) || fetchedroomTypes.find(
+                (x: any) => String(x.hotelRoomTypeID) === String(r.roomType)
               );
 
-              // Build required local date keys [CI, CI+1, ..., CO-1]
-              const requiredDates: string[] = [];
-              {
-                const n = differenceInDays(checkOutDate!, checkInDate!);
-                for (let i = 0; i < Math.max(0, n); i++) {
-                  requiredDates.push(ymdLocal(addDays(checkInDate!, i)));
-                }
-              }
+              const nightlyRate = Number(r.rate || 0);
+              const total = r.is_foc ? 0 : nightlyRate * nightsCount;
+              const avg = nightsCount > 0 ? total / nightsCount : nightlyRate;
 
-              // Build room lines for email from current UI state
-              // Build room lines for email from the frozen UI snapshot
-              const emailRooms = uiRoomsAtSubmit.map((r) => {
-                const rt =
-                  roomTypes.find(
-                    (x) => String(x.hotelRoomTypeID) === String(r.roomType)
-                  ) ||
-                  fetchedroomTypes.find(
-                    (x: any) => String(x.hotelRoomTypeID) === String(r.roomType)
-                  );
+              return {
+                name: rt?.roomType || "Room",
+                meal: mealPlanName || "",
+                adults: Number(r.adult || 1),
+                children: Number(r.child || 0),
+                total,
+                avg,
+              };
+            });
 
-                if (r.is_foc) {
-                  return {
-                    name: rt?.roomType || "Room",
-                    meal: mealPlanName || "",
-                    adults: Number(r.adult || 1),
-                    children: Number(r.child || 0),
-                    total: 0,
-                    avg: 0,
-                  };
-                }
+            const totalAll = emailRooms.reduce(
+              (s, rr) => s + Number(rr.total || 0),
+              0
+            );
 
-                let totalFromDays = 0;
-                if (requiredDates.length > 0) {
-                  for (const dateStr of requiredDates) {
-                    totalFromDays += Number(r.daysMap?.[dateStr] ?? 0);
-                  }
-                } else {
-                  totalFromDays = Number(
-                    r.daysMap?.[ymdLocal(checkInDate!)] ?? 0
-                  );
-                }
+            const commonEmailArgs = {
+              hotelName,
+              otaName: selectedTravelAgent || "Direct",
+              reservationNo: bkNo,
+              payCollect: "Property",
+              checkIn: checkInDate!.toISOString().slice(0, 10),
+              checkOut: checkOutDate!.toISOString().slice(0, 10),
+              nights: nightsCount,
+              rooms: emailRooms,
+              currency: hotelCurrency as string,
+              total: totalAll,
+              notes,
+            };
 
-                const nightlyFallback = Number(r.rate || 0);
-                let total =
-                  totalFromDays > 0
-                    ? totalFromDays
-                    : nightlyFallback * nightsCount;
-
-                if (total === 0 && nightlyFallback > 0) {
-                  total = nightlyFallback * nightsCount;
-                }
-
-                const avg =
-                  nightsCount > 0 ? total / nightsCount : nightlyFallback;
-
-                return {
-                  name: rt?.roomType || "Room",
-                  meal: mealPlanName || "",
-                  adults: Number(r.adult || 1),
-                  children: Number(r.child || 0),
-                  total,
-                  avg,
-                };
+            // Send guest email
+            if (guestTo) {
+              const guestHtml = buildEmailHtml({
+                ...commonEmailArgs,
+                guest: {
+                  name: guestName,
+                  email: guestEmail,
+                  country: selectedCountry,
+                },
               });
 
-              const totalAll = emailRooms.reduce(
-                (s, rr) => s + Number(rr.total || 0),
-                0
-              );
-
-              const hotelObj = JSON.parse(getLS("selectedProperty") || "{}");
-              const hotelName = hotelObj?.name || "Your Hotel";
-              const hotelCurrency =
-                hotelObj?.hotelCurrency || currency || "USD";
-              const bkNo = refNo || `RES-${Date.now()}`;
-
-              // Common args for both emails
-              const commonEmailArgs = {
-                hotelName,
-                otaName: selectedTravelAgent || "Direct",
-                reservationNo: bkNo,
-                payCollect: "Property",
-                checkIn: checkInDate!.toISOString().slice(0, 10),
-                checkOut: checkOutDate!.toISOString().slice(0, 10),
-                nights: nightsCount,
-                rooms: emailRooms,
-                currency: hotelCurrency as string,
-                total: totalAll,
-                notes,
-              };
-
-              // Guest copy
-              if (guestTo) {
-                const guestHtml = buildEmailHtml({
-                  ...commonEmailArgs,
-                  guest: {
-                    name: guestName,
-                    email: guestEmail,
-                    country: selectedCountry,
-                  },
-                });
-
-                await dispatch(
-                  sendCustomEmail({
-                    toEmail: guestTo,
-                    subject: `Your Booking – ${bkNo} (${
-                      selectedTravelAgent || "Direct"
-                    })`,
-                    body: guestHtml,
-                    isHtml: true,
-                    priority: 0,
-                    senderName: "Reservations",
-                  })
-                );
-              }
-
-              // Hotel copy
-              if (hotelTo) {
-                const hotelHtml = buildEmailHtml({
-                  ...commonEmailArgs,
-                  guest: {
-                    name: guestName,
-                    email: guestEmail,
-                    country: selectedCountry,
-                  },
-                });
-
-                await dispatch(
-                  sendCustomEmail({
-                    toEmail: hotelTo,
-                    subject: `New Booking – ${bkNo} (${
-                      selectedTravelAgent || "Direct"
-                    })`,
-                    body: hotelHtml,
-                    isHtml: true,
-                    priority: 0,
-                    senderName: "Reservations",
-                  })
-                );
-              }
-            } else {
-              console.warn(
-                "No hotel or guest email found — skipping sendCustomEmail."
+              await dispatch(
+                sendCustomEmail({
+                  toEmail: guestTo,
+                  subject: `Your Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
+                  body: guestHtml,
+                  isHtml: true,
+                  priority: 0,
+                  senderName: "Reservations",
+                })
               );
             }
-          } catch (e) {
-            console.error("Email send failed:", e);
+
+            // Send hotel email
+            if (hotelTo) {
+              const hotelHtml = buildEmailHtml({
+                ...commonEmailArgs,
+                guest: {
+                  name: guestName,
+                  email: guestEmail,
+                  country: selectedCountry,
+                },
+              });
+
+              await dispatch(
+                sendCustomEmail({
+                  toEmail: hotelTo,
+                  subject: `New Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
+                  body: hotelHtml,
+                  isHtml: true,
+                  priority: 0,
+                  senderName: "Reservations",
+                })
+              );
+            }
           }
-          console.log("hi12");
-          // Optional: Res
-          // et form, close drawer, etc.
-          setWalkInFormData(initialWalkInFormData);
-          setGuestName("");
-          setMobile("");
-          setGuestEmail("");
-          setNotes("");
-          setSelectedCountry("");
-          setRateCode("");
-          setSelectedRatePlan(null);
-          setSelectedRatePlanDetails(null);
-          setReservationType("confirm");
-          setCurrency("LKR");
-          setRoomCount(1);
-          setRooms([{ roomType: "", room: "", adult: 2, child: 0, rate: 0 }]);
-          setCheckInDate(new Date(systemDate));
-          setCheckOutDate(addDays(new Date(systemDate), 1));
-          setNights(1);
-          setIsDayUse(false);
-          setTitle("Mr");
-          console.log("hi13");
-          onOpenChange(false);
-          console.log("hi14");
-        } else {
-          console.error(
-            "❌ Failed to fetch reservation by ID:",
-            reservationResult.payload
-          );
-          alert(`Failed to fetch reservation: ${reservationResult.payload}`);
+        } catch (e) {
+          console.error("Email send failed:", e);
         }
+        
+        // Reset form and close drawer
+        setWalkInFormData(initialWalkInFormData);
+        setGuestName("");
+        setMobile("");
+        setGuestEmail("");
+        setNotes("");
+        setSelectedCountry("");
+        setRateCode("");
+        setSelectedRatePlan(null);
+        setSelectedRatePlanDetails(null);
+        setReservationType("confirm");
+        setCurrency("LKR");
+        setRoomCount(1);
+        setRooms([{ roomType: "", room: "", adult: 2, child: 0, rate: 0 }]);
+        setCheckInDate(new Date(systemDate));
+        setCheckOutDate(addDays(new Date(systemDate), 1));
+        setNights(1);
+        setIsDayUse(false);
+        setTitle("Mr");
+        onOpenChange(false);
       } else {
         console.error("❌ Booking creation failed:", result.message);
         alert(`Booking failed: ${result.message}`);
@@ -1927,7 +1664,7 @@ export default function QuickReservationDrawer({
     } finally {
       setIsSubmitting(false);
     }
-    //window.location.reload();
+    window.location.reload();
   };
 
   // ✅ Update check-out date when check-in or nights is changed manually

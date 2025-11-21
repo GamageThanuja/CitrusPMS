@@ -50,11 +50,7 @@ import { RoomChangeDrawer } from "@/components/drawers/room-change-drawer";
 import { CancelBookingDrawer } from "@/components/drawers/cancel-booking-drawer";
 import { useDispatch, useSelector } from "react-redux";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import {
-  clearReservation,
-  markReservationAsNoShow,
-  cancelRoomReservation,
-} from "@/redux/slices/reservationSlice";
+import { noShowReservation } from "@/redux/slices/noShowSlice";
 import {
   fetchReservationRateDetails,
   selectReservationRateDetails,
@@ -77,15 +73,15 @@ import {
 import { NoShowDrawer } from "@/components/drawers/noShow-drawer";
 import { set } from "lodash";
 import { fetchGuestProfileMasterById } from "@/redux/slices/guestProfileSlice";
-import { 
-  createFileUpload, 
+import {
+  createFileUpload,
   clearCreateFileUpload,
   selectFileUploadData,
   selectFileUploadLoading,
   selectFileUploadError,
   selectFileUploadSuccess,
 } from "@/redux/slices/createFileUploadSlice";
-import { 
+import {
   fetchFileUploadsByFolioId,
   clearFileUploads,
   selectFolioUploads,
@@ -202,6 +198,8 @@ export default function BookingDetailsDrawer({
   console.log("booking detail drawer bookingDetail 000000: ", bookingDetail);
 
   const reservationDetailId = bookingDetail?.reservationDetailID;
+  console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
+
   const reservationId = bookingDetail?.reservationID;
 
   const [bookingData, setBookingData] = useState<any>(null);
@@ -351,20 +349,20 @@ export default function BookingDetailsDrawer({
     (state: RootState) => state.rateDetails
   );
 
-  useEffect(() => {
-    if (reservationDetailId) {
-      dispatch(
-        fetchReservationRateDetails({
-          reservationDetailId: reservationDetailId,
-        })
-      );
-    }
+  // useEffect(() => {
+  //   if (reservationDetailId) {
+  //     dispatch(
+  //       fetchReservationRateDetails({
+  //         reservationDetailId: reservationDetailId,
+  //       })
+  //     );
+  //   }
 
-    // Cleanup
-    return () => {
-      dispatch(clearReservation());
-    };
-  }, [dispatch, reservationId]);
+  //   // Cleanup
+  //   return () => {
+  //     dispatch(clearReservation());
+  //   };
+  // }, [dispatch, reservationId]);
 
   useEffect(() => {
     if (bookingDetail) {
@@ -573,9 +571,9 @@ export default function BookingDetailsDrawer({
         ]);
       }
 
-      // refresh the "bookingData" you render status from
+      // refresh the "booking" you render status from
       const fresh = await fetchReservationDataById(reservationId);
-      if (fresh) setBookingData(fresh);
+      if (fresh) setBooking(fresh);
     }
 
     setCheckInOpen(false);
@@ -692,22 +690,23 @@ export default function BookingDetailsDrawer({
     setAmendOpen(false);
   };
 
-  const handleRoomChangeComplete = () => {
-    // Refresh reservation data to reflect all changes
-    if (reservationDetailId) {
-      dispatch(fetchReservationRateDetails({ reservationDetailId }));
-    }
+const handleRoomChangeComplete = () => {
+  if (reservationDetailId) {
+    dispatch(fetchReservationRateDetails({ reservationDetailId }));
+    dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+    dispatch(fetchRateDetailsById(reservationDetailId));
+  }
 
-    // Also refresh folio and rate details
-    if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
-      dispatch(fetchRateDetailsById(reservationDetailId));
-    }
+  setRoomChangeOpen(false);
+};
 
-    setRoomChangeOpen(false);
-  };
-
-  const handleNoShowComplete = async () => {
+  const handleNoShowComplete = async (opts?: {
+    detailIds?: number[];
+    reason: string;
+    isChargable: boolean;
+    amount?: number;
+    currencyCode?: string;
+  }) => {
     if (!reservationDetailId) {
       console.error("No reservation detail ID available");
       toast.error("No reservation detail ID available");
@@ -717,27 +716,38 @@ export default function BookingDetailsDrawer({
     setIsMarkingNoShow(true);
 
     try {
-      // Dispatch the markAsNoShow action
-      const resultAction = await dispatch(
-        markReservationAsNoShow(reservationDetailId)
-      );
+      // Map drawer output → NoShowReservationPayload
+      const payload = {
+        reservationDetailId,
+        isChargable: opts?.isChargable ?? false,
+        currencyCode:
+          opts?.currencyCode || bookingDetail?.currencyCode || "LKR",
+        amount: opts?.isChargable ? opts?.amount ?? 0 : 0,
+        // TODO: replace 0s below with real transaction config from your system
+        tranTypeId: 0,
+        drAccId: 0,
+        crAccId: 0,
+        // use check-in date from booking if you have it, otherwise “now”
+        checkInDate:
+          (bookingDetail as any)?.resCheckIn ||
+          (bookingDetail as any)?.checkInDate ||
+          new Date().toISOString(),
+      };
 
-      if (markReservationAsNoShow.fulfilled.match(resultAction)) {
-        // Show success message
+      const resultAction = await dispatch(noShowReservation(payload));
+      console.log("No show resultAction: ", resultAction);
+
+      if (noShowReservation.fulfilled.match(resultAction)) {
         toast.success("Successfully marked as No Show");
 
-        // Refresh the reservation data
-        if (reservationDetailId) {
-          await dispatch(fetchReservationRateDetails({ reservationDetailId }));
-        }
+        // Refresh reservation-related data like before
+        await dispatch(fetchReservationRateDetails({ reservationDetailId }));
 
-        // Refresh folio and rate details
         await Promise.all([
           dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
-        // Close the No Show drawer
         setNoShowOpen(false);
       } else {
         throw new Error(
@@ -872,9 +882,9 @@ export default function BookingDetailsDrawer({
   }, [reservationRateDetails]);
   // Guest Profile ID state - prioritize API data over prop
   const [guestProfileId, setGuestProfileId] = useState<number | null>(
-    reservationDetailData?.guestProfileID ?? 
-    bookingDetail?.guestProfileId ?? 
-    null
+    reservationDetailData?.guestProfileID ??
+      bookingDetail?.guestProfileId ??
+      null
   );
 
   // Full guest profile record
@@ -957,7 +967,7 @@ export default function BookingDetailsDrawer({
   const fileUploadLoading = useSelector(selectFileUploadLoading);
   const fileUploadError = useSelector(selectFileUploadError);
   const fileUploadSuccess = useSelector(selectFileUploadSuccess);
-  
+
   // Folio uploads Redux selectors
   const folioUploads = useSelector(selectFolioUploads);
   const folioUploadsLoading = useSelector(selectFolioUploadsLoading);
@@ -1179,7 +1189,7 @@ export default function BookingDetailsDrawer({
       }
 
       console.log("Fetching guest profile for guestProfileId:", guestProfileId);
-      
+
       try {
         const storedToken =
           typeof window !== "undefined"
@@ -1549,7 +1559,7 @@ export default function BookingDetailsDrawer({
     },
     {
       key: "guestProfileId",
-      label: "Guest Profile ID", 
+      label: "Guest Profile ID",
       value: guestProfileId || "—",
     },
     {
@@ -2148,14 +2158,23 @@ export default function BookingDetailsDrawer({
                       {/* Static Guest Profile ID display */}
                       <div className="group flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40 hover:bg-muted/60 transition">
                         <div className="min-w-0">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Guest Profile ID</p>
-                          <p className="font-mono text-xs truncate text-foreground">{reservationDetailData?.guestProfileId ?? "—"}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                            Guest Profile ID
+                          </p>
+                          <p className="font-mono text-xs truncate text-foreground">
+                            {reservationDetailData?.guestProfileId ?? "—"}
+                          </p>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="shrink-0"
-                          onClick={() => handleCopy("guestProfileId", reservationDetailData?.guestProfileId)}
+                          onClick={() =>
+                            handleCopy(
+                              "guestProfileId",
+                              reservationDetailData?.guestProfileId
+                            )
+                          }
                           aria-label="Copy Guest Profile ID"
                           title="Copy"
                         >
@@ -2610,13 +2629,27 @@ export default function BookingDetailsDrawer({
                     <table className="w-full text-xs border border-muted">
                       <thead className="bg-muted text-muted-foreground divide-y divide-muted">
                         <tr>
-                          <th className="p-2 text-left border border-muted">Guest Name</th>
-                          <th className="p-2 text-left border border-muted">NIC/PP</th>
-                          <th className="p-2 text-left border border-muted">Gender</th>
-                          <th className="p-2 text-left border border-muted">Nationality</th>
-                          <th className="p-2 text-left border border-muted">Phone No</th>
-                          <th className="p-2 text-left border border-muted">Email</th>
-                          <th className="p-2 text-left border border-muted">Is VIP</th>
+                          <th className="p-2 text-left border border-muted">
+                            Guest Name
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            NIC/PP
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            Gender
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            Nationality
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            Phone No
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            Email
+                          </th>
+                          <th className="p-2 text-left border border-muted">
+                            Is VIP
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-muted">
@@ -2654,7 +2687,10 @@ export default function BookingDetailsDrawer({
                           </tr>
                         ) : (
                           <tr>
-                            <td colSpan={7} className="text-center text-sm p-3 text-muted-foreground">
+                            <td
+                              colSpan={7}
+                              className="text-center text-sm p-3 text-muted-foreground"
+                            >
                               No guest profile data available.
                             </td>
                           </tr>
@@ -2763,26 +2799,39 @@ export default function BookingDetailsDrawer({
                                 });
 
                                 // Dispatch the file upload action
-                                const result = await dispatch(createFileUpload(uploadPayload));
-                                
+                                const result = await dispatch(
+                                  createFileUpload(uploadPayload)
+                                );
+
                                 setUploadProgress(100);
 
                                 if (createFileUpload.fulfilled.match(result)) {
-                                  console.log("File uploaded successfully:", result.payload);
-                                  
+                                  console.log(
+                                    "File uploaded successfully:",
+                                    result.payload
+                                  );
+
                                   // Refresh the file list
-                                  dispatch(fetchFileUploadsByFolioId({ folioId: reservationDetailId }));
-                                  
+                                  dispatch(
+                                    fetchFileUploadsByFolioId({
+                                      folioId: reservationDetailId,
+                                    })
+                                  );
+
                                   // Clear the file input and preview files
-                                  const uploadFileInput = document.querySelector(
-                                    'input[type="file"]'
-                                  ) as HTMLInputElement;
-                                  if (uploadFileInput) uploadFileInput.value = "";
+                                  const uploadFileInput =
+                                    document.querySelector(
+                                      'input[type="file"]'
+                                    ) as HTMLInputElement;
+                                  if (uploadFileInput)
+                                    uploadFileInput.value = "";
                                   setPreviewFiles([]);
 
                                   alert("File uploaded successfully!");
                                 } else {
-                                  throw new Error(result.payload || "Upload failed");
+                                  throw new Error(
+                                    result.payload || "Upload failed"
+                                  );
                                 }
 
                                 // Reset progress after a short delay
@@ -2791,7 +2840,12 @@ export default function BookingDetailsDrawer({
                                 }, 2000);
                               } catch (err) {
                                 console.error("Upload error:", err);
-                                alert("Upload failed: " + (err instanceof Error ? err.message : "Unknown error"));
+                                alert(
+                                  "Upload failed: " +
+                                    (err instanceof Error
+                                      ? err.message
+                                      : "Unknown error")
+                                );
                               }
                             }}
                           >
@@ -2934,7 +2988,9 @@ export default function BookingDetailsDrawer({
                     <Separator className="my-6" />
                     <h3 className="text-sm font-semibold mb-3">Attachments</h3>
                     {folioUploadsLoading && (
-                      <p className="text-sm text-muted-foreground">Loading attachments...</p>
+                      <p className="text-sm text-muted-foreground">
+                        Loading attachments...
+                      </p>
                     )}
                     {/* {folioUploadsError && (
                       <p className="text-sm text-red-500">Error loading attachments: {folioUploadsError}</p>
@@ -2951,7 +3007,10 @@ export default function BookingDetailsDrawer({
                           // Get extension
                           const fileExt =
                             cleanedImageUrl.split(".").pop()?.toLowerCase() ||
-                            attachment.fileName?.split(".").pop()?.toLowerCase() ||
+                            attachment.fileName
+                              ?.split(".")
+                              .pop()
+                              ?.toLowerCase() ||
                             "";
 
                           // Determine file type
@@ -2972,7 +3031,9 @@ export default function BookingDetailsDrawer({
                                 setSelectedAttachment({
                                   url: cleanedImageUrl,
                                   type: fileExt,
-                                  name: attachment.fileName || `Attachment ${idx + 1}`,
+                                  name:
+                                    attachment.fileName ||
+                                    `Attachment ${idx + 1}`,
                                 });
                                 setAttachmentDrawerOpen(true);
                               }}
@@ -2980,7 +3041,10 @@ export default function BookingDetailsDrawer({
                               {isImage ? (
                                 <img
                                   src={cleanedImageUrl}
-                                  alt={attachment.fileName || `Attachment ${idx + 1}`}
+                                  alt={
+                                    attachment.fileName ||
+                                    `Attachment ${idx + 1}`
+                                  }
                                   className="w-full h-40 object-cover rounded-md"
                                 />
                               ) : isPdf ? (
@@ -3054,8 +3118,12 @@ export default function BookingDetailsDrawer({
                                 {attachment.fileName || `Attachment ${idx + 1}`}
                               </div>
                               <div className="text-xs text-muted-foreground text-center">
-                                {attachment.fileType ? `${attachment.fileType}` : ""}
-                                {attachment.resNo ? ` • ${attachment.resNo}` : ""}
+                                {attachment.fileType
+                                  ? `${attachment.fileType}`
+                                  : ""}
+                                {attachment.resNo
+                                  ? ` • ${attachment.resNo}`
+                                  : ""}
                               </div>
                             </div>
                           );
@@ -3375,7 +3443,7 @@ export default function BookingDetailsDrawer({
               reservationDetailID: bookingDetail?.reservationDetailID,
             }}
             onClose={handleNoShowClose}
-            onConfirm={handleNoShowComplete}
+            onConfirm={handleNoShowComplete} // now uses new thunk
             isLoading={isMarkingNoShow}
             setTakePaymentsOpen={setTakePaymentsOpen}
           />
