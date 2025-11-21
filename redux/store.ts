@@ -239,6 +239,7 @@ import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
 import cancelReservationReducer from "./slices/cancelReservationSlice";
 import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReasonSlice";
 import reasonsByCategoryReducer from "./slices/reasonsByCategorySlice";
+import roomChangeReducer from "./slices/roomChangeSlice";
 
 
 const store = configureStore({
@@ -483,6 +484,7 @@ const store = configureStore({
     fetchCancellationReason: fetchCancellationReasonReducer,
     reasonsByCategory: reasonsByCategoryReducer,
     shortenReservation: shortenReservationReducer,
+    roomChange: roomChangeReducer,
   },
 });
 

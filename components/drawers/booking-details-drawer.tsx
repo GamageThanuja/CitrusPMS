@@ -690,20 +690,15 @@ export default function BookingDetailsDrawer({
     setAmendOpen(false);
   };
 
-  const handleRoomChangeComplete = () => {
-    // Refresh reservation data to reflect all changes
-    if (reservationDetailId) {
-      dispatch(fetchReservationRateDetails({ reservationDetailId }));
-    }
+const handleRoomChangeComplete = () => {
+  if (reservationDetailId) {
+    dispatch(fetchReservationRateDetails({ reservationDetailId }));
+    dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+    dispatch(fetchRateDetailsById(reservationDetailId));
+  }
 
-    // Also refresh folio and rate details
-    if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
-      dispatch(fetchRateDetailsById(reservationDetailId));
-    }
-
-    setRoomChangeOpen(false);
-  };
+  setRoomChangeOpen(false);
+};
 
   const handleNoShowComplete = async (opts?: {
     detailIds?: number[];
