@@ -201,19 +201,6 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
         console.warn("CashPayout: no guest email; skipping receipt send");
       }
 
-      // toast.custom(
-      //   () => (
-      //     <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-      //       <CircleCheckBig className="h-6 w-6 text-green-500" />
-      //       <div>
-      //         <h3 className="font-medium">
-      //           Cash payout processed successfully!
-      //         </h3>
-      //       </div>
-      //     </div>
-      //   ),
-      //   { duration: 2500 }
-      // );
       show({
         variant: "success",
         title: "Recorded successfully!",

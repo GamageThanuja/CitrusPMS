@@ -29,7 +29,10 @@ import {
   fetchRateDetailsById,
   RateDetail,
 } from "@/redux/slices/rateDetailsSlice";
-import { getGuestProfileById } from "@/controllers/guestProfileMasterController";
+import {
+  fetchGuestMas,
+  selectGuestMasItems,
+} from "@/redux/slices/fetchGuestMasSlice";
 import {
   clearReservation,
   fetchReservationById,
@@ -44,9 +47,19 @@ import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { useCreateReservationLog } from "@/hooks/useCreateReservationLog";
 import { useSelector } from "react-redux";
-import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
+import {
+  fetchNameMas,
+  selectFetchNameMasItems,
+} from "@/redux/slices/fetchNameMasSlice";
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+} from "@/redux/slices/fetchCurrencyMasSlice";
 import { getGuestRoomMasterProfilesByReservationDetailId } from "@/controllers/guestProfileByRoomMasterController";
-import { updateGuestProfile } from "@/redux/slices/updateGuestProfileSlice";
+import {
+  updateGuestMas,
+  type GuestMas,
+} from "@/redux/slices/updateGuestMasSlice";
 import { parseISO, isValid } from "date-fns";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -122,33 +135,6 @@ export function AmendDrawer({
 
   const storedToken = localStorage.getItem("hotelmateTokens");
 
-  //   const handleAmendComplete = (reservationId) => {
-  //   // Dispatch actions to clear all necessary slices
-  //   dispatch(clearReservation()); // Clear reservation slice
-
-  //   // Refresh reservation data to reflect all changes
-  //   if (reservationId) {
-  //     dispatch(fetchReservationById(reservationId));
-  //   }
-
-  //   // Also refresh folio and rate details
-  //   if (reservationDetailId) {
-  //     dispatch(fetchFolioByReservationDetailId(reservationDetailId));
-  //     dispatch(fetchRateDetailsById(reservationDetailId));
-  //   }
-
-  //   // Refresh guest profile when guestProfileId is available
-  //   if (guestProfileId) {
-  //     dispatch(fetchGuestProfileMasterById(guestProfileId));
-  //   }
-
-  //   // Optionally, refresh any other parts of the store that need resetting
-  //   // Example:
-  //   // dispatch(clearOtherSlice());
-
-  //   setAmendOpen(false);
-  // };
-
   useEffect(() => {
     if (reservationDetailID) {
       dispatch(fetchRateDetailsById(reservationDetailID));
@@ -220,12 +206,6 @@ export function AmendDrawer({
   }
   // State for selected travel agent in edit mode
   const [selectedTravelAgent, setSelectedTravelAgent] = useState(source);
-
-  // Currencies state
-  const [currencies, setCurrencies] = useState<
-    { currencyId: number; currencyCode: string; currencyName: string }[]
-  >([]);
-
   const [roomGuestProfiles, setRoomGuestProfiles] = useState<any[]>([]);
 
   const { fullName } = useUserFromLocalStorage();
@@ -243,33 +223,27 @@ export function AmendDrawer({
     }
   }, [bookingDetail]);
 
+  // CurrencyMas via Redux
+  const currencies = useAppSelector(selectCurrencyMasItems);
+
+  useEffect(() => {
+    // no filter params – load all active currencies
+    dispatch(fetchCurrencyMas({}));
+  }, [dispatch]);
+
   // Helper function to determine if dates can be edited
   const canEditDates = reservationStatusID === 1 || reservationStatusID === 2;
 
-  useEffect(() => {
-    async function fetchCurrencies() {
-      try {
-        const res = await fetch(`${BASE_URL}/api/Currency`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setCurrencies(Array.isArray(data) ? data : []);
-      } catch (e) {
-        // fail silently
-      }
-    }
-    fetchCurrencies();
-  }, []);
-
-  const { data } = useSelector((state) => state.nameMaster);
-
-  console.log("data : ", data);
+  // NameMas via Redux (replaces nameMasterByHotel)
+  const nameMasItems = useAppSelector(selectFetchNameMasItems);
 
   useEffect(() => {
-    dispatch(fetchNameMasterByHotel());
+    // no filters – fetch all name records; you can pass { nameType: "Agent" } if API supports it
+    dispatch(fetchNameMas({}));
   }, [dispatch]);
 
   const travelAgents = useMemo(() => {
-    const list = Array.isArray(data) ? data : [];
+    const list = Array.isArray(nameMasItems) ? nameMasItems : [];
     return list
       .filter((n: any) => {
         const t = String(n?.nameType || "").toLowerCase();
@@ -285,41 +259,37 @@ export function AmendDrawer({
         name: n.name,
         taType: n.taType,
       }));
-  }, [data]);
+  }, [nameMasItems]);
 
   console.log("travel agents", travelAgents);
 
   // Guest profile state
-  const [guestProfile, setGuestProfile] = useState<any>(null);
+  // GuestMas via Redux (for main guest profile)
+  const guestMasItems = useAppSelector(selectGuestMasItems);
+
+  // fetch guest by ID
   useEffect(() => {
-    async function fetchGuestProfile() {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        if (!tokens?.accessToken || !guestProfileId) return;
+    if (!guestProfileId) return;
+    dispatch(fetchGuestMas({ guestId: guestProfileId }));
+  }, [dispatch, guestProfileId]);
 
-        const profileData = await getGuestProfileById({
-          token: tokens.accessToken,
-          profileId: guestProfileId,
-        });
-        setGuestProfile(profileData);
-      } catch (error) {
-        // Fail silently or log
-      }
-    }
-
-    fetchGuestProfile();
-  }, [guestProfileId]);
+  // derive the guestProfile from Redux state
+  const guestProfile = useMemo(
+    () =>
+      guestMasItems.find((g) => g.guestID === guestProfileId) ??
+      guestMasItems[0] ??
+      null,
+    [guestMasItems, guestProfileId]
+  );
 
   // Populate customer state variables when guestProfile is available
   useEffect(() => {
     if (guestProfile) {
       setCustomerTitle(guestProfile.title || "");
       setCustomerName(guestProfile.guestName || "");
-      setCustomerPhone(guestProfile.phone || "");
+      setCustomerPhone(guestProfile.phone || guestProfile.phoneNo || "");
       setCustomerEmail(guestProfile.email || "");
-      setCustomerPPNo(guestProfile.ppNo || "");
+      setCustomerPPNo(guestProfile.nic || guestProfile.ppNo || "");
       setCustomerDOB(guestProfile.dob ? guestProfile.dob.split("T")[0] : "");
       setCustomerNationality(
         guestProfile.nationality || bookingDetail.nationality || ""
@@ -415,15 +385,21 @@ export function AmendDrawer({
             token
           );
 
-        const guestDetails = await Promise.all(
-          (guestMappings || []).map((mapping: any) =>
-            getGuestProfileById({
-              token,
-              profileId: mapping.guestProfileId,
-            })
-          )
+        // 🔄 NEW: replace getGuestProfileById with Redux fetchGuestMas
+        // Step 1 → extract profile IDs
+        const profileIds = (guestMappings || []).map(
+          (m: any) => m.guestProfileId
         );
 
+        // Step 2 → fetch all guests via Redux (same as new API usage)
+        const allGuests = await dispatch(fetchGuestMas({})).unwrap();
+
+        // Step 3 → filter guests that match the room mappings
+        const guestDetails = allGuests.filter((g: any) =>
+          profileIds.includes(g.guestID)
+        );
+
+        // Step 4 → store results
         setRoomGuestProfiles(guestDetails);
       } catch (err) {
         console.error("Failed to load room guest profiles:", err);
@@ -431,7 +407,7 @@ export function AmendDrawer({
     };
 
     fetchRoomGuestProfiles();
-  }, [reservationDetailId]);
+  }, [dispatch, reservationDetailId]);
 
   // Country list state for dropdowns
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -653,55 +629,73 @@ export function AmendDrawer({
   // Save Customer Details handler
   const handleSaveCustomerDetails = useCallback(async () => {
     try {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      if (!tokens?.accessToken) return;
-      // Construct payload from customer state variables
-      const payload = {
-        profileId: guestProfileId,
-        hotelId: bookingDetail.hotelID,
-        title: customerTitle,
-        guestName: customerName,
-        dob: customerDOB,
-        address: customerAddress,
-        city: customerCity,
-        zipCode: customerZip,
-        country: customerCountry,
-        nationality: customerNationality,
-        ppNo: customerPPNo,
-        phone: customerPhone,
-        email: customerEmail,
-        createdOn: bookingDetail.createdOn || new Date().toISOString(),
-        createdBy: fullName || "system",
-        updatedOn: new Date().toISOString(),
-        updatedBy: "system",
+      if (!guestProfile) {
+        console.warn("No guestProfile loaded, cannot update GuestsMas.");
+        return;
+      }
+
+      const payload: GuestMas = {
+        ...(guestProfile as any),
+        guestID: guestProfile.guestID,
+        hotelCode: guestProfile.hotelCode ?? bookingDetail.hotelCode ?? null,
+
+        // overwrite with edited values from UI
+        guestName: customerName || "",
+        phoneNo: customerPhone || "",
+        email: customerEmail || "",
+        title: customerTitle || "",
+        nic: customerPPNo || "",
+        dob: customerDOB
+          ? new Date(customerDOB).toISOString()
+          : guestProfile.dob,
+
+        nationality:
+          customerNationality ||
+          guestProfile.nationality ||
+          bookingDetail.nationality ||
+          null,
+
+        address: customerAddress || "",
+        city: customerCity || "",
+        country:
+          customerCountry ||
+          guestProfile.country ||
+          bookingDetail.country ||
+          null,
+
+        // extra/custom fields safely supported due to index signature
+        zipCode: (guestProfile as any).zipCode || customerZip || null,
+
+        createdOn:
+          guestProfile.createdOn ||
+          bookingDetail.createdOn ||
+          new Date().toISOString(),
+        createdBy: guestProfile.createdBy || fullName || "system",
+        // keep other fields from guestProfile as-is (isVIP, type, etc.)
       };
 
-      await updateGuestProfile({
-        token: tokens.accessToken,
-        profileId: guestProfileId,
-        payload,
-      });
+      // 🔄 call new Redux API
+      await dispatch(updateGuestMas(payload)).unwrap();
+
+      // update booking object so UI reflects changes immediately
       bookingDetail.bookerFullName = customerName || bookingDetail.guestName;
       bookingDetail.guestName = customerName;
       bookingDetail.phone = customerPhone;
       bookingDetail.email = customerEmail;
 
-      // Update the booking detail drawer state
-
-      // Optionally refresh reservation data after updating the customer details
+      // refresh reservation
       dispatch(fetchReservationById(bookingDetail.reservationID));
       setEditCustomerDetails(false);
+
       await createLogSafe(
-        `Guest profile updated: name='${customerName}', phone='${customerPhone}', email='${customerEmail}'`
+        `Guest profile (GuestsMas) updated: name='${customerName}', phone='${customerPhone}', email='${customerEmail}'`
       );
     } catch (e) {
-      // fail silently
+      console.error("Failed to update GuestsMas:", e);
     }
   }, [
-    guestProfileId,
-    bookingDetail.hotelID,
+    guestProfile,
+    bookingDetail,
     customerTitle,
     customerName,
     customerDOB,
@@ -713,8 +707,9 @@ export function AmendDrawer({
     customerPPNo,
     customerPhone,
     customerEmail,
-
+    fullName,
     dispatch,
+    createLogSafe,
   ]);
 
   // Check for guestProfileId in sessionStorage on mount and set booking.guestProfileId if found
@@ -868,72 +863,65 @@ export function AmendDrawer({
   // save one row
   const saveGuestRow = async (guest: any) => {
     try {
-      const storedToken = localStorage.getItem("hotelmateTokens");
-      const parsedToken = storedToken ? JSON.parse(storedToken) : null;
-      const accessToken = parsedToken?.accessToken;
-      if (!accessToken) throw new Error("No token");
-
-      // Profile id resolution
-      const profileId =
+      const guestID =
+        guest.guestID ||
         guest.profileId ||
         guest.guestProfileId ||
         guest.id ||
-        draftGuest?.profileId;
+        draftGuest?.guestID;
 
-      // Construct payload expected by PUT /api/GuestProfileMaster/{id}
-      const payload = {
-        profileId,
-        hotelId: bookingDetail.hotelID,
-        title: draftGuest.title || "",
-        guestName: draftGuest.guestName || "",
-        dob: draftGuest.dob ? new Date(draftGuest.dob).toISOString() : null,
-        address: draftGuest.address || "",
-        city: draftGuest.city || "",
-        zipCode: draftGuest.zipCode || "",
-        country: draftGuest.country || draftGuest.nationality || "",
-        nationality: draftGuest.nationality || draftGuest.country || "",
-        ppNo: draftGuest.ppNo || "",
-        phone: draftGuest.phone || "",
-        email: draftGuest.email || "",
+      if (!guestID) {
+        throw new Error("No guestID/profileId found for guest row.");
+      }
+
+      const payload: GuestMas = {
+        ...(guest as any),
+        guestID,
+        hotelCode: guest.hotelCode ?? bookingDetail.hotelCode ?? null,
+
+        guestName: (draftGuest?.guestName ?? guest.guestName) || "",
+        phoneNo: (draftGuest?.phone ?? guest.phoneNo ?? guest.phone) || "",
+        email: (draftGuest?.email ?? guest.email) || "",
+        nationality: (draftGuest?.nationality ?? guest.nationality) || null,
+        nic: (draftGuest?.ppNo ?? guest.nic ?? guest.ppNo) || null,
+        address: (draftGuest?.address ?? guest.address) || "",
+        city: (draftGuest?.city ?? guest.city) || "",
+        country:
+          draftGuest?.country ??
+          draftGuest?.nationality ??
+          guest.country ??
+          guest.nationality ??
+          null,
+        dob: draftGuest?.dob
+          ? new Date(draftGuest.dob).toISOString()
+          : guest.dob,
+
+        title: (draftGuest?.title ?? guest.title) || "",
+
         createdOn: guest.createdOn || new Date().toISOString(),
         createdBy: guest.createdBy || fullName || "system",
-        updatedOn: new Date().toISOString(),
-        updatedBy: fullName || "system",
-
-        // fields below are accepted by schema; keep safe defaults
-        recordId: guest.recordId ?? 0,
-        finAct: guest.finAct ?? true,
-        guestProfileId: guest.guestProfileId ?? profileId ?? 0,
-        reservationDetailId: bookingDetail?.reservationDetailID ?? 0,
-        profileRoomCreatedOn:
-          guest.profileRoomCreatedOn || new Date().toISOString(),
-        profileRoomCreatedBy:
-          guest.profileRoomCreatedBy || fullName || "system",
       };
 
-      await updateGuestProfile({
-        token: accessToken,
-        profileId,
-        payload,
-      });
+      // 🔄 call new Redux API
+      await dispatch(updateGuestMas(payload)).unwrap();
 
       // update UI list locally
       setRoomGuestProfiles((prev) =>
         prev.map((g) =>
-          (g.profileId || g.guestProfileId || g.id) === profileId
+          (g.guestID || g.profileId || g.guestProfileId || g.id) === guestID
             ? { ...g, ...payload }
             : g
         )
       );
 
       await createLogSafe(
-        `Guest row updated: profileId=${profileId}, name='${payload.guestName}', phone='${payload.phone}'`
+        `Guest row updated (GuestsMas): guestID=${guestID}, name='${payload.guestName}', phone='${payload.phoneNo}'`
       );
 
       setEditingRowId(null);
       setDraftGuest(null);
     } catch (e) {
-      console.error("Failed to update guest profile row:", e);
+      console.error("Failed to update GuestsMas row:", e);
       alert("Failed to update guest. Please try again.");
     }
   };
@@ -2074,7 +2062,7 @@ export function AmendDrawer({
                     >
                       {currencies.map((currency) => (
                         <option
-                          key={currency.currencyId}
+                          key={currency.currencyID}
                           value={currency.currencyCode}
                           className="dark:bg-black dark:text-white bg-white text-black"
                         >
