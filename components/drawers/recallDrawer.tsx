@@ -8,7 +8,10 @@ import { useAppDispatch } from "@/redux/hooks";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { updateReservationStatus } from "@/redux/slices/updateStatusByReservationDetailID";
+import { updateReservationStatus } from "@/redux/slices/updateReservationStatusSlice";
+import {
+  selectUpdateReservationStatusLoading,
+} from "@/redux/slices/updateReservationStatusSlice";
 import { Loader2 } from "lucide-react";
 
 type RecallDrawerProps = {
@@ -16,7 +19,7 @@ type RecallDrawerProps = {
     reservationDetailID: number;
     reservationNo?: string | number;
   };
-  onClose: () => void; // parent will refresh + close sheet
+  onClose: () => void;
 };
 
 export default function RecallDrawer({
@@ -24,7 +27,9 @@ export default function RecallDrawer({
   onClose,
 }: RecallDrawerProps) {
   const dispatch = useAppDispatch();
-  const { updateStatusLoading } = useSelector((s: RootState) => s.reservation);
+
+  // ✅ correct selector for loading state
+  const updateStatusLoading = useSelector(selectUpdateReservationStatusLoading);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,22 +38,30 @@ export default function RecallDrawer({
       toast.error("Missing reservation detail id");
       return;
     }
+
     setSubmitting(true);
+
+    // 🔥 Call thunk correctly — must send "status"
     const action = await dispatch(
       updateReservationStatus({
         reservationDetailId: bookingDetail.reservationDetailID,
-        statusId: 4, // 4 = Recalled
+        status: 4, // Recalled
       })
     );
 
     if (updateReservationStatus.fulfilled.match(action)) {
       toast.success("Booking recalled");
-      onClose(); // parent will also refresh
+      onClose();
     } else {
-      toast.error((action.payload as string) || "Failed to recall booking");
+      toast.error(
+        (action.payload as string) || "Failed to recall booking"
+      );
     }
+
     setSubmitting(false);
   };
+
+  const disabled = submitting || updateStatusLoading;
 
   return (
     <div className="flex flex-col h-full">
@@ -58,7 +71,9 @@ export default function RecallDrawer({
           Reservation No: {bookingDetail?.reservationNo ?? "—"}
         </p>
       </div>
+
       <Separator />
+
       <div className="p-4 space-y-3">
         <p className="text-sm">
           This will change the reservation detail status to <b>Recalled</b> (ID:
@@ -70,18 +85,12 @@ export default function RecallDrawer({
       </div>
 
       <div className="mt-auto p-4 flex justify-end gap-2 border-t bg-background">
-        <Button
-          variant="outline"
-          onClick={onClose}
-          disabled={submitting || updateStatusLoading}
-        >
+        <Button variant="outline" onClick={onClose} disabled={disabled}>
           Cancel
         </Button>
-        <Button
-          onClick={handleConfirm}
-          disabled={submitting || updateStatusLoading}
-        >
-          {submitting || updateStatusLoading ? (
+
+        <Button onClick={handleConfirm} disabled={disabled}>
+          {disabled ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Recalling…
