@@ -57,7 +57,8 @@ import reservationRemarkSlice from "./slices/reservationRemarkSlice";
 import guestProfileRemarkSlice from "./slices/createGuestProfileRemarkSlice";
 import fetchReservationRemarksSlice from "./slices/fetchReservationRemarksByDetailIdSlice";
 import fetchuGestProfileRemarkSlice from "./slices/getGuestProfileRemarkSlice";
-import shortenReservationSlice from "./slices/shortenReservationSlice";
+// import shortenReservationSlice from "./slices/shortenReservationSlice";
+import shortenReservationReducer from "./slices/shortenReservationSlice";
 import availabilitySlice from "./slices/availabilitySlice";
 import rateAvailabilityReducer from "./slices/availabilitySlice";
 import rateCodeSlice from "./slices/rateCodeSlice";
@@ -97,7 +98,7 @@ import updatePosCenterTaxConfigSlice from "./slices/updatePosCenterTaxConfigSlic
 import updateHotelPosCenterSlice from "./slices/updateHotelPosCenterSlice";
 import fetchCategoriesSlice from "./slices/fetchCategoriesSlice";
 import fetchHotelByGuidSlice from "./slices/fetchHotelByGuidSlice";
-import changeReservationDateSlice from "./slices/changeReservationDateSlice";
+import changeReservationDateReducer from "./slices/changeReservationDateSlice";
 import reservationAddRoomSlice from "./slices/reservationAddRoomSlice";
 import reportMasterSlice from "./slices/reportMasterSlice";
 import emailSendSlice from "./slices/emailSendSlice";
@@ -113,7 +114,7 @@ import hotelEmployeesByHotelSlice from "./slices/hotelEmployeesByHotelSlice";
 import updateHotelEmployeeSlice from "./slices/updateHotelEmployeeSlice";
 import deleteHotelEmployeeSlice from "./slices/deleteHotelEmployeeSlice";
 import createHousekeepingLogReducer from "./slices/createHousekeepingLogSlice";
-import noShowSlice from "./slices/noShowSlice";
+import noShowReservationReducer from "./slices/noShowSlice";
 import updatePasswordReducer from "./slices/updatePasswordSlice";
 import reservationStatusSlice from "./slices/updateStatusByReservationDetailID";
 import createPosCenterReducer from "./slices/createPosCenterSlice";
@@ -219,6 +220,7 @@ import updateVenueMasReducer from "./slices/updateVenueMasSlice";
 import createVenueMasReducer from "./slices/createVenueMasSlice";
 import createMealAllocationReducer from "./slices/createMealAllocationSlice";
 import updateMealAllocationReducer from "./slices/updateMealAllocationSlice";
+import deleteMealAllocationReducer from "./slices/deleteMealAllocationSlice";
 import createNationalityMasReducer from "./slices/createNationalityMasSlice";
 import updateNationalityMasReducer from "./slices/updateNationalityMasSlice";
 import fetchUserMasReducer from "./slices/fetchUserMasSlice";
@@ -236,6 +238,8 @@ import addRoomTypeMasReducer from './slices/addRoomTypeMasSlice';
 import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
 import cancelReservationReducer from "./slices/cancelReservationSlice";
 import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReasonSlice";
+import reasonsByCategoryReducer from "./slices/reasonsByCategorySlice";
+import roomChangeReducer from "./slices/roomChangeSlice";
 
 
 const store = configureStore({
@@ -296,7 +300,7 @@ const store = configureStore({
     guestProfileRemark: guestProfileRemarkSlice,
     fetchReservationRemarks: fetchReservationRemarksSlice,
     fetchuGestProfileRemark: fetchuGestProfileRemarkSlice,
-    shortenReservation: shortenReservationSlice,
+    // shortenReservation: shortenReservationSlice,
     availability: availabilitySlice,
     rateAvailability: rateAvailabilityReducer,
     rateCode: rateCodeSlice,
@@ -336,7 +340,7 @@ const store = configureStore({
     updateHotelPosCenter: updateHotelPosCenterSlice,
     fetchCategories: fetchCategoriesSlice,
     hotelByGuid: fetchHotelByGuidSlice,
-    changeReservationDate: changeReservationDateSlice,
+  changeReservationDate: changeReservationDateReducer,
     reservationAddRoom: reservationAddRoomSlice,
     reportMaster: reportMasterSlice,
     emailSend: emailSendSlice,
@@ -352,7 +356,7 @@ const store = configureStore({
     updateHotelEmployee: updateHotelEmployeeSlice,
     deleteHotelEmployee: deleteHotelEmployeeSlice,
     createHousekeepingLog: createHousekeepingLogReducer,
-    noShow: noShowSlice,
+    noShowReservation: noShowReservationReducer,
     updatePassword: updatePasswordReducer,
     reservationStatus: reservationStatusSlice,
     createPosCenter: createPosCenterReducer,
@@ -460,6 +464,7 @@ const store = configureStore({
     createVenueMas: createVenueMasReducer,
     createMealAllocation: createMealAllocationReducer,
     updateMealAllocation: updateMealAllocationReducer,
+    deleteMealAllocation: deleteMealAllocationReducer,
     createNationalityMas: createNationalityMasReducer,
     updateNationalityMas: updateNationalityMasReducer,
     fetchUserMas: fetchUserMasReducer,
@@ -477,6 +482,9 @@ const store = configureStore({
     updateRoomTypeMas: updateRoomTypeMasReducer,
     cancelReservation: cancelReservationReducer,
     fetchCancellationReason: fetchCancellationReasonReducer,
+    reasonsByCategory: reasonsByCategoryReducer,
+    shortenReservation: shortenReservationReducer,
+    roomChange: roomChangeReducer,
   },
 });
 

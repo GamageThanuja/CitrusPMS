@@ -22,21 +22,22 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
   const [newDate, setNewDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState(null);
-  const [groupRooms, setGroupRooms] = useState([]);
-  const [selectedRoomIds, setSelectedRoomIds] = useState([]);
+  const [feedbackMessage, setFeedbackMessage] = useState<any>(null);
+  const [groupRooms, setGroupRooms] = useState<any[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
   const [isGroup, setIsGroup] = useState(false);
-  const [singleRoomMeta, setSingleRoomMeta] = useState(null);
+  const [singleRoomMeta, setSingleRoomMeta] = useState<any>(null);
 
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (open) {
+    if (open && bookingDetail) {
       setNewDate("");
       setFeedbackMessage(null);
+
       const fetchGroupRooms = async () => {
         try {
-          const token = JSON.parse(localStorage.getItem("hotelmateTokens"));
+          const token = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
           const res = await fetch(
             `${BASE_URL}/api/Reservation/${bookingDetail.reservationID}`,
             {
@@ -50,7 +51,7 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
 
           if (rooms.length > 1) {
             setGroupRooms(rooms);
-            setSelectedRoomIds(rooms.map((r) => r.reservationDetailID));
+            setSelectedRoomIds(rooms.map((r: any) => r.reservationDetailID));
             setIsGroup(true);
           } else {
             setSingleRoomMeta(rooms[0] || null);
@@ -83,7 +84,7 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
       })()
     : "";
 
-  const resolveRoomId = (room, a, b) =>
+  const resolveRoomId = (room: any, a: any, b: any) =>
     room?.roomID ??
     room?.roomId ??
     a?.roomID ??
@@ -92,15 +93,13 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
     b?.roomId ??
     null;
 
-  const resolveDetailId = (room, a, b) =>
+  const resolveDetailId = (room: any, a: any, b: any) =>
     room?.reservationDetailID ??
     a?.reservationDetailID ??
     b?.reservationDetailID ??
     null;
 
-  const resolveMealPlan = (room, b) => room?.basis ?? b?.mealPlan ?? "BB";
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!newDate || !bookingData) {
@@ -131,21 +130,13 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
       return;
     }
 
-    if (newCheckOutDate - checkInDate < ONE_DAY_MS) {
+    if (newCheckOutDate.getTime() - checkInDate.getTime() < ONE_DAY_MS) {
       toast.error("Reservation must be at least 1 night.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const selectedProperty = JSON.parse(
-        localStorage.getItem("selectedProperty") || "{}"
-      );
-      const accessToken = tokens.accessToken;
-      const hotelCode = selectedProperty.hotelCode;
 
       const roomsToShorten = isGroup
         ? groupRooms.filter((r) =>
@@ -153,8 +144,9 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
           )
         : [bookingData];
 
+      // 🚩 Only send fields defined in /api/shorten
       await Promise.all(
-        roomsToShorten.map((room) => {
+        roomsToShorten.map((room: any) => {
           const payload = {
             reservationDetailId:
               resolveDetailId(room, bookingData, singleRoomMeta) || 0,
@@ -164,13 +156,13 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
             oldCheckOutDate: new Date(
               room.checkOUT || bookingData.checkOut
             ).toISOString(),
-            hotelCode: hotelCode.toString(),
-            mealPlan: resolveMealPlan(room, bookingData),
           };
+
           console.log(
             "[shortenReservation] Payload:",
             JSON.stringify(payload, null, 2)
           );
+
           return dispatch(shortenReservation(payload)).unwrap();
         })
       );
@@ -190,9 +182,12 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
 
       onShorten(newDate);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error in shorten stay:", error);
-      setFeedbackMessage({ type: "error", message: "Error shortening stay." });
+      setFeedbackMessage({
+        type: "error",
+        message: error?.message || "Error shortening stay.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -234,7 +229,7 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
                     onChange={(e) => {
                       setSelectedRoomIds(
                         e.target.checked
-                          ? groupRooms.map((r) => r.reservationDetailID)
+                          ? groupRooms.map((r: any) => r.reservationDetailID)
                           : []
                       );
                     }}
@@ -243,7 +238,7 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
                 </label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {groupRooms.map((room) => (
+                {groupRooms.map((room: any) => (
                   <div
                     key={room.reservationDetailID}
                     className={`p-4 border rounded-lg transition-all ${
@@ -291,7 +286,8 @@ export function ShortenDrawer({ bookingDetail, open, onClose, onShorten }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="shortenTill">
-                Shorten Till (Date) <span className="text-destructive">*</span>
+                Shorten Till (Date){" "}
+                <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="shortenTill"

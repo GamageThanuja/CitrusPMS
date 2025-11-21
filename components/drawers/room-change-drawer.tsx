@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getReasons } from "@/controllers/reasonsMasterController";
-import { getHotelRoomNumbersByHotelId } from "@/controllers/hotelRoomNumberController";
-import { ReasonMasterPayload } from "@/types/reasonsMaster";
-import { changeRoomForReservation } from "@/controllers/reservationController"; // Import the API call
-import { useDispatch } from "react-redux";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { RootState } from "@/redux/store";
 import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
+import {
+  fetchReasonsByCategory,
+  selectReasonsItems,
+  selectReasonsLoading,
+  selectReasonsError,
+} from "@/redux/slices/reasonsByCategorySlice";
+import {
+  fetchRoomMas,
+  selectRoomMas,
+  selectRoomMasLoading,
+  selectRoomMasError,
+} from "@/redux/slices/roomMasSlice";
+import { changeRoom } from "@/redux/slices/roomChangeSlice";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -19,8 +26,8 @@ interface RoomChangeDrawerProps {
   bookingDetail: {
     reservationNo?: string;
     reservationDetailID?: number;
-    checkIn?: string; // Assuming checkIn is a date string in ISO format
-    status?: string; // Add status property for checked-in validation
+    checkIn?: string;
+    status?: string;
   };
   onClose: () => void;
   isOpen?: boolean;
@@ -33,156 +40,111 @@ export function RoomChangeDrawer({
   onRoomChange,
 }: RoomChangeDrawerProps) {
   const [newRoomNumber, setNewRoomNumber] = useState("");
-  const [roomChangeReasons, setRoomChangeReasons] = useState<
-    ReasonMasterPayload[]
-  >([]);
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [roomOptions, setRoomOptions] = useState<
-    { roomNo: string; roomId: number }[]
-  >([]);
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
+
   const systemDate = useAppSelector(
     (state: RootState) => state.systemDate.value
   );
+
+  // 🔹 reasons slice
+  const allReasons = useAppSelector(selectReasonsItems);
+  const reasonsLoading = useAppSelector(selectReasonsLoading);
+  const reasonsError = useAppSelector(selectReasonsError);
+
+  // 🔹 roomMas slice
+  const roomMasItems = useAppSelector(selectRoomMas);
+  const roomMasLoading = useAppSelector(selectRoomMasLoading);
+  const roomMasError = useAppSelector(selectRoomMasError);
+
+  // Derived dropdown options from roomMas
+  const roomOptions = useMemo(
+    () =>
+      roomMasItems.map((room) => ({
+        roomNo: room.roomNumber,
+        roomId: room.roomID,
+      })),
+    [roomMasItems]
+  );
+
+  // Filter only "Room-Change" reasons
+  const roomChangeReasons = allReasons.filter(
+    (r) => r.category === "Room-Change"
+  );
+
   useEffect(() => {
     dispatch(fetchSystemDate());
   }, [dispatch]);
 
-  console.log("Booking Detail in the room chnage draewr:", bookingDetail);
+  console.log("Booking Detail in the room change drawer:", bookingDetail);
+
+  // 🔹 fetch reasons via Redux
+  useEffect(() => {
+    dispatch(fetchReasonsByCategory({ category: "Room-Change" }));
+  }, [dispatch]);
 
   useEffect(() => {
-    const fetchReasons = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const accessToken = tokens?.accessToken;
-        if (!accessToken) {
-          console.warn("No access token found");
-          return;
-        }
-
-        const reasons = await getReasons({ token: accessToken });
-        const filtered = reasons.filter((r) => r.category === "Room Change");
-        setRoomChangeReasons(filtered);
-      } catch (err) {
-        console.error("Failed to fetch room change reasons", err);
-      }
-    };
-
-    fetchReasons();
-  }, []);
-
-  useEffect(() => {
-    const fetchRoomNumbers = async () => {
-      try {
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
-        const accessToken = tokens?.accessToken;
-        const selectedProperty = localStorage.getItem("selectedProperty");
-        const property = selectedProperty ? JSON.parse(selectedProperty) : {};
-        const hotelId = property.id;
-
-        if (!accessToken || !hotelId) {
-          console.warn("Missing token or hotelId");
-          return;
-        }
-
-        const rooms = await getHotelRoomNumbersByHotelId({
-          token: accessToken,
-          hotelId,
-        });
-        setRoomOptions(
-          rooms.map((room) => ({
-            roomNo: room.roomNo,
-            roomId: room.roomID,
-          }))
-        );
-
-        console.log("aaa", rooms);
-      } catch (err) {
-        console.error("Failed to fetch hotel room numbers", err);
-      }
-    };
-
-    fetchRoomNumbers();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    console.log("submit 1");
-
-    if (newRoomNumber.trim() && bookingDetail.reservationDetailID) {
-      setIsSubmitting(true);
-      console.log("submit 2");
-
-      try {
-        console.log("submit 3");
-        const selectedRoom = roomOptions.find(
-          (room) => room.roomNo === newRoomNumber
-        );
-        if (!selectedRoom) {
-          console.error("Selected room not found");
-          return;
-        }
-
-        const newRoomId = selectedRoom.roomId;
-
-        const token = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        )?.accessToken;
-
-        if (token && newRoomId && bookingDetail.reservationDetailID) {
-          const payload = {
-            reservationDetailId: bookingDetail.reservationDetailID,
-            newRoomId: newRoomId,
-            browserTime: systemDate,
-          };
-
-          console.log("submit 4");
-          const response = await fetch(
-            `${BASE_URL}/api/Reservation/change-room`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(payload),
-            }
-          );
-
-          const result = await response.text(); // Use .json() if the response is JSON
-
-          if (response.ok) {
-            console.log("✅ Room change successful:", result);
-            onRoomChange({
-              reservationDetailId: bookingDetail.reservationDetailID!,
-              newRoomId,
-              newRoomNo: selectedRoom.roomNo,
-              reasonId: selectedReason ? Number(selectedReason) : undefined,
-            });
-            console.log("submit 6");
-          } else {
-            console.error("❌ Room change failed:", response.status, result);
-          }
-        }
-
-        onRoomChange(newRoomNumber);
-        onClose();
-      } catch (err) {
-        console.error("🚨 Error changing room:", err);
-      } finally {
-        setIsSubmitting(false);
-      }
-      console.log("submit 5");
+    if (reasonsError) {
+      console.error("Failed to fetch room change reasons:", reasonsError);
     }
-  };
+  }, [reasonsError]);
 
+  // 🔹 fetch room numbers via roomMas Redux slice
+  useEffect(() => {
+    dispatch(fetchRoomMas());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (roomMasError) {
+      console.error("Failed to fetch room list:", roomMasError);
+    }
+  }, [roomMasError]);
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!newRoomNumber.trim() || !bookingDetail.reservationDetailID) return;
+
+  setIsSubmitting(true);
+
+  try {
+    const selectedRoom = roomOptions.find(
+      (room) => room.roomNo === newRoomNumber
+    );
+    if (!selectedRoom) {
+      console.error("Selected room not found");
+      return;
+    }
+
+    const newRoomId = selectedRoom.roomId;
+
+    const payload = {
+      reservationDetailId: bookingDetail.reservationDetailID,
+      newRoomId,
+      browserTime: systemDate,
+      // reasonId: selectedReason ? Number(selectedReason) : undefined
+    };
+
+    console.log("[RoomChange Redux] Payload:", payload);
+
+    // 🔥 USE REDUX changeRoom API — replaces inline fetch
+    const response = await dispatch(changeRoom(payload)).unwrap();
+
+    console.log("🔥 Room change success via Redux:", response);
+
+    // Update UI in parent
+    onRoomChange(newRoomNumber);
+
+    // Close drawer
+    onClose();
+  } catch (err: any) {
+    console.error("❌ Room change failed:", err);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   return (
     <div className="bg-white dark:bg-black dark:text-white text-black py-8 px-6 min-h-full">
       <div className="max-w-lg mx-auto">
@@ -218,7 +180,9 @@ export function RoomChangeDrawer({
                 onChange={(e) => setNewRoomNumber(e.target.value)}
                 className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 dark:bg-black dark:text-white"
               >
-                <option value="">Select a room number</option>
+                <option value="">
+                  {roomMasLoading ? "Loading rooms..." : "Select a room number"}
+                </option>
                 {roomOptions.map((room) => (
                   <option key={room.roomId} value={room.roomNo}>
                     {room.roomNo}
@@ -240,12 +204,11 @@ export function RoomChangeDrawer({
                 onChange={(e) => setSelectedReason(e.target.value)}
                 className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 dark:bg-black dark:text-white"
               >
-                <option value="">Select a reason</option>
+                <option value="">
+                  {reasonsLoading ? "Loading reasons..." : "Select a reason"}
+                </option>
                 {roomChangeReasons.map((reason) => (
-                  <option
-                    key={reason.reasonId}
-                    value={reason.reasonId.toString()}
-                  >
+                  <option key={reason.id} value={reason.id.toString()}>
                     {reason.reason}
                   </option>
                 ))}
@@ -258,9 +221,14 @@ export function RoomChangeDrawer({
               </Button>
               <Button
                 type="submit"
-                disabled={!newRoomNumber.trim() || isSubmitting}
+                disabled={
+                  !newRoomNumber.trim() ||
+                  isSubmitting ||
+                  reasonsLoading ||
+                  roomMasLoading
+                }
               >
-                Confirm
+                {isSubmitting ? "Saving..." : "Confirm"}
               </Button>
             </div>
           </form>

@@ -1,96 +1,123 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+// src/redux/slices/shortenReservationSlice.ts
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-// Types
-interface ShortenReservationPayload {
+/** ---- Request payload (aligns with /api/shorten body) ---- */
+export interface ShortenReservationPayload {
   reservationDetailId: number;
   reservationMasterId: number;
   roomId: number;
-  newCheckOutDate: string;
-  oldCheckOutDate: string;
-  hotelCode: string;
-  mealPlan: string;
+  newCheckOutDate: string; // ISO string
+  oldCheckOutDate: string; // ISO string
 }
 
-interface ShortenReservationState {
+/** ---- Response type (adjust to real API if you know it) ---- */
+export interface ShortenReservationResponse {
+  success?: boolean;
+  message?: string;
+  status?: string;
+  [k: string]: any;
+}
+
+/** ---- State ---- */
+export interface ShortenReservationState {
   loading: boolean;
-  success: boolean;
   error: string | null;
+  item: ShortenReservationResponse | null;
+  success: boolean;
+  lastUpdatedAt: string | null;
 }
 
-// Initial State
 const initialState: ShortenReservationState = {
   loading: false,
-  success: false,
   error: null,
+  item: null,
+  success: false,
+  lastUpdatedAt: null,
 };
 
-// Thunk
-export const shortenReservation = createAsyncThunk(
-  "reservation/shorten",
-  async (payload: ShortenReservationPayload, { rejectWithValue }) => {
-    try {
-      const storedToken = localStorage.getItem("hotelmateTokens");
-      const parsedToken = storedToken ? JSON.parse(storedToken) : null;
-      const accessToken = parsedToken?.accessToken;
+function normalizeObject(res: any): ShortenReservationResponse | null {
+  if (!res) return null;
+  if (Array.isArray(res)) return (res[0] as ShortenReservationResponse) ?? null;
+  if (typeof res === "object") return res as ShortenReservationResponse;
+  return null;
+}
 
-      const selectedProperty = localStorage.getItem("selectedProperty");
-      const property = selectedProperty ? JSON.parse(selectedProperty) : {};
-      const hotelId = property.id;
-
-      const response = await axios.post(
-        `${BASE_URL}/api/Reservation/shorten`,
-
-        payload,
-
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error: any) {
-      const message =
-        error.response?.data?.detail || error.message || "Unknown error";
-      return rejectWithValue(message);
-    }
+/** ---- Thunk: POST /api/shorten ---- */
+export const shortenReservation = createAsyncThunk<
+  ShortenReservationResponse | null,
+  ShortenReservationPayload,
+  { rejectValue: string }
+>("shortenReservation/shorten", async (payload, { rejectWithValue }) => {
+  try {
+    const url = `${API_BASE_URL}/api/shorten`;
+    const res = await axios.post(url, payload);
+    return normalizeObject(res.data);
+  } catch (err: any) {
+    const msg =
+      err?.response?.data?.message ||
+      err?.message ||
+      "Failed to shorten reservation.";
+    return rejectWithValue(msg);
   }
-);
+});
 
-// Slice
+/** ---- Slice ---- */
 const shortenReservationSlice = createSlice({
   name: "shortenReservation",
   initialState,
   reducers: {
-    resetShortenReservationState: (state) => {
+    clearShortenReservation(state) {
       state.loading = false;
-      state.success = false;
       state.error = null;
+      state.item = null;
+      state.success = false;
+      state.lastUpdatedAt = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(shortenReservation.pending, (state) => {
         state.loading = true;
+        state.error = null;
         state.success = false;
-        state.error = null;
       })
-      .addCase(shortenReservation.fulfilled, (state) => {
-        state.loading = false;
-        state.success = true;
-        state.error = null;
-      })
+      .addCase(
+        shortenReservation.fulfilled,
+        (state, action: PayloadAction<ShortenReservationResponse | null>) => {
+          state.loading = false;
+          state.item = action.payload ?? null;
+          state.success = true;
+          state.lastUpdatedAt = new Date().toISOString();
+        }
+      )
       .addCase(shortenReservation.rejected, (state, action) => {
         state.loading = false;
         state.success = false;
-        state.error = action.payload as string;
+        state.error =
+          (action.payload as string) ||
+          "Failed to shorten reservation.";
       });
   },
 });
 
-export const { resetShortenReservationState } = shortenReservationSlice.actions;
+export const { clearShortenReservation } = shortenReservationSlice.actions;
 export default shortenReservationSlice.reducer;
+
+/** ---- Selectors ---- */
+export const selectShortenReservationItem = (s: any) =>
+  (s.shortenReservation?.item as ShortenReservationResponse | null) ?? null;
+
+export const selectShortenReservationLoading = (s: any) =>
+  (s.shortenReservation?.loading as boolean) ?? false;
+
+export const selectShortenReservationError = (s: any) =>
+  (s.shortenReservation?.error as string | null) ?? null;
+
+export const selectShortenReservationSuccess = (s: any) =>
+  (s.shortenReservation?.success as boolean) ?? false;
+
+export const selectShortenReservationLastUpdatedAt = (s: any) =>
+  (s.shortenReservation?.lastUpdatedAt as string | null) ?? null;

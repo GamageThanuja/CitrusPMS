@@ -2,10 +2,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getReasons } from "@/controllers/reasonsMasterController";
-import { ReasonMasterPayload } from "@/types/reasonsMaster";
+import { useDispatch } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { getAllCurrencies } from "@/controllers/AllCurrenciesController";
+import { useAppSelector } from "@/redux/hooks";
+
+import {
+  fetchReasonsByCategory,
+  selectReasonsItems,
+  selectReasonsLoading,
+  selectReasonsError,
+} from "@/redux/slices/reasonsByCategorySlice";
 
 type GroupContext = {
   isGroup: boolean;
@@ -30,13 +37,14 @@ interface NoShowDrawerProps {
   isLoading?: boolean;
   /**
    * Will receive user's choices. Parent can ignore the argument if not needed.
+   * Shape aligned with NoShow API: isChargable + currencyCode.
    */
   onConfirm: (args?: {
-    detailIds?: number[];
+    detailIds?: number[]; // for bulk/group
     reason: string;
-    withSurcharges: boolean;
+    isChargable: boolean;
     amount?: number;
-    currency?: string;
+    currencyCode?: string;
   }) => void;
 
   /** Needed to pop the payments drawer when surcharges are selected */
@@ -60,35 +68,30 @@ export function NoShowDrawer({
   setTakePaymentsOpen,
   groupContext,
 }: NoShowDrawerProps) {
+  const dispatch = useDispatch<any>();
+
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [withSurcharges, setWithSurcharges] = useState<boolean>(false);
-  const [reasonOptions, setReasonOptions] = useState<ReasonMasterPayload[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<Currency[]>([]);
   const [selectedCurrency, setSelectedCurrency] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
 
-  // NEW: Apply-to-all toggle for group
+  // Apply-to-all toggle for group
   const [applyToAllSelected, setApplyToAllSelected] = useState<boolean>(true);
 
-  // Fetch "No-Show" reasons + currencies (single effect)
+  // 🔹 Reasons from Redux (filtered by category = "No-Show")
+  const reasonOptions = useAppSelector(selectReasonsItems);
+  const reasonsLoading = useAppSelector(selectReasonsLoading);
+  const reasonsError = useAppSelector(selectReasonsError);
+
+  // ---- Fetch reasons (No-Show category) via Redux ----
   useEffect(() => {
-    const fetchReasonsAndCurrencies = async () => {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const accessToken = tokens?.accessToken;
-      if (!accessToken) return;
+    dispatch(fetchReasonsByCategory({ category: "No-Show" }));
+  }, [dispatch]);
 
-      try {
-        const reasonsData = await getReasons({ token: accessToken });
-        const filtered = (reasonsData || []).filter(
-          (item: ReasonMasterPayload) => item.category === "No-Show"
-        );
-        setReasonOptions(filtered);
-      } catch (error) {
-        console.error("Failed to fetch reasons", error);
-      }
-
+  // ---- Fetch currencies (still via controller) ----
+  useEffect(() => {
+    const fetchCurrencies = async () => {
       try {
         const currencies = await getAllCurrencies();
         setCurrencyOptions(currencies || []);
@@ -96,8 +99,7 @@ export function NoShowDrawer({
         console.error("Failed to fetch currencies", error);
       }
     };
-
-    fetchReasonsAndCurrencies();
+    fetchCurrencies();
   }, []);
 
   const selectedCount = groupContext?.selectedRooms?.length ?? 0;
@@ -126,15 +128,13 @@ export function NoShowDrawer({
           ? groupContext.detailIds
           : undefined,
       reason: selectedReason,
-      withSurcharges,
+      isChargable: withSurcharges,
       amount: withSurcharges ? parseFloat(amount) : undefined,
-      currency: withSurcharges ? selectedCurrency : undefined,
+      currencyCode: withSurcharges ? selectedCurrency : undefined,
     };
 
-    // Let parent handle single or bulk flow
     onConfirm(payload);
 
-    // Open payments flow only if surcharges are requested
     if (withSurcharges) {
       setTakePaymentsOpen(true);
     }
@@ -226,13 +226,22 @@ export function NoShowDrawer({
                   onChange={(e) => setSelectedReason(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">Select a reason</option>
+                  <option value="">
+                    {reasonsLoading
+                      ? "Loading reasons..."
+                      : "Select a reason"}
+                  </option>
                   {reasonOptions.map((reason) => (
-                    <option key={reason.reasonId} value={reason.reason}>
+                    <option key={reason.id} value={reason.reason}>
                       {reason.reason}
                     </option>
                   ))}
                 </select>
+                {reasonsError && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Failed to load reasons: {reasonsError}
+                  </p>
+                )}
               </div>
 
               {/* Surcharges */}
