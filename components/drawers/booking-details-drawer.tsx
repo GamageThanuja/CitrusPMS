@@ -201,6 +201,7 @@ export default function BookingDetailsDrawer({
   console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
 
   const reservationId = bookingDetail?.reservationID;
+  console.log("reservationId oiiiiiiii: ", reservationId);
 
   const [bookingData, setBookingData] = useState<any>(null);
   console.log("Booking Data 🏀🏀🏀 :", bookingData);
@@ -233,7 +234,7 @@ export default function BookingDetailsDrawer({
       setInternalRemark(reservationDetailData.remarks_Internal || "");
       setGuestRemark(reservationDetailData.remarks_Guest || "");
       // Update guestProfileId from API response
-      setGuestProfileId(reservationDetailData.guestProfileID ?? null);
+      setGuestProfileId(bookingDetail?.guestProfileID ?? null);
     }
   }, [reservationDetailData]);
 
@@ -874,7 +875,6 @@ const handleRoomChangeComplete = () => {
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  console.log("Reservation Rate Details 0000000: ", reservationRateDetails);
 
   // Log updated Redux rateDetails for debugging
   useEffect(() => {
@@ -882,7 +882,7 @@ const handleRoomChangeComplete = () => {
   }, [reservationRateDetails]);
   // Guest Profile ID state - prioritize API data over prop
   const [guestProfileId, setGuestProfileId] = useState<number | null>(
-    reservationDetailData?.guestProfileID ??
+    // reservationDetailData?.guestProfileID ??
       bookingDetail?.guestProfileId ??
       null
   );
@@ -1154,68 +1154,53 @@ const handleRoomChangeComplete = () => {
   }, [reservationDetailId]);
 
   // Fetch reservation details to get Guest Profile ID
-  useEffect(() => {
-    const fetchReservationDetails = async () => {
-      if (!reservationId) return;
+useEffect(() => {
+  if (!reservationId) return;
 
-      try {
-        const storedToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem("hotelmateTokens")
-            : null;
-        const token = storedToken ? JSON.parse(storedToken).accessToken : null;
+  const fetchReservationDetails = async () => {
+    try {
+      const res = await dispatch(
+        fetchReservationDetailsById({ reservationId })
+      ).unwrap();
 
-        const data = await getReservationById({
-          token,
-          reservationId: reservationId,
-        });
+      setGuestProfileId(res[0]?.guestProfileID ?? null);
+    } catch (error) {
+      console.error("Failed to fetch reservation details:", error);
+    }
+  };
 
-        setGuestProfileId(data?.guestProfileId ?? null);
-      } catch (error) {
-        console.error("Failed to fetch reservation details:", error);
-      }
-    };
-
-    fetchReservationDetails();
-  }, [reservationId]);
+  fetchReservationDetails();
+}, [reservationId, dispatch]);
 
   // Fetch Guest Profile details (title, address, etc.)
-  useEffect(() => {
-    const fetchGuestProfile = async () => {
-      setGuestProfile(null); // Reset profile to avoid stale data
-      if (!guestProfileId) {
-        console.log("No guestProfileId available for fetching guest profile");
-        return;
-      }
+useEffect(() => {
+  const fetchGuestProfile = async () => {
+    setGuestProfile(null);
 
+    if (!guestProfileId) {
+      console.log("No guestProfileId available for fetching guest profile");
+      return;
+    }
+
+    try {
       console.log("Fetching guest profile for guestProfileId:", guestProfileId);
 
-      try {
-        const storedToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem("hotelmateTokens")
-            : null;
-        const token = storedToken ? JSON.parse(storedToken).accessToken : null;
+      // 🔄 Fetch from Redux using guestId
+      const res = await dispatch(
+        fetchGuestMas({ guestId: guestProfileId })
+      ).unwrap(); // returns an array
 
-        if (!token) {
-          console.error("No access token found for guest profile fetch");
-          return;
-        }
+      const guest = res[0] ?? null; // one guest always → index 0
 
-        const data = await getGuestProfileById({
-          token,
-          profileId: guestProfileId,
-        });
+      console.log("Guest profile data received:", guest);
+      setGuestProfile(guest);
+    } catch (error) {
+      console.error("Failed to fetch guest profile:", error);
+    }
+  };
 
-        console.log("Guest profile data received:", data);
-        setGuestProfile(data);
-      } catch (error) {
-        console.error("Failed to fetch guest profile:", error);
-      }
-    };
-
-    fetchGuestProfile();
-  }, [guestProfileId, reservationDetailId]);
+  fetchGuestProfile();
+}, [guestProfileId, reservationDetailId, dispatch]);
 
   // Handle file upload success
   useEffect(() => {
@@ -1540,22 +1525,22 @@ const handleRoomChangeComplete = () => {
     {
       key: "reservationNo",
       label: "Reservation No",
-      value: reservationDetailDataState?.reservationNo,
+      value: bookingDetail?.reservationNo,
     },
     {
       key: "reservationID",
       label: "Reservation ID",
-      value: reservationDetailDataState?.reservationID,
+      value: bookingDetail?.reservationID,
     },
     {
       key: "reservationDetailID",
       label: "Reservation Detail ID",
-      value: reservationDetailDataState?.reservationDetailID,
+      value: bookingDetail?.reservationDetailID,
     },
     {
       key: "nameID",
       label: "Name ID",
-      value: reservationDetailDataState?.nameID ?? guestProfile?.nameID,
+      value: bookingDetail?.nameID ?? guestProfile?.nameID,
     },
     {
       key: "guestProfileId",
@@ -1566,26 +1551,26 @@ const handleRoomChangeComplete = () => {
       key: "reservationStatusID",
       label: "Reservation Status ID",
       value:
-        reservationDetailDataState?.reservationStatusID ??
-        reservationDetailDataState?.reservationStatusId,
+        bookingDetail?.reservationStatusID ??
+        bookingDetail?.reservationStatusId,
     },
     {
       key: "roomNumber",
       label: "Room Number",
       value:
-        reservationDetailDataState?.roomNumber ??
-        reservationDetailDataState?.roomNumber,
+        bookingDetail?.roomNumber ??
+        bookingDetail?.roomNumber,
     },
     {
       key: "currencyCode",
       label: "Currency",
-      value: reservationDetailDataState?.currencyCode,
+      value: bookingDetail?.currencyCode,
     },
     {
       key: "createdOn",
       label: "Created On",
-      value: reservationDetailDataState?.createdOn
-        ? safeFormatDateTime(reservationDetailDataState.createdOn)
+      value: bookingDetail?.createdOn
+        ? safeFormatDateTime(bookingDetail.createdOn)
         : undefined,
     },
     { key: "checkIn", label: "Check-in", value: checkInDisplay },
@@ -1795,7 +1780,7 @@ const handleRoomChangeComplete = () => {
                             Reservation No
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.reservationNo || "—"}
+                            {bookingDetail?.reservationNo || "—"}
                           </p>
                         </div>
                         <div>
@@ -1803,7 +1788,7 @@ const handleRoomChangeComplete = () => {
                             Booking Ref
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.refNo || "—"}
+                            {bookingDetail?.refNo || "—"}
                           </p>
                         </div>
                       </div>
@@ -1813,7 +1798,7 @@ const handleRoomChangeComplete = () => {
                             Source
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.sourceOfBooking || "—"}
+                            {bookingDetail?.sourceOfBooking || "—"}
                           </p>
                         </div>
                         <div>
@@ -1821,7 +1806,7 @@ const handleRoomChangeComplete = () => {
                             Created By
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.createdBy || "—"}
+                            {bookingDetail?.createdBy || "—"}
                           </p>
                         </div>
                       </div>
@@ -1845,7 +1830,7 @@ const handleRoomChangeComplete = () => {
                           <div className="font-medium">Created On</div>
                           <div className="">
                             {safeFormatDateTime(
-                              reservationDetailData?.createdOn
+                              bookingDetail?.createdOn
                             )}
                           </div>
                         </div>
@@ -1855,7 +1840,7 @@ const handleRoomChangeComplete = () => {
                             Currency
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.currencyCode || "—"}
+                            {bookingDetail?.currencyCode || "—"}
                           </p>
                         </div>
                       </div>
@@ -1885,7 +1870,7 @@ const handleRoomChangeComplete = () => {
                     <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Booker Details{" "}
-                      {reservationDetailDataState?.reservationDetailID}
+                      {bookingDetail?.reservationDetailID}
                     </h3>
                     <div className="space-y-3">
                       {/* Guest Profile ID */}
@@ -1913,7 +1898,7 @@ const handleRoomChangeComplete = () => {
                                 {text.nameText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.bookerFullName ||
+                                {bookingDetail?.bookerFullName ||
                                   "—"}
                               </p>
                             </div>
@@ -1922,7 +1907,7 @@ const handleRoomChangeComplete = () => {
                                 Country
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.country || "—"}
+                                {bookingDetail?.country || "—"}
                               </p>
                             </div>
                           </div>
@@ -1934,7 +1919,7 @@ const handleRoomChangeComplete = () => {
                                 Phone
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.phone || "—"}
+                                {bookingDetail?.phone || "—"}
                               </p>
                             </div>
                             <div>
@@ -1942,7 +1927,7 @@ const handleRoomChangeComplete = () => {
                                 Email
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.email || "—"}
+                                {bookingDetail?.email || "—"}
                               </p>
                             </div>
                           </div>
@@ -2009,7 +1994,7 @@ const handleRoomChangeComplete = () => {
                                 {text.nameText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.bookerFullName}
+                                {bookingDetail?.bookerFullName}
                               </p>
                             </div>
                             <div>
@@ -2017,7 +2002,7 @@ const handleRoomChangeComplete = () => {
                                 {text.phoneText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.phone}
+                                {bookingDetail?.phone}
                               </p>
                             </div>
                           </div>
@@ -2026,7 +2011,7 @@ const handleRoomChangeComplete = () => {
                               {text.emailText}
                             </p>
                             <p className="font-medium">
-                              {reservationDetailData?.email}
+                              {bookingDetail?.email}
                             </p>
                           </div>
                         </>
@@ -2088,7 +2073,7 @@ const handleRoomChangeComplete = () => {
                           />
                         ) : (
                           <div className="border rounded p-2 text-sm bg-muted/50">
-                            {reservationDetailData?.remarks_Internal ||
+                            {bookingDetail?.remarks_Internal ||
                               "No internal remarks"}
                           </div>
                         )}
@@ -2109,7 +2094,7 @@ const handleRoomChangeComplete = () => {
                         ) : (
                           <div className="border rounded p-2 text-sm bg-muted/50">
                             {guestRemark ||
-                              reservationDetailData?.remarks_Guest ||
+                              bookingDetail?.remarks_Guest ||
                               "No guest remarks"}
                           </div>
                         )}

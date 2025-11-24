@@ -1,9 +1,9 @@
 "use client";
 import {
   updateRoomRates,
-  updateReservationNameCurrency,
   getReservationById,
 } from "@/controllers/reservationController";
+import { updateNameCurrency } from "@/redux/slices/updateNameCurrencySlice";
 import { UpdateRoomRate } from "@/types/reservation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -95,11 +95,14 @@ export function AmendDrawer({
   guestProfileId,
   reservationStatusID,
   bookingDetail,
-  reservationData,
 }: AmendDrawerProps) {
+  console.log("AmendDrawer drawer bookingDetail hihihihih ", bookingDetail);
   console.log("AmendDrawer drawer guestprofileId", guestProfileId);
   console.log("AmendDrawer drawer reservationStatusID", reservationStatusID);
-  console.log("AmendDrawer drawer bookingDetail", bookingDetail);
+  console.log("AmendDrawer drawer bookingDetail reservationId and reservationDetailId", bookingDetail.reservationId , bookingDetail.reservationDetailId);
+  console.log("AmendDrawer drawer bookingDetail reservationID and reservationDetailID", bookingDetail.reservationID , bookingDetail.reservationDetailID);
+
+
   // Ensure booking and bookingDetail are loaded before rendering content
   if (!bookingDetail) return null;
 
@@ -107,6 +110,7 @@ export function AmendDrawer({
   const dispatch = useAppDispatch();
 
   console.log("rateDetails in AmendDrawer", rateDetails);
+  
 
   const [editableRates, setEditableRates] = useState<RateDetail[]>([]);
 
@@ -157,6 +161,9 @@ export function AmendDrawer({
   const checkInDate = bookingDetail.resCheckIn || "";
   const checkOutDate = bookingDetail.resCheckOut || "";
   const source = bookingDetail.sourceOfBooking || "";
+
+  console.log("source of booking in amend drawer", source);
+  
 
   // Edit mode state for each section
   const [editReservationDetails, setEditReservationDetails] = useState(false);
@@ -218,8 +225,8 @@ export function AmendDrawer({
   }
 
   useEffect(() => {
-    if (reservationData?.currencyCode) {
-      setSelectedCurrency(reservationData.currencyCode);
+    if (bookingDetail?.currencyCode) {
+      setSelectedCurrency(bookingDetail.currencyCode);
     }
   }, [bookingDetail]);
 
@@ -508,58 +515,68 @@ export function AmendDrawer({
   ];
 
   const [selectedCurrency, setSelectedCurrency] = useState(
-    bookingData?.currencyCode || ""
+    bookingDetail?.currencyCode || ""
   );
 
   console.log("selectedCurrency", selectedCurrency);
   console.log("booking data : ", bookingData);
 
   // Save Reservation Details handler
-  const handleSaveReservationDetails = useCallback(async () => {
-    try {
-      const selectedPropertyStr = localStorage.getItem("selectedProperty");
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      if (!selectedPropertyStr || !tokens?.accessToken) return;
-      const selectedProperty = JSON.parse(selectedPropertyStr);
+const handleSaveReservationDetails = useCallback(async () => {
+  try {
+    // Read selectedProperty from localStorage
+    const selectedPropertyStr = localStorage.getItem("selectedProperty");
+    if (!selectedPropertyStr) return;
 
-      // Find the travel agent's name if available, else fallback to selectedTravelAgent
-      const travelAgentObj = travelAgents.find(
-        (a) => a.name === selectedTravelAgent
-      );
+    const selectedProperty = JSON.parse(selectedPropertyStr);
 
-      const payload = {
-        property_id: selectedProperty?.property_id ?? null,
-        hotel_id: bookingDetail.hotelID,
-        ota_name: travelAgentObj?.name || selectedTravelAgent,
-        currency: selectedCurrency,
-      };
+    // Extract hotel_id from localStorage object
+    const hotelId = selectedProperty?.id; 
 
-      const response = await updateReservationNameCurrency({
-        token: tokens.accessToken,
-        reservationId: bookingDetail.reservationID,
+    // Find travel agent name from list
+    const travelAgentObj = travelAgents.find(
+      (a) => a.name === selectedTravelAgent
+    );
+
+    // Build payload
+    const payload = {
+      property_id: null,
+      hotel_id: hotelId,                       
+      ota_name: travelAgentObj?.name || selectedTravelAgent,
+      currency: selectedCurrency,
+    };
+
+    console.log("reervation id in handleSaveReservationDetails", bookingDetail.reservationID);
+
+    // Call Redux thunk
+    await dispatch(
+      updateNameCurrency({
+        reservationId: bookingDetail.reservationID, 
         payload,
-      });
+      })
+    ).unwrap();
 
-      // Update booking object so UI reflects the new Travel Agent and Currency immediately
-      bookingDetail.sourceOfBooking =
-        travelAgentObj?.name || selectedTravelAgent;
-      bookingDetail.currencyCode = selectedCurrency;
-      setEditReservationDetails(false);
-      await createLogSafe(
-        `Reservation details updated: agent='${bookingDetail.sourceOfBooking}', currency='${bookingDetail.currencyCode}'`
-      );
-    } catch (e) {
-      console.error("Error saving reservation details:", e);
-    }
-  }, [
-    bookingDetail.reservationID,
-    bookingDetail.hotelID,
-    selectedCurrency,
-    selectedTravelAgent,
-    travelAgents,
-  ]);
+    // Update UI values instantly
+    bookingDetail.sourceOfBooking =
+      travelAgentObj?.name || selectedTravelAgent;
+    bookingDetail.currencyCode = selectedCurrency;
+
+    setEditReservationDetails(false);
+
+    await createLogSafe(
+      `Reservation details updated: agent='${bookingDetail.sourceOfBooking}', currency='${bookingDetail.currencyCode}'`
+    );
+  } catch (e) {
+    console.error("Error saving reservation details:", e);
+  }
+}, [
+  dispatch,
+  bookingDetail,
+  selectedCurrency,
+  selectedTravelAgent,
+  travelAgents,
+  createLogSafe,
+]);
 
   const handleSaveRates = useCallback(async () => {
     try {
@@ -788,14 +805,6 @@ export function AmendDrawer({
 
       // Save Customer Details
       await handleSaveCustomerDetails();
-
-      // Any other submission logic
-      // For example, updating notes, attachments, etc.
-      // handleSaveNotes();
-      // handleSaveAttachments();
-
-      // After all data is saved, close the drawer
-      // This will close the drawer after everything is saved
       await createLogSafe("Amendment saved successfully (all sections).");
     } catch (error) {
       console.error("Error during submission:", error);
@@ -805,7 +814,7 @@ export function AmendDrawer({
     handleSaveReservationDetails,
     handleSaveRates,
     handleSaveCustomerDetails,
-    onClose, // Ensure onClose is included to close the drawer after successful submission
+    onClose, 
   ]);
 
   const transactions = useAppSelector((state) => state.transaction.data);

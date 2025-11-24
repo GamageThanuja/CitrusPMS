@@ -73,6 +73,7 @@ import BusinessBlockDrawer from "@/components/drawers/business-block-drawer";
 import VideoOverlay from "@/components/videoOverlay";
 import VideoButton from "@/components/videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
+import { current } from "@reduxjs/toolkit";
 
 
 export default function FrontDeskPage() {
@@ -268,6 +269,8 @@ export default function FrontDeskPage() {
     setReservation(Array.isArray(frontdeskData) ? frontdeskData : []);
   }, [frontdeskData]);
 
+  console.log("Frontdesk Data in Page:", frontdeskData);
+
   const fetchReservations = useCallback(async () => {
     if (typeof window === "undefined") return;
 
@@ -390,6 +393,8 @@ export default function FrontDeskPage() {
     reservations: any[],
     roomTypes: any[]
   ) {
+
+    console.log("Transforming reservations to bookings:", reservations);
     const flatRooms = roomTypes.flatMap((t: any) => t.rooms || []);
     return reservations.map((r: any) => {
       // Map API response fields to expected field names
@@ -421,7 +426,7 @@ export default function FrontDeskPage() {
         roomType: r.roomType,
         phone: r.phone,
         email: r.email,
-        reservationID: r.id,
+        reservationID: r.reservationID,
         reservationNo: r.refNo,
         statusRaw: r.reservationStatus,
         reservationType: r.type,
@@ -453,7 +458,7 @@ export default function FrontDeskPage() {
   }
 
   useEffect(() => {
-    console.log("Raw reservation data:", reservation);
+    console.log("Raw reservation data: asdasdadas", reservation);
     console.log("Room types:", roomTypes);
     const transformedBookings = transformReservationsToBookings(
       reservation,
@@ -705,6 +710,7 @@ export default function FrontDeskPage() {
       guestName: booking.guestName,
       guest_remarks: booking.remarks_Guest,
       internal_remarks: booking.remarks_Internal,
+      currencyCode: booking.currencyCode,
 
     });
 
