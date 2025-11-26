@@ -317,9 +317,6 @@ export default function QuickReservationDrawer({
     ratePlanId: "",
     rateCodeId: "",
 
-    // rateIsManual: false, // legacy (kept for compatibility)
-    // autoRate: true,
-
     daysMap: {} as Record<string, number>,
     childDaysMap: {} as Record<string, number>,
     childRateAvg: 0,
@@ -339,8 +336,8 @@ export default function QuickReservationDrawer({
     extra: "",
     discount: "",
     discountType: "amount",
-    checkInDate: new Date(systemDate).toISOString().split("T")[0],
-    checkOutDate: addDays(new Date(systemDate), 1).toISOString().split("T")[0],
+    checkInDate: systemDate,
+    checkOutDate: addDays(systemDate, 1),
     firstName: "",
     address: "",
     country: "",

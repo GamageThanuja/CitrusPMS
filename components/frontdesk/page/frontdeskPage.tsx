@@ -1726,7 +1726,7 @@ export default function FrontDeskPage() {
           open={bookingDrawerOpen}
           isBookingPageView={false}
           onOpenChange={setBookingDrawerOpen}
-          bookingDetail={selectedReservation}
+          bookingDetailsData={selectedReservation}
           text={{
             bookingDetailsText: "Booking ",
             roomDetailsText: "Room Details",
