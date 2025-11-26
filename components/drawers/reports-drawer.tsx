@@ -24,7 +24,11 @@ import { sendCustomEmail } from "@/redux/slices/emailSendSlice";
 import { patchHotelGRCPara1 } from "@/redux/slices/updateHotelSlice";
 import { updateHotel } from "@/redux/slices/updateHotelSlice";
 import { useDrawerToast } from "@/components/toasts/update-bill-toast";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import {
   fetchReservationRateDetails,
@@ -892,7 +896,7 @@ function BillTab({
     if (!isActive || !isOpen) return;
     if (reservationDetailID) {
       dispatch(
-        fetchFolioByReservationDetailId(Number(reservationDetailID)) as any
+        fetchFolioByDetailId(Number(reservationDetailID)) as any
       );
     }
     const resId = bookingDetail?.reservationID;

@@ -13,7 +13,7 @@ import rateDetailsReducer from "./slices/rateDetailsSlice";
 import mealPlanReducer from "./slices/mealPlanSlice";
 import transactionCodeReducer from "./slices/transactionCodeSlice";
 import postChargesReducer from "./slices/postChargesSlice";
-import folioReducer from "./slices/folioSlice";
+import fetchFolioByDetailIdReducer from "@/redux/slices/fetchFolioByDetailIdSlice";
 import reservationReducer from "./slices/reservationSlice";
 import transactionSlice from "./slices/transactionSlice";
 import guestProfileReducer from "./slices/guestProfileSlice";
@@ -167,7 +167,7 @@ import editBasisMasByBasisKeyReducer from "./slices/editBasisMasByBasisKeySlice"
 import fetchMealAllocationReducer from "./slices/fetchMealAllocationSlice";
 import createCategoryMasReducer from "./slices/createCategoryMasSlice";
 import updateCategoryMasReducer from "./slices/updateCategoryMasSlice";
-import fetchNameMasReducer from "./slices/fetchNameMasSlice"; 
+import fetchNameMasReducer from "./slices/fetchNameMasSlice";
 import fetchNationalityMasReducer from "./slices/fetchNationalityMasSlice";
 import createNameMasReducer from "./slices/createNameMasSlice";
 import updateNameMasReducer from "./slices/updateNameMasSlice";
@@ -206,7 +206,7 @@ import updateReservationRateDetailsReducer from "./slices/updateReservationRateD
 import fetchReservationSourceReducer from "./slices/fetchReservationSourceSlice";
 import createReservationSourceReducer from "./slices/createReservationSourceSlice";
 import updateReservationSourceReducer from "./slices/updateReservationSourceSlice";
-import fetchSalesExecutiveMasReducer from "./slices/fetchSalesExecutiveMasSlice"
+import fetchSalesExecutiveMasReducer from "./slices/fetchSalesExecutiveMasSlice";
 import createSalesExecutiveMasReducer from "./slices/createSalesExecutiveMasSlice";
 import updateSalesExecutiveMasReducer from "./slices/updateSalesExecutiveMasSlice";
 import fetchSeasonMasReducer from "./slices/fetchSeasonMasSlice";
@@ -234,14 +234,13 @@ import fetchRateMasReducer from "./slices/fetchRateMasSlice";
 import fetchHotelRatePlansReducer from "./slices/fetchHotelRatePlanSlice";
 import fetchReservationDetailsByIdReducer from "@/redux/slices/fetchreservtaionByIdSlice";
 import createHotelRatePlansReducer from "./slices/createHotelRatePlansSlice";
-import addRoomTypeMasReducer from './slices/addRoomTypeMasSlice';
-import updateRoomTypeMasReducer from './slices/updateRoomTypeMasSlice';
+import addRoomTypeMasReducer from "./slices/addRoomTypeMasSlice";
+import updateRoomTypeMasReducer from "./slices/updateRoomTypeMasSlice";
 import cancelReservationReducer from "./slices/cancelReservationSlice";
 import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReasonSlice";
 import reasonsByCategoryReducer from "./slices/reasonsByCategorySlice";
 import roomChangeReducer from "./slices/roomChangeSlice";
 import updateNameCurrencyReducer from "./slices/updateNameCurrencySlice";
-
 
 const store = configureStore({
   reducer: {
@@ -256,7 +255,7 @@ const store = configureStore({
     mealPlan: mealPlanReducer,
     transactionCode: transactionCodeReducer,
     postCharges: postChargesReducer,
-    folio: folioReducer,
+    fetchFolioByDetailId: fetchFolioByDetailIdReducer,
     reservation: reservationReducer,
     transaction: transactionSlice,
     guestProfile: guestProfileReducer,
@@ -341,7 +340,7 @@ const store = configureStore({
     updateHotelPosCenter: updateHotelPosCenterSlice,
     fetchCategories: fetchCategoriesSlice,
     hotelByGuid: fetchHotelByGuidSlice,
-  changeReservationDate: changeReservationDateReducer,
+    changeReservationDate: changeReservationDateReducer,
     reservationAddRoom: reservationAddRoomSlice,
     reportMaster: reportMasterSlice,
     emailSend: emailSendSlice,
@@ -478,7 +477,7 @@ const store = configureStore({
     fetchRateMas: fetchRateMasReducer,
     fetchHotelRatePlans: fetchHotelRatePlansReducer,
     fetchReservationDetailsById: fetchReservationDetailsByIdReducer,
-     createHotelRatePlans: createHotelRatePlansReducer,
+    createHotelRatePlans: createHotelRatePlansReducer,
     addRoomTypeMas: addRoomTypeMasReducer,
     updateRoomTypeMas: updateRoomTypeMasReducer,
     cancelReservation: cancelReservationReducer,

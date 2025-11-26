@@ -49,7 +49,7 @@ import {
   selectRateChecksLastParams,
 } from "@/redux/slices/nightAuditRateCheckerSlice";
 import { fetchReservationById } from "@/redux/slices/reservationByIdSlice";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import { fetchFolioByReservationDetailId } from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { toast } from "sonner";
 import { noShowReservation } from "@/redux/slices/noShowSlice";

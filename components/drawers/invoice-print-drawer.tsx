@@ -11,7 +11,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useAppSelector } from "@/redux/hooks";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { fetchReservationById } from "@/redux/slices/reservationByIdSlice";
 import { SendEmailModal } from "@/components/modals/sendEmailModal";
@@ -215,7 +219,7 @@ export default function InvoicePrintDrawer({
 
   useEffect(() => {
     if (isOpen && reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(Number(reservationDetailId)));
+      dispatch(fetchFolioByDetailId(Number(reservationDetailId)));
       dispatch(fetchRateDetailsById(Number(reservationDetailId)) as any);
       dispatch(fetchReservationById(Number(reservationId)) as any);
     }

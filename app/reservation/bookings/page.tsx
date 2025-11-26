@@ -33,7 +33,7 @@ import { TakePaymentsDrawer } from "@/components/drawers/take-payments-drawer";
 
 import { useTranslatedText } from "@/lib/translation";
 import { getGuestProfileById } from "@/controllers/guestProfileMasterController";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import { fetchFolioByReservationDetailId } from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { useDispatch } from "react-redux";
 import {

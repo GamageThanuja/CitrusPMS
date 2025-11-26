@@ -2537,7 +2537,7 @@ export default function QuickReservationDrawer({
                         className="pl-10"
                         min={
                           systemDate ||
-                          new Date(systemDate).toISOString().split("T")[0]
+                          new Date(systemDate)
                         }
                         value={
                           checkInDate
@@ -2588,7 +2588,7 @@ export default function QuickReservationDrawer({
                         min={
                           checkInDate
                             ? checkInDate.toISOString().split("T")[0]
-                            : new Date(systemDate).toISOString().split("T")[0]
+                            : new Date(systemDate)
                         }
                         value={
                           checkOutDate

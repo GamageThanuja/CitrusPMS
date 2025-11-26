@@ -41,7 +41,11 @@ import {
 } from "@/redux/slices/reservationSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { RootState } from "@/redux/store";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { getReservationById } from "@/controllers/reservationController";
 import { getGuestProfileById } from "@/controllers/guestProfileMasterController";
@@ -572,7 +576,7 @@ export default function BookingPageDetailsDrawer({
           await dispatch(fetchReservationById(reservationId));
         }
         await Promise.allSettled([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
       } else {
@@ -594,11 +598,11 @@ export default function BookingPageDetailsDrawer({
     }
   }, [reservationId, dispatch]);
 
-  const { data: folioItem } = useSelector((state: RootState) => state.folio);
+  const { data: folioItem } = useSelector((state: RootState) => state.folio || {});
 
   useEffect(() => {
     if (reservationId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
   }, [reservationId, dispatch]);
 
@@ -755,7 +759,7 @@ export default function BookingPageDetailsDrawer({
         dispatch(fetchReservationById(reservationId));
       }
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
@@ -772,14 +776,14 @@ export default function BookingPageDetailsDrawer({
         dispatch(fetchReservationById(reservationId));
       }
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
 
   const handlePostChargesComplete = () => {
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
     dispatch(
       fetchTransactions({
@@ -794,7 +798,7 @@ export default function BookingPageDetailsDrawer({
 
   const handlePostCreditComplete = () => {
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
     dispatch(
       fetchTransactions({
@@ -809,7 +813,7 @@ export default function BookingPageDetailsDrawer({
 
   const handleTakePaymentsComplete = () => {
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
     dispatch(
       fetchTransactions({
@@ -824,7 +828,7 @@ export default function BookingPageDetailsDrawer({
 
   const handleCashPayoutComplete = () => {
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
     dispatch(
       fetchTransactions({
@@ -842,7 +846,7 @@ export default function BookingPageDetailsDrawer({
       dispatch(fetchReservationById(reservationId));
     }
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
       dispatch(fetchRateDetailsById(reservationDetailId));
     }
     if (guestProfileId) {
@@ -856,7 +860,7 @@ export default function BookingPageDetailsDrawer({
       dispatch(fetchReservationById(reservationId));
     }
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
       dispatch(fetchRateDetailsById(reservationDetailId));
     }
     setRoomChangeOpen(false);
@@ -921,7 +925,7 @@ export default function BookingPageDetailsDrawer({
         if (reservationId) await dispatch(fetchReservationById(reservationId));
         await Promise.allSettled(
           targetIds.flatMap((id) => [
-            dispatch(fetchFolioByReservationDetailId(id)),
+            dispatch(fetchFolioByDetailId(id)),
             dispatch(fetchRateDetailsById(id)),
           ])
         );
@@ -1068,7 +1072,7 @@ export default function BookingPageDetailsDrawer({
           await dispatch(fetchReservationById(reservationId));
         }
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
@@ -1255,7 +1259,7 @@ export default function BookingPageDetailsDrawer({
           await dispatch(fetchReservationById(reservationId));
         }
         await Promise.allSettled([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
         onOpenChange(false);
@@ -1861,7 +1865,7 @@ export default function BookingPageDetailsDrawer({
             await dispatch(fetchReservationById(reservationId));
           if (reservationDetailId) {
             await Promise.allSettled([
-              dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+              dispatch(fetchFolioByDetailId(reservationDetailId)),
               dispatch(fetchRateDetailsById(reservationDetailId)),
             ]);
           }

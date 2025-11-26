@@ -31,9 +31,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { fetchGlAccounts } from "@/redux/slices/glAccountSlice";
 // ✅ use the new slice
-import { fetchReservationById } from "@/redux/slices/reservationByIdSlice";
+import {
+  fetchReservationDetailsById,
+  selectReservationDetailsItems,
+} from "@/redux/slices/fetchreservtaionByIdSlice";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useStoredCurrencyCode } from "@/hooks/useStoredCurrencyCode";
 import { fetchExchangeRate } from "@/redux/slices/currencyExchangeSlice";
@@ -503,9 +510,30 @@ export function TakePaymentsDrawer({
   );
 
   // NEW: reservation (rooms) when in booking view
-  const reservationById = useSelector(
-    (state: RootState) => state.reservationById?.data
-  );
+// Raw items from new slice
+const reservationDetailsItems = useAppSelector(selectReservationDetailsItems);
+
+// Derive a "reservationById-like" object so the rest of the code can stay the same
+const reservationById = useMemo(() => {
+  if (!reservationDetailsItems || reservationDetailsItems.length === 0) {
+    return null;
+  }
+
+  const first = reservationDetailsItems[0];
+
+  return {
+    reservationID: first.reservationID,
+    bookerFullName: first.bookerFullName,
+    rooms: reservationDetailsItems.map((item) => ({
+      reservationDetailID: item.reservationDetailID,
+      roomNumber: item.roomNumber,
+      roomType: item.roomType,
+      guest1: item.guest1,
+      guest2: (item as any).guest2, // allowed by [k: string]: any
+      basis: item.basis,
+    })),
+  };
+}, [reservationDetailsItems]);
 
   console.log("booking page view : ", isBookingPageView);
 
@@ -541,11 +569,16 @@ export function TakePaymentsDrawer({
   }, [isCityLedger]);
 
   // Fetch reservation (room cards) if booking view
-  useEffect(() => {
-    if (isBookingPageView && bookingDetail?.reservationID) {
-      dispatch(fetchReservationById(bookingDetail.reservationID));
-    }
-  }, [dispatch, isBookingPageView, bookingDetail?.reservationID]);
+// Fetch reservation details (room cards) if booking view
+useEffect(() => {
+  if (isBookingPageView && bookingDetail?.reservationID) {
+    dispatch(
+      fetchReservationDetailsById({
+        reservationId: bookingDetail.reservationID,
+      })
+    );
+  }
+}, [dispatch, isBookingPageView, bookingDetail?.reservationID]);
 
   // Common: fetch currencies, GL accounts (raw), agents
   useEffect(() => {
@@ -663,23 +696,22 @@ export function TakePaymentsDrawer({
     };
   };
 
-  const rdId =
-    bookingDetail?.reservationDetailID ??
-    bookingDetail?.rooms?.[0]?.reservationDetailID ??
-    bookingDetail?.id;
+  const rdId = bookingDetail?.reservationDetailId;
+
+  console.log("rdId : ", rdId);
 
   // Folio
-  const { data: folioItems = [], loading: folioLoading } = useAppSelector(
-    (state) => state.folio || { data: [], loading: false }
-  );
+// Folio (from fetchFolioByDetailId slice)
+const folioItems = useAppSelector(selectFolioByDetailIdData);
+const folioLoading = useAppSelector(selectFolioByDetailIdLoading);
 
   console.log("Folio Items : ", folioItems);
 
-  useEffect(() => {
-    if (rdId) {
-      dispatch(fetchFolioByReservationDetailId(rdId));
-    }
-  }, [dispatch, rdId]);
+useEffect(() => {
+  if (rdId) {
+    dispatch(fetchFolioByDetailId(rdId));
+  }
+}, [dispatch, rdId]);
 
   // Single-room (drawer opened from a room card)
   const totalAmountSingle = useMemo(() => {

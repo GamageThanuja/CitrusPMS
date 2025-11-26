@@ -22,7 +22,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { useAppSelector } from "@/redux/hooks";
 import { useDispatch } from "react-redux";
 import { updateHousekeepingStatus } from "@/redux/slices/housekeepingStatusSlice";
@@ -168,7 +172,7 @@ export function CheckOutFormDrawer({
 
   useEffect(() => {
     if (rdId) {
-      dispatch(fetchFolioByReservationDetailId(rdId));
+      dispatch(fetchFolioByDetailId(rdId));
     }
   }, [dispatch, rdId]);
 

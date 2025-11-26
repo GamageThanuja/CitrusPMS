@@ -59,7 +59,11 @@ import {
 } from "@/redux/slices/reservationRateDetailSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { RootState } from "@/redux/store";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { getFolioByReservationDetailId } from "@/controllers/folioController";
 // import { getRateDetailsByReservationDetailId } from "@/controllers/rateDetailsController";
@@ -334,7 +338,7 @@ export default function BookingDetailsDrawer({
     useSelector((state: RootState) => state.reservation);
 
   const { data: rateDetail } = useSelector(
-    (state: RootState) => state.rateDetails
+    (state: RootState) => state.rateDetails || {}
   );
 
   // useEffect(() => {
@@ -378,20 +382,21 @@ export default function BookingDetailsDrawer({
     }
   }, [currentReservationId, reservationDetailId, dispatch]);
 
-  const { data: folioItem } = useSelector((state: RootState) => state.folio);
+  const folioItem = useSelector(selectFolioByDetailIdData);
+  const folioLoading = useSelector(selectFolioByDetailIdLoading);
 
   console.log("folioItem booking detail : ", folioItem);
 
   useEffect(() => {
     if (currentReservationId && reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
   }, [currentReservationId, reservationDetailId, dispatch]);
 
   console.log("Folio Items 🧾🧾🧾:", folioItem);
 
   const { data: transactions } = useSelector(
-    (state: RootState) => state.transaction
+    (state: RootState) => state.transaction || {}
   );
 
   console.log("Transactions 💰💰💰:", transactions);
@@ -518,7 +523,7 @@ export default function BookingDetailsDrawer({
 
       // Also refresh folio data as charges may have been added
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
@@ -542,7 +547,7 @@ export default function BookingDetailsDrawer({
 
       // Also refresh folio data as charges may have been updated
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
@@ -557,7 +562,7 @@ export default function BookingDetailsDrawer({
       // refresh folio + rate details for this detail
       if (reservationDetailId) {
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
       }
@@ -587,7 +592,7 @@ export default function BookingDetailsDrawer({
   const handlePostChargesComplete = () => {
     // Refresh folio data to show the new charges
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
@@ -607,7 +612,7 @@ export default function BookingDetailsDrawer({
   const handlePostCreditComplete = () => {
     // Refresh folio data to show the new credits
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
@@ -627,7 +632,7 @@ export default function BookingDetailsDrawer({
   const handleTakePaymentsComplete = () => {
     // Refresh folio data to show the new payment
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
@@ -647,7 +652,7 @@ export default function BookingDetailsDrawer({
   const handleCashPayoutComplete = () => {
     // Refresh folio data to show the payout
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
@@ -672,7 +677,7 @@ export default function BookingDetailsDrawer({
 
     // Also refresh folio and rate details
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
       dispatch(fetchRateDetailsById(reservationDetailId));
     }
 
@@ -687,7 +692,7 @@ export default function BookingDetailsDrawer({
 const handleRoomChangeComplete = () => {
   if (reservationDetailId) {
     dispatch(fetchReservationRateDetails({ reservationDetailId }));
-    dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+    dispatch(fetchFolioByDetailId(reservationDetailId));
     dispatch(fetchRateDetailsById(reservationDetailId));
   }
 
@@ -738,7 +743,7 @@ const handleRoomChangeComplete = () => {
         await dispatch(fetchReservationRateDetails({ reservationDetailId }));
 
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
@@ -795,7 +800,7 @@ const handleRoomChangeComplete = () => {
 
         // Refresh folio and rate details
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
@@ -1596,7 +1601,7 @@ useEffect(() => {
       }
       if (reservationDetailId) {
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
       }
@@ -3433,7 +3438,7 @@ useEffect(() => {
               if (reservationDetailId) {
                 await Promise.all([
                   dispatch(
-                    fetchFolioByReservationDetailId(reservationDetailId)
+                    fetchFolioByDetailId(reservationDetailId)
                   ),
                   dispatch(fetchRateDetailsById(reservationDetailId)),
                 ]);
@@ -3462,7 +3467,7 @@ useEffect(() => {
                 if (reservationDetailId) {
                   await Promise.all([
                     dispatch(
-                      fetchFolioByReservationDetailId(reservationDetailId)
+                      fetchFolioByDetailId(reservationDetailId)
                     ),
                     dispatch(fetchRateDetailsById(reservationDetailId)),
                   ]);
