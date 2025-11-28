@@ -58,7 +58,7 @@ import {
   fetchHotelTaxConfigs,
   selectHotelTaxConfigs,
 } from "@/redux/slices/hotelTaxConfigSlice";
-import { fetchHotelTaxByHotelId } from "@/redux/slices/hotelTaxByHotelIdSlice";
+import { fetchHotelTaxByHotelId } from "@/redux/slices/hotelTaxByHotelIDSlice";
 import {
   reverseExclusiveFromInclusive_API,
   computeInclusiveFromExclusive_API,

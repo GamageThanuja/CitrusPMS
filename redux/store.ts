@@ -7,7 +7,6 @@ import categoryReducer from "./slices/categorySlice";
 import cartReducer from "./slices/cartSlice";
 import itemReducer from "./slices/itemSlice";
 import createHotelTaxSlice from "./slices/hotelTaxSlice";
-import hotelTaxByHotelIdSlice from "./slices/hotelTaxByHotelIdSlice";
 import updateHotelTaxSlice from "./slices/updateHotelTaxSlice";
 import rateDetailsReducer from "./slices/rateDetailsSlice";
 import mealPlanReducer from "./slices/mealPlanSlice";
@@ -120,7 +119,7 @@ import reservationStatusSlice from "./slices/updateStatusByReservationDetailID";
 import createPosCenterReducer from "./slices/createPosCenterSlice";
 import updateItemMasterSlice from "./slices/updateItemMasterSlice";
 import deleteItemMasterReducer from "./slices/deleteItemMasterSlice";
-import takeReservationPaymentSlice from "./slices/takeReservationPaymentSlice";
+import takeReservationPaymentReducer from "@/redux/slices/takeReservationPaymentSlice";
 import postHotelRatePlanSlice from "./slices/postHotelRatePlanSlice";
 import currencyReducer from "@/redux/slices/currencySlice";
 import checkoutFlowReducer from "@/redux/slices/checkoutFlowSlice";
@@ -241,6 +240,13 @@ import fetchCancellationReasonReducer from "@/redux/slices/fetchCancellationReas
 import reasonsByCategoryReducer from "./slices/reasonsByCategorySlice";
 import roomChangeReducer from "./slices/roomChangeSlice";
 import updateNameCurrencyReducer from "./slices/updateNameCurrencySlice";
+import fetchGLAccountTypeReducer from "@/redux/slices/fetchGLAccountTypeSlice";
+import fetchGLAccountReducer from "@/redux/slices/fetchGLAccountSlices";
+import fetchTransactionCodeReducer from "./slices/fetchTransactionCodeSlice";
+import createTransactionReducer from "./slices/createTransactionSlice";
+import fetchHotelTaxByHotelIdReducer from "./slices/fetchHotelTaxByHotelIdSlice";
+
+
 
 const store = configureStore({
   reducer: {
@@ -249,7 +255,6 @@ const store = configureStore({
     cart: cartReducer,
     items: itemReducer,
     createHotelTax: createHotelTaxSlice,
-    hotelTaxByHotelId: hotelTaxByHotelIdSlice,
     updateHotelTax: updateHotelTaxSlice,
     rateDetails: rateDetailsReducer,
     mealPlan: mealPlanReducer,
@@ -362,7 +367,7 @@ const store = configureStore({
     createPosCenter: createPosCenterReducer,
     updateItemMaster: updateItemMasterSlice,
     deleteItemMaster: deleteItemMasterReducer,
-    takeReservationPayment: takeReservationPaymentSlice,
+    takeReservationPayment: takeReservationPaymentReducer,
     postHotelRatePlan: postHotelRatePlanSlice,
     currency: currencyReducer,
     checkoutFlow: checkoutFlowReducer,
@@ -486,6 +491,11 @@ const store = configureStore({
     shortenReservation: shortenReservationReducer,
     roomChange: roomChangeReducer,
     updateNameCurrency: updateNameCurrencyReducer,
+    fetchGLAccountType: fetchGLAccountTypeReducer,
+    fetchGLAccount: fetchGLAccountReducer,
+     fetchTransactionCode: fetchTransactionCodeReducer,
+     createTransaction: createTransactionReducer,
+      fetchHotelTaxByHotelId: fetchHotelTaxByHotelIdReducer,
   },
 });
 

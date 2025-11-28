@@ -9,7 +9,8 @@ export const useStoredCurrencyCode = (): string | null => {
 
     try {
       const property = JSON.parse(raw);
-      return property?.hotelCurrency || null;
+      // ✅ now using homeCurrencyCode
+      return property?.homeCurrencyCode || null;
     } catch {
       return null;
     }
@@ -23,7 +24,8 @@ export const useStoredCurrencyCode = (): string | null => {
 
     try {
       const property = JSON.parse(raw);
-      setCurrencyCode(property?.hotelCurrency || null);
+      // ✅ keep in sync
+      setCurrencyCode(property?.homeCurrencyCode || null);
     } catch {
       setCurrencyCode(null);
     }

@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { fetchTransactionCodes } from "@/redux/slices/transactionCodeSlice";
-import { fetchHotelTaxByHotelId } from "@/redux/slices/hotelTaxByHotelIdSlice";
+import { fetchTransactionCode } from "@/redux/slices/fetchTransactionCodeSlice";
+import { fetchHotelTaxByHotelId } from "@/redux/slices/fetchHotelTaxByHotelIdSlice";
 import { RootState } from "@/redux/store";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -21,10 +21,10 @@ import {
   selectHotelTaxConfigs,
 } from "@/redux/slices/hotelTaxConfigSlice";
 import {
-  createGlTransaction,
-  selectGlTxnCreateLoading,
-  resetGlTransactionState,
-} from "@/redux/slices/glTransactionCreateSlice";
+  createTransaction,
+  selectCreateTransactionLoading,
+  resetCreateTransactionState,
+} from "@/redux/slices/createTransactionSlice";
 
 type GroupContext = {
   isGroup: boolean;
@@ -65,16 +65,20 @@ export function PostChargesDrawer({
 
   const dispatch = useAppDispatch();
 
-  const { data: tranCodes } = useAppSelector((state) => state.transactionCode);
-  const posting = useAppSelector(selectGlTxnCreateLoading);
+  const { data: tranCodes } = useAppSelector(
+    (state) => state.fetchTransactionCode || { data: [] }
+  );
+  const posting = useAppSelector(selectCreateTransactionLoading);
 
   const [selectedTran, setSelectedTran] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [applyExtras, setApplyExtras] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currencyCode = useStoredCurrencyCode() || "LKR";
+  const currencyCode = useStoredCurrencyCode();
   useCurrency(); // keep warm
+
+  console.log("[PostChargesDrawer] bookingDetail:", bookingDetail);
 
   // Reset UI when open
   useEffect(() => {
@@ -83,7 +87,7 @@ export function PostChargesDrawer({
       setAmount("");
       setFeedbackMessage(null);
       setApplyToAllSelected(true);
-      dispatch(resetGlTransactionState());
+      dispatch(resetCreateTransactionState());
     }
   }, [open, dispatch]);
 
@@ -108,7 +112,7 @@ export function PostChargesDrawer({
   const hotelRows = useSelector(selectHotelTaxConfigs);
 
   useEffect(() => {
-    dispatch(fetchTransactionCodes());
+    dispatch(fetchTransactionCode());
   }, [dispatch]);
 
   const systemDate = useAppSelector(
@@ -493,16 +497,26 @@ export function PostChargesDrawer({
     if (!revenueAccountID)
       return toast.error("The selected transaction has no revenue account ID.");
 
+    const userIdStr =
+      typeof window !== "undefined" ? localStorage.getItem("userID") : null;
+
+    const userId = userIdStr ? Number(userIdStr) : 0;
+
     setIsSubmitting(true);
     setFeedbackMessage(null);
-    dispatch(resetGlTransactionState());
+    dispatch(resetCreateTransactionState());
 
     try {
       const runs = targetIds.map(async (rdId) => {
         const payload = makeGlPayloadForDetail(rdId, revenueAccountID);
         console.log("[GL][SEND] RD:", rdId, JSON.stringify(payload, null, 2));
         try {
-          const res = await dispatch(createGlTransaction(payload)).unwrap();
+          const res = await dispatch(
+            createTransaction({
+              userId,
+              transaction: payload,
+            })
+          ).unwrap();
           console.log("[GL][OK] RD:", rdId, res);
           return { rdId, ok: true as const, res };
         } catch (err: any) {
@@ -609,14 +623,7 @@ export function PostChargesDrawer({
           <div className="space-y-4">
             <div>
               <Label>Guest Name</Label>
-              <Input
-                value={(
-                  bookingDetail?.guestName ||
-                  bookingDetail?.guest ||
-                  ""
-                ).trim()}
-                disabled
-              />
+              <Input value={(bookingDetail?.bookerFullName).trim()} disabled />
             </div>
             <div>
               <Label>Room Number</Label>
@@ -736,7 +743,9 @@ function TransactionSelect({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { data } = useAppSelector((s) => s.transactionCode);
+  const { data } = useAppSelector(
+    (s) => s.fetchTransactionCode || { data: [] }
+  );
   return (
     <select
       value={value}
