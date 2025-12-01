@@ -245,6 +245,7 @@ import fetchGLAccountReducer from "@/redux/slices/fetchGLAccountSlices";
 import fetchTransactionCodeReducer from "./slices/fetchTransactionCodeSlice";
 import createTransactionReducer from "./slices/createTransactionSlice";
 import fetchHotelTaxByHotelIdReducer from "./slices/fetchHotelTaxByHotelIdSlice";
+import cashPayoutReducer from "./slices/cashPayoutSlice";
 
 
 
@@ -496,6 +497,7 @@ const store = configureStore({
      fetchTransactionCode: fetchTransactionCodeReducer,
      createTransaction: createTransactionReducer,
       fetchHotelTaxByHotelId: fetchHotelTaxByHotelIdReducer,
+      cashPayout: cashPayoutReducer,
   },
 });
 
