@@ -15,6 +15,10 @@ import { clearCart } from "@/redux/slices/cartSlice";
 import { toast } from "../ui/use-toast";
 import { Alert } from "../ui/alert";
 import { fetchReservationList } from "@/redux/slices/reservationListSlice";
+import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
+import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
+import { useAppSelector } from "@/redux/hooks";
+import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
 
 type DeliveryMethod = "dineIn" | "takeaway" | "roomService" | "deliveryService";
 
@@ -24,6 +28,7 @@ interface DeliveryMethodSelectionProps {
   selectedPosCenterName: string;
   initialMethod?: string;
   initialDetails?: Record<string, string>;
+  selectedOutletCurrency?: string;
 }
 
 export function DeliveryMethodSelection({
@@ -32,6 +37,7 @@ export function DeliveryMethodSelection({
   selectedPosCenterName,
   initialMethod,
   initialDetails,
+  selectedOutletCurrency,
 }: DeliveryMethodSelectionProps) {
   const [selectedMethod, setSelectedMethod] = useState<DeliveryMethod | null>(
     null
@@ -42,6 +48,9 @@ export function DeliveryMethodSelection({
   const { tables: posTable } = useSelector(
     (state: RootState) => state.posTable
   );
+
+  console.log("posTable 1 : ", formData);
+  console.log("pos delevery currency selection: ", selectedOutletCurrency);
 
   const dineIn = useTranslatedText("Dine In");
   const takeaway = useTranslatedText("Takeaway");
@@ -56,12 +65,31 @@ export function DeliveryMethodSelection({
   const continueText = useTranslatedText("Continue");
   const [submitted, setSubmitted] = useState(false);
   const [isRunningTableSelected, setIsRunningTableSelected] = useState(false);
+  const { fullName } = useUserFromLocalStorage();
+
+  const systemDate = useAppSelector(
+    (state: RootState) => state.systemDate.value
+  );
+
+  const { data } = useSelector((state) => state.nameMaster);
 
   const dispatch = useDispatch<AppDispatch>();
 
   const { data: reservations, loading: roomsLoading } = useSelector(
     (state: RootState) => state.reservationList
   );
+
+  console.log("reservations : ", reservations);
+
+  useEffect(() => {
+    dispatch(fetchSystemDate());
+  }, [dispatch]);
+
+  console.log("systemDate : ", systemDate);
+
+  useEffect(() => {
+    dispatch(fetchNameMasterByHotel());
+  }, [dispatch]);
 
   useEffect(() => {
     if (selectedMethod === "roomService") {
@@ -75,6 +103,202 @@ export function DeliveryMethodSelection({
     0
   );
 
+  // --- 80mm receipt popup helper ---
+  // --- 80mm receipt popup helper ---
+  const open80mmReceipt = (
+    orderResult: any,
+    payload: any,
+    cartSnapshot: any[]
+  ) => {
+    if (typeof window === "undefined") return;
+
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+
+    const hotelName =
+      property.hotelName ||
+      property.propertyName ||
+      property.hotel ||
+      property.name ||
+      payload.hotelCode ||
+      "Hotel";
+
+    const outletName = selectedPosCenterName || payload.posCenter || "Outlet";
+
+    const orderNo =
+      orderResult?.orderNo ||
+      orderResult?.docNo ||
+      orderResult?.tranMasId ||
+      payload?.docNo ||
+      "N/A";
+
+    const items = payload.items || [];
+    const currency = selectedOutletCurrency || payload.currencyCode || "";
+    const tranDate = systemDate;
+
+    // 🔹 Build item rows: # | Code | Item | Qty
+    const itemsHtml = items
+      .map((item: any, idx: number) => {
+        const qty = Number(item.quantity || 0);
+
+        // Try to match this line with a cart item by itemId
+        const lineItemId = Number(item.itemId ?? item.itemID ?? item.id ?? 0);
+        const cartMatch =
+          !Number.isNaN(lineItemId) && lineItemId !== 0
+            ? cartSnapshot.find((c) => Number(c.id) === lineItemId)
+            : undefined;
+
+        // ✅ Prefer real itemCode from cart, with sensible fallbacks
+        const code =
+          item.itemCode || // if backend ever sends it
+          cartMatch?.itemCode || // from product.itemCode in cart
+          cartMatch?.id?.toString() || // fallback to id from cart
+          (item.itemId != null || item.itemID != null
+            ? String(item.itemId ?? item.itemID)
+            : "");
+
+        const name = item.itemDescription || cartMatch?.name || "";
+
+        return `
+        <tr>
+          <td class="col-idx">${idx + 1}</td>
+          <td class="col-code">${code}</td>
+          <td class="col-item">${name}</td>
+          <td class="col-qty">${qty}</td>
+        </tr>
+      `;
+      })
+      .join("");
+
+    const total = Number(payload.currAmount || payload.tranValue || 0);
+
+    const win = window.open("", "_blank", "width=400,height=600");
+    if (!win) {
+      console.warn("Popup blocked by browser. Please allow popups to print.");
+      return;
+    }
+
+    win.document.write(`
+    <html>
+      <head>
+        <title>KOT - Order ${orderNo}</title>
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 10px;
+          }
+          .receipt {
+            width: 80mm;
+            padding: 6px 8px;
+            overflow: hidden;
+          }
+          .center {
+            text-align: center;
+          }
+          .title {
+            font-weight: 700;
+            font-size: 14px;
+          }
+          .subtitle {
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 2px;
+          }
+          hr {
+            border: none;
+            border-top: 1px dashed #000;
+            margin: 4px 0;
+          }
+          .meta {
+            font-size: 10px;
+            margin-top: 2px;
+          }
+
+          table.items-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-top: 4px;
+          }
+          table.items-table th,
+          table.items-table td {
+            padding: 2px 0;
+            font-size: 10px;
+            vertical-align: top;
+          }
+          table.items-table th {
+            border-bottom: 1px solid #000;
+            font-weight: 600;
+          }
+          .col-idx { width: 8%; }
+          .col-code { width: 18%; }
+          .col-item {
+            width: 54%;
+            padding-right: 4px;
+            word-wrap: break-word;
+            white-space: normal;
+          }
+          .col-qty {
+            width: 20%;
+            text-align: right;
+          }
+
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px dashed #000;
+            font-weight: 600;
+          }
+        </style>
+      </head>
+      <body onload="window.print(); window.close();">
+        <div class="receipt">
+          <div class="center">
+            <div class="title">${hotelName}</div>
+            <div class="subtitle">KOT</div>
+            <div class="meta">${outletName}</div>
+          </div>
+          <hr />
+          <div class="meta">Order No: ${orderNo}</div>
+          <div class="meta">Table: ${payload.tableNo || "-"}</div>
+          <div class="meta">Date: ${tranDate}</div>
+          <hr />
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th class="col-idx">#</th>
+                <th class="col-code">Code</th>
+                <th class="col-item">Item</th>
+                <th class="col-qty">Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="total-row">
+            <span>Total</span>
+            <span>${total.toFixed(2)} ${currency}</span>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+
+    win.document.close();
+  };
+
   console.log("cart : ", cart);
   console.log("method : ", initialMethod);
   const handleInputChange = (field: string, value: string) => {
@@ -82,6 +306,7 @@ export function DeliveryMethodSelection({
     if (field === "tableNo") setError(null); // Clear error on new table input
   };
 
+  // --- inside component state / helpers ---
   const isFormValid = () => {
     if (!selectedMethod) return false;
     switch (selectedMethod) {
@@ -90,7 +315,8 @@ export function DeliveryMethodSelection({
       case "takeaway":
         return !!formData.phoneNumber;
       case "roomService":
-        return !!formData.roomNo;
+        // ✅ validate using roomId (not roomNo)
+        return !!formData.roomId;
       case "deliveryService":
         return (
           !!formData.phoneNumber &&
@@ -134,7 +360,7 @@ export function DeliveryMethodSelection({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelCode = property?.hotelCode || "DEFAULT_CODE";
-    const now = new Date().toISOString();
+    const now = systemDate;
 
     const payload = {
       accountId: 0,
@@ -167,9 +393,9 @@ export function DeliveryMethodSelection({
       debit: 0,
       amount: cartTotal,
       comment: "Auto hold transaction from POS page",
-      createdBy: "System",
+      createdBy: fullName,
       currAmount: cartTotal,
-      currencyCode: "LKR",
+      currencyCode: selectedOutletCurrency,
       convRate: "1",
       credit: 0,
       paymentReceiptRef: "N/A",
@@ -186,7 +412,7 @@ export function DeliveryMethodSelection({
       noOfPax: noOfPax || 1,
       deliveryMethod: "dineIn",
       phoneNo: "",
-      hotelPosCenterId: selectedPosCenterId,
+      hotelPosCenterId: Number(selectedPosCenterId) || 0,
       items: cart.map((item) => ({
         itemId: Number(item.id),
         quantity: item.quantity || 1,
@@ -206,21 +432,27 @@ export function DeliveryMethodSelection({
         {
           method: "hold",
           amount: cartTotal,
-          currency: "LKR",
+          currency: selectedOutletCurrency,
           cardType: "",
           lastDigits: "",
           roomNo: "",
         },
       ],
     };
-    console.log("payload : ", payload);
+
+    console.log("payload selection : ", JSON.stringify(payload));
 
     try {
       const result = await dispatch(createPosOrder(payload)).unwrap();
+      console.log("test order sent");
+
       console.log(`Order sent to table ${tableNo}`);
       console.log("✅ Hold Transaction Created:", result);
 
-      setSubmitted(true); // ✅ prevent re-submission
+      // 🔹 🔹 NEW: Open 80mm receipt popup here
+      open80mmReceipt(result, payload, cart);
+
+      setSubmitted(true); // prevent re-submission
       dispatch(clearCart());
       setIsRunningTableSelected(false);
       onComplete("dineIn", { tableNo, noOfPax: noOfPax.toString() });
@@ -377,12 +609,26 @@ export function DeliveryMethodSelection({
                     reservation.rooms
                       .filter((room) => room.status === 4)
                       .map((room) => {
-                        const isSelected = formData.roomNo === room.roomNumber;
+                        const isSelected =
+                          formData.roomId === String(room.roomID);
                         return (
                           <Card
                             key={room.roomID}
                             onClick={() =>
-                              handleInputChange("roomNo", room.roomNumber)
+                              setFormData({
+                                ...formData,
+                                // ✅ store roomId (used by the submitter)
+                                roomId: String(room.roomID),
+                                // (optional) keep roomNo for UX / slips
+                                roomNo: room.roomNumber,
+                                // (recommended) pass linkage for GL/lines
+                                reservationId: String(
+                                  reservation.reservationID
+                                ),
+                                reservationDetailId: String(
+                                  room.reservationDetailID
+                                ),
+                              })
                             }
                             className={`p-3 text-center cursor-pointer border-2 transition ${
                               isSelected
@@ -402,11 +648,6 @@ export function DeliveryMethodSelection({
                   )}
                 </div>
               )}
-              {/* {formData.roomNo && (
-                <p className="text-sm text-green-600">
-                  Selected Room: {formData.roomNo}
-                </p>
-              )} */}
             </div>
           )}
 

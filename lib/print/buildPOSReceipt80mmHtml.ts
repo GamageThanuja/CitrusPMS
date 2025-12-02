@@ -12,11 +12,15 @@ export type TaxRow = { label: string; amount: number };
 
 export interface BuildReceipt80Args {
   hotelName?: string;
+  hotelAddress?: string;
+  hotelPhone?: string;
+
   docNo: string;
   dateISO?: string;
   tableNo?: string;
   roomNo?: string | number;
   cashier?: string;
+
   items: ReceiptLine[];
   subtotal: number;
 
@@ -31,11 +35,15 @@ export interface BuildReceipt80Args {
       };
 
   grand: number;
+
   payments?: {
-    label: string; // e.g. "CASH (LKR)"
+    label: string; // e.g. "CASH"
     foreignAmount?: number;
+    foreignCurrency?: string;
     localAmount: number;
+    localCurrency?: string;
   }[];
+
   footerNote?: string;
 
   /**
@@ -45,6 +53,9 @@ export interface BuildReceipt80Args {
   autoPrint?: boolean;
 }
 
+// Local alias for readability
+type BuildReceipt80mmHtmlArgs = BuildReceipt80Args;
+
 const fmt = (n: number) => Number(n || 0).toFixed(2);
 
 // Escape basic HTML characters
@@ -53,7 +64,7 @@ const esc = (s: string) =>
 
 // Normalize taxes (array or legacy object) -> array of {label, amount}
 function normalizeTaxes(
-  taxes: BuildReceipt80Args["taxes"] | undefined
+  taxes: BuildReceipt80mmHtmlArgs["taxes"] | undefined
 ): TaxRow[] {
   if (!taxes) return [];
 
@@ -64,7 +75,7 @@ function normalizeTaxes(
   }
 
   const legacy = taxes as NonNullable<
-    Exclude<BuildReceipt80Args["taxes"], TaxRow[]>
+    Exclude<BuildReceipt80mmHtmlArgs["taxes"], TaxRow[]>
   >;
   const out: TaxRow[] = [];
   if (legacy.serviceCharge)
@@ -77,6 +88,8 @@ function normalizeTaxes(
 
 export default function buildPOSReceipt80mmHtml({
   hotelName = "HotelMate POS",
+  hotelAddress,
+  hotelPhone,
   docNo,
   dateISO = new Date().toISOString(),
   tableNo,
@@ -90,40 +103,55 @@ export default function buildPOSReceipt80mmHtml({
   footerNote = "Thank you for your business.",
   autoPrint = false, // ← default: passive (no auto print)
 }: BuildReceipt80mmHtmlArgs) {
-  type BuildReceipt80mmHtmlArgs = BuildReceipt80Args; // local alias for readability
-
   const taxList = normalizeTaxes(taxes);
 
   const taxRows = taxList
     .filter((t) => Number(t.amount) > 0)
     .map(
       (t) => `
-      <tr>
-        <td class="l">${esc(t.label)}</td>
-        <td class="r">${fmt(Number(t.amount))}</td>
-      </tr>`
+        <tr>
+          <td class="l">${esc(t.label)}</td>
+          <td class="r">${fmt(Number(t.amount))}</td>
+        </tr>`
     )
     .join("");
 
   const paymentRows = (payments ?? [])
-    .map(
-      (p) => `
-      <tr>
-        <td class="l">${esc(p.label)}</td>
-        <td class="r">${fmt(p.localAmount)}</td>
-      </tr>`
-    )
+    .map((p) => {
+      const hasForeign =
+        typeof p.foreignAmount === "number" &&
+        p.foreignCurrency &&
+        (!p.localCurrency ||
+          p.foreignCurrency.toUpperCase() !== p.localCurrency.toUpperCase());
+
+      const foreignLine = hasForeign
+        ? `${fmt(p.foreignAmount!)} ${esc(p.foreignCurrency!)}`
+        : null;
+      const localLine = `${fmt(p.localAmount)}${
+        p.localCurrency ? ` ${esc(p.localCurrency)}` : ""
+      }`;
+
+      const rightSide = hasForeign
+        ? `${foreignLine}<br/><span class="muted tiny">${localLine}</span>`
+        : localLine;
+
+      return `
+        <tr>
+          <td class="l">${esc(p.label)}</td>
+          <td class="r" style="line-height:1.2;">${rightSide}</td>
+        </tr>`;
+    })
     .join("");
 
   const itemRows = items
     .map(
       (it) => `
-      <tr class="item">
-        <td class="l">${esc(it.itemDescription)}</td>
-        <td class="c">${it.quantity}</td>
-        <td class="r">${fmt(it.price)}</td>
-        <td class="r">${fmt(it.lineTotal)}</td>
-      </tr>`
+        <tr class="item">
+          <td class="l desc">${esc(it.itemDescription)}</td>
+          <td class="c">${it.quantity}</td>
+          <td class="r">${fmt(it.price)}</td>
+          <td class="r">${fmt(it.lineTotal)}</td>
+        </tr>`
     )
     .join("");
 
@@ -138,6 +166,14 @@ export default function buildPOSReceipt80mmHtml({
     } catch (e) {}
   </script>`
     : "";
+
+  const metaLineParts: string[] = [];
+  if (tableNo) metaLineParts.push(`Table: ${esc(tableNo)}`);
+  if (roomNo !== undefined && roomNo !== null)
+    metaLineParts.push(`Room: ${esc(String(roomNo))}`);
+  metaLineParts.push(`Cashier: ${esc(cashier)}`);
+
+  const metaLine = metaLineParts.join(" • ");
 
   return `<!doctype html>
 <html>
@@ -158,7 +194,8 @@ export default function buildPOSReceipt80mmHtml({
 
     /* === TYPOGRAPHY === */
     body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
       color: #000;
       font-size: 11.5px;
       line-height: 1.35;
@@ -170,6 +207,7 @@ export default function buildPOSReceipt80mmHtml({
     .muted { color: #444; }
     .mono  { font-family: inherit; }
     .bold  { font-weight: 700; }
+    .tiny  { font-size: 9px; }
 
     hr {
       border: none;
@@ -178,27 +216,51 @@ export default function buildPOSReceipt80mmHtml({
     }
 
     /* === HEADER === */
-    .hdr-ttl { font-size: 14px; font-weight: 700; }
-    .hdr-meta { font-size: 10.5px; }
+    .hdr-ttl {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .hdr-sub {
+      margin-top: 2px;
+      font-size: 9.5px;
+    }
+    .hdr-meta {
+      margin-top: 4px;
+      font-size: 10.5px;
+    }
 
     /* === TABLES === */
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 3px 0; vertical-align: top; }
+
     thead th {
       font-size: 10px;
       font-weight: 600;
       color: #000;
       border-bottom: 1px solid #000;
     }
-    tbody tr.item td { border-bottom: 1px dotted #000; }
+
+    tbody tr.item td {
+      border-bottom: 1px dotted #000;
+    }
 
     /* columns */
     td.l { text-align: left; }
     td.c { text-align: center; width: 12%; white-space: nowrap; }
     td.r { text-align: right; white-space: nowrap; }
+    td.desc {
+      max-width: 45mm;
+      word-wrap: break-word;
+      word-break: break-word;
+    }
 
     /* totals area */
     .totals td { padding: 2px 0; }
+    .totals tr td:first-child {
+      width: 60%;
+    }
     .grand td {
       padding: 3px 0;
       font-weight: 700;
@@ -207,7 +269,11 @@ export default function buildPOSReceipt80mmHtml({
     }
 
     /* footer */
-    .foot { margin-top: 8px; font-size: 10.5px; text-align: center; }
+    .foot {
+      margin-top: 8px;
+      font-size: 10.5px;
+      text-align: center;
+    }
 
     /* Avoid page breaks within items/totals on some engines */
     .no-break { page-break-inside: avoid; }
@@ -215,7 +281,10 @@ export default function buildPOSReceipt80mmHtml({
     @media screen {
       body { background: #f4f4f4; }
       .preview {
-        background: #fff; margin: 12px auto; border: 1px solid #ddd; width: 80mm;
+        background: #fff;
+        margin: 12px auto;
+        border: 1px solid #ddd;
+        width: 80mm;
         box-shadow: 0 2px 6px rgba(0,0,0,.08);
       }
       .wrap { padding: 8mm 5mm 10mm 5mm; }
@@ -226,15 +295,25 @@ export default function buildPOSReceipt80mmHtml({
   <div class="preview">
     <div class="wrap">
       <div class="center">
+        <!-- 🔥 HOTEL NAME BIG & CLEAR -->
         <div class="hdr-ttl">${esc(hotelName)}</div>
+
+        ${
+          hotelAddress || hotelPhone
+            ? `<div class="hdr-sub muted">
+                ${hotelAddress ? `${esc(hotelAddress)}` : ""}${
+                hotelAddress && hotelPhone ? " • " : ""
+              }${hotelPhone ? `${esc(hotelPhone)}` : ""}
+              </div>`
+            : ""
+        }
+
         <div class="hdr-meta muted">
           Receipt <span class="bold mono">${esc(docNo)}</span><br/>
           ${new Date(dateISO).toLocaleString()}
         </div>
-        <div class="hdr-meta muted">
-          ${tableNo ? `Table: ${esc(tableNo)} • ` : ""}${
-    roomNo ? `Room: ${esc(String(roomNo))} • ` : ""
-  }Cashier: ${esc(cashier)}
+        <div class="hdr-meta muted tiny">
+          ${metaLine}
         </div>
       </div>
 
@@ -264,7 +343,7 @@ export default function buildPOSReceipt80mmHtml({
           </tr>
           ${taxRows}
           <tr class="grand">
-            <td class="l">Grand</td>
+            <td class="l">Grand Total</td>
             <td class="r">${fmt(grand)}</td>
           </tr>
         </tbody>
@@ -274,7 +353,7 @@ export default function buildPOSReceipt80mmHtml({
         paymentRows
           ? `
       <hr/>
-      <div class="muted">Payments</div>
+      <div class="muted tiny">Payments</div>
       <table class="no-break">
         <tbody>
           ${paymentRows}
