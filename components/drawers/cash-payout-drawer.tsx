@@ -153,6 +153,11 @@ useEffect(() => {
     setFeedbackMessage(null);
 
     try {
+      const currentDate = new Date();
+      const tranDate = systemDate 
+        ? new Date(systemDate).toISOString() // If systemDate exists, use it
+        : currentDate.toISOString(); // Fallback to current date
+
       const payload = {
         reservationDetailId: booking.reservationDetailID || 0,
         reservationMasterId: booking.reservationMasterID || 0,
@@ -160,7 +165,7 @@ useEffect(() => {
         hotelCode: selectedProperty.hotelCode?.toString() || "",
         accountId: Number(selectedAccountID),
         amount: parseFloat(amount),
-        tranDate: systemDate,
+        tranDate: tranDate,
         currencyCode: booking.currencyCode ,
         conversionRate: 1,
         remarks: "Cash payout",
