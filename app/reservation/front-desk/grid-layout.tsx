@@ -1493,7 +1493,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                       <span className="select-none">
                                         Room {room.number}
                                         <span className="ml-2 text-xs text-muted-foreground">
-                                          (HK: {getHKDisplayName(effectiveStatus)})
+                                          {/* (HK: {getHKDisplayName(effectiveStatus)}) */}
                                         </span>
                                       </span>
                                     </div>
