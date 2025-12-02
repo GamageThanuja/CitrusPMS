@@ -247,6 +247,7 @@ import createTransactionReducer from "./slices/createTransactionSlice";
 import fetchHotelTaxByHotelIdReducer from "./slices/fetchHotelTaxByHotelIdSlice";
 import cashPayoutReducer from "./slices/cashPayoutSlice";
 
+import updateReservationStatusReducer from "./slices/updateReservationStatusSlice";
 
 
 const store = configureStore({
@@ -498,6 +499,7 @@ const store = configureStore({
      createTransaction: createTransactionReducer,
       fetchHotelTaxByHotelId: fetchHotelTaxByHotelIdReducer,
       cashPayout: cashPayoutReducer,
+    updateReservationStatus: updateReservationStatusReducer,
   },
 });
 

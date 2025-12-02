@@ -129,7 +129,7 @@ import { ReportsDrawer } from "./reports-drawer";
 import { ChangeDateDrawer } from "./change-date-drawer";
 import { useQRModal } from "../modals/qr-modal";
 
-import { updateReservationStatus } from "@/redux/slices/updateStatusByReservationDetailID";
+import { updateReservationStatus } from "@/redux/slices/updateReservationStatusSlice";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import RecallDrawer from "./recallDrawer";
 import RollbackDrawer from "./rollback-drawer";
@@ -3446,10 +3446,38 @@ useEffect(() => {
               setRollbackOpen(false);
             }}
             onConfirm={async (payload) => {
-              // === ROLLBACK ACTION HERE ===
-              // If you have a real rollback thunk, call it here.
-              // Fallback: move status back to "Confirmed" (⚠️ set the right ID for your system)
-              const CONFIRMED_STATUS_ID = 2; // <-- change to your actual "Confirmed" status id
+  const CONFIRMED_STATUS_ID = 2; // your rollback target
+
+  try {
+    // 🔥 Call your slice exactly how it expects
+    await dispatch(
+      updateReservationStatus({
+        reservationDetailId: payload.reservationDetailId,
+        status: CONFIRMED_STATUS_ID, // <-- correct field for your thunk
+      })
+    ).unwrap();
+
+    toast.success("Booking rolled back");
+
+    // refresh after success
+    if (reservationDetailId)
+      await dispatch(
+        fetchReservationRateDetails({ reservationDetailId })
+      );
+
+    if (reservationDetailId) {
+      await Promise.all([
+        dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+        dispatch(fetchRateDetailsById(reservationDetailId)),
+      ]);
+    }
+
+    setRollbackOpen(false);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to rollback booking");
+  }
+}}
 
               try {
                 await dispatch(
