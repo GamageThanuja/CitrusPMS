@@ -393,17 +393,59 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
     const isToday = systemDate;
 
     const hkDotColor = (status?: string) => {
-      switch ((status || "").trim()) {
+      const statusName = (status || "").trim();
+      
+      // Handle both display names and status codes
+      switch (statusName) {
         case "Clean":
+        case "Status 1":
           return "bg-green-500";
         case "Occupied":
+        case "Status 6":
           return "bg-yellow-500";
         case "Dirty":
+        case "Status 2":
+        case "Status 7":
           return "bg-red-500";
         case "WIP":
+        case "Status 5":
+          return "bg-blue-500";
+        case "Turn-down":
+        case "Status 3":
+          return "bg-blue-500";
+        case "Inspection":
           return "bg-blue-500";
         default:
           return "bg-black";
+      }
+    };
+
+
+    // Add this helper function near your other utility functions
+    const getHKDisplayName = (status?: string): string => {
+      const statusName = (status || "").trim();
+      
+      switch (statusName) {
+        case "Clean":
+        case "Status 1":
+          return "Clean";
+        case "Occupied":
+        case "Status 6":
+          return "Occupied";
+        case "Dirty":
+        case "Status 2":
+        case "Status 7":
+          return "Dirty";
+        case "WIP":
+        case "Status 5":
+          return "WIP";
+        case "Turn-down":
+        case "Status 3":
+          return "Turn-down";
+        case "Inspection":
+          return "Inspection";
+        default:
+          return "Default"; // Default fallback
       }
     };
 
@@ -1385,11 +1427,14 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                               >
                                 {(() => {
                                   const effectiveStatus =
-                                    hkOverride[room.id] ??
-                                    room.housekeepingStatus ??
-                                    "Clean";
-                                  const isDirty = effectiveStatus === "Dirty";
+                                    hkOverride[room.id] ?? room.housekeepingStatus ?? "Clean";
+                                  const isDirty = getHKDisplayName(effectiveStatus) === "Dirty";
                                   const isUpdating = !!hkUpdating[room.id];
+
+                                  // console.log('Test of DOT color: ', effectiveStatus);
+                                  // console.log('hkOverride[room.id]: ', hkOverride[room.id]);
+                                  // console.log('room.housekeepingStatus: ', room.housekeepingStatus);
+                                  // console.log('room: ', room);
 
                                   return (
                                     <div className="flex items-center gap-2">
@@ -1404,7 +1449,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                                 ? "opacity-60 cursor-wait"
                                                 : "cursor-pointer"
                                             }`}
-                                            title={`HK: ${effectiveStatus} • Click to change`}
+                                            title={`HK: ${getHKDisplayName(effectiveStatus)} • Click to change`}
                                             disabled={isUpdating}
                                           />
                                         </DropdownMenuTrigger>
@@ -1433,6 +1478,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                             </DropdownMenuItem>
                                           )}
 
+
                                           {/* If you want the extra options, uncomment these: */}
                                           {/* <DropdownMenuItem onClick={() => handleHkChange(room, "Occupied")} disabled={isUpdating}>
             Mark Occupied
@@ -1440,11 +1486,15 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
           <DropdownMenuItem onClick={() => handleHkChange(room, "WIP")} disabled={isUpdating}>
             Mark WIP
           </DropdownMenuItem> */}
+
                                         </DropdownMenuContent>
                                       </DropdownMenu>
 
                                       <span className="select-none">
                                         Room {room.number}
+                                        <span className="ml-2 text-xs text-muted-foreground">
+                                          (HK: {getHKDisplayName(effectiveStatus)})
+                                        </span>
                                       </span>
                                     </div>
                                   );
