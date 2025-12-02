@@ -196,13 +196,13 @@ export default function BookingDetailsDrawer({
 }: BookingDetailsDrawerProps) {
   // Ensure client-only logic is guarded
   const shouldRender = typeof window !== "undefined";
-  
+
   // Extract reservationDetailID from initial props to fetch detailed data
   const reservationDetailId = bookingDetailsData?.reservationDetailID;
   const reservationPassportId = reservationDetailId; // Creative alias for reservation identifier
   const reservationId = bookingDetailsData?.reservationID; // Extract reservationID from initial props
   const dispatch = useAppDispatch();
-  
+
   // Get the detailed booking data from fetchReservationDetail API response
   const enrichedBookingDetails = useSelector((s: RootState) =>
     selectReservationDetail(s)
@@ -210,15 +210,18 @@ export default function BookingDetailsDrawer({
   const fetchingBookingDetails = useSelector((s: RootState) =>
     selectReservationDetailLoading(s)
   );
-  
+
   // Use API response as the primary bookingDetail with creative aliases
   const bookingDetail = enrichedBookingDetails;
   const reservationMasterpiece = bookingDetail; // Creative alias for the complete booking data
   const guestStayBlueprint = bookingDetail; // Another creative reference to the reservation details
-  
+
   // Get reservationId from either initial props or API response
-  const currentReservationId = reservationId || bookingDetail?.reservationID || bookingDetailsData?.reservationID;
-  
+  const currentReservationId =
+    reservationId ||
+    bookingDetail?.reservationID ||
+    bookingDetailsData?.reservationID;
+
   const [booking, setBooking] = useState<any>(bookingDetail);
 
   console.log("Initial booking data from props:", bookingDetailsData);
@@ -239,7 +242,7 @@ export default function BookingDetailsDrawer({
         fetchReservationDetail({ reservationDetailId: reservationDetailId })
       );
     }
-    
+
     // Clear when drawer closes
     if (!open) {
       dispatch(clearReservationDetail());
@@ -276,7 +279,7 @@ export default function BookingDetailsDrawer({
 
   useEffect(() => {
     if (!reservationDetailId || !open) return;
-    
+
     // Fetch rate details (keeping existing functionality)
     dispatch(
       fetchReservationRateDetails({ reservationDetailId: reservationDetailId })
@@ -689,15 +692,15 @@ export default function BookingDetailsDrawer({
     setAmendOpen(false);
   };
 
-const handleRoomChangeComplete = () => {
-  if (reservationDetailId) {
-    dispatch(fetchReservationRateDetails({ reservationDetailId }));
-    dispatch(fetchFolioByDetailId(reservationDetailId));
-    dispatch(fetchRateDetailsById(reservationDetailId));
-  }
+  const handleRoomChangeComplete = () => {
+    if (reservationDetailId) {
+      dispatch(fetchReservationRateDetails({ reservationDetailId }));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
+      dispatch(fetchRateDetailsById(reservationDetailId));
+    }
 
-  setRoomChangeOpen(false);
-};
+    setRoomChangeOpen(false);
+  };
 
   const handleNoShowComplete = async (opts?: {
     detailIds?: number[];
@@ -873,7 +876,6 @@ const handleRoomChangeComplete = () => {
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-
   // Log updated Redux rateDetails for debugging
   useEffect(() => {
     console.log("Updated Reservation Rate Details:", reservationRateDetails);
@@ -881,8 +883,7 @@ const handleRoomChangeComplete = () => {
   // Guest Profile ID state - prioritize API data over prop
   const [guestProfileId, setGuestProfileId] = useState<number | null>(
     // reservationDetailData?.guestProfileID ??
-      bookingDetail?.guestProfileId ??
-      null
+    bookingDetail?.guestProfileId ?? null
   );
 
   // Full guest profile record
@@ -919,9 +920,7 @@ const handleRoomChangeComplete = () => {
   const isDrawerStateChanging = useRef(false);
   const [roomGuestsLoading, setRoomGuestsLoading] = useState(false);
 
-  const [selectedBooking, setSelectedBooking] = useState<
-    bookingDetail
-  >(null);
+  const [selectedBooking, setSelectedBooking] = useState<bookingDetail>(null);
 
   const initial = (booking?.sourceOfBooking ?? "?")
     .trim()
@@ -1152,53 +1151,56 @@ const handleRoomChangeComplete = () => {
   }, [reservationDetailId]);
 
   // Fetch reservation details to get Guest Profile ID
-useEffect(() => {
-  if (!reservationId) return;
+  useEffect(() => {
+    if (!reservationId) return;
 
-  const fetchReservationDetails = async () => {
-    try {
-      const res = await dispatch(
-        fetchReservationDetailsById({ reservationId })
-      ).unwrap();
+    const fetchReservationDetails = async () => {
+      try {
+        const res = await dispatch(
+          fetchReservationDetailsById({ reservationId })
+        ).unwrap();
 
-      setGuestProfileId(res[0]?.guestProfileID ?? null);
-    } catch (error) {
-      console.error("Failed to fetch reservation details:", error);
-    }
-  };
+        setGuestProfileId(res[0]?.guestProfileID ?? null);
+      } catch (error) {
+        console.error("Failed to fetch reservation details:", error);
+      }
+    };
 
-  fetchReservationDetails();
-}, [reservationId, dispatch]);
+    fetchReservationDetails();
+  }, [reservationId, dispatch]);
 
   // Fetch Guest Profile details (title, address, etc.)
-useEffect(() => {
-  const fetchGuestProfile = async () => {
-    setGuestProfile(null);
+  useEffect(() => {
+    const fetchGuestProfile = async () => {
+      setGuestProfile(null);
 
-    if (!guestProfileId) {
-      console.log("No guestProfileId available for fetching guest profile");
-      return;
-    }
+      if (!guestProfileId) {
+        console.log("No guestProfileId available for fetching guest profile");
+        return;
+      }
 
-    try {
-      console.log("Fetching guest profile for guestProfileId:", guestProfileId);
+      try {
+        console.log(
+          "Fetching guest profile for guestProfileId:",
+          guestProfileId
+        );
 
-      // 🔄 Fetch from Redux using guestId
-      const res = await dispatch(
-        fetchGuestMas({ guestId: guestProfileId })
-      ).unwrap(); // returns an array
+        // 🔄 Fetch from Redux using guestId
+        const res = await dispatch(
+          fetchGuestMas({ guestId: guestProfileId })
+        ).unwrap(); // returns an array
 
-      const guest = res[0] ?? null; // one guest always → index 0
+        const guest = res[0] ?? null; // one guest always → index 0
 
-      console.log("Guest profile data received:", guest);
-      setGuestProfile(guest);
-    } catch (error) {
-      console.error("Failed to fetch guest profile:", error);
-    }
-  };
+        console.log("Guest profile data received:", guest);
+        setGuestProfile(guest);
+      } catch (error) {
+        console.error("Failed to fetch guest profile:", error);
+      }
+    };
 
-  fetchGuestProfile();
-}, [guestProfileId, reservationDetailId, dispatch]);
+    fetchGuestProfile();
+  }, [guestProfileId, reservationDetailId, dispatch]);
 
   // Handle file upload success
   useEffect(() => {
@@ -1268,18 +1270,19 @@ useEffect(() => {
   const primaryClass = "bg-primary text-secondary hover:bg-primary-800";
 
   // Filtered action options based on reservation status
-  const validStatus = (
-    bookingDetail?.reservationStatus ||
-    bookingDetail?.status ||
-    booking?.status ||
-    ""
-  ).toLowerCase?.() || "";
+  const validStatus =
+    (
+      bookingDetail?.reservationStatus ||
+      bookingDetail?.status ||
+      booking?.status ||
+      ""
+    ).toLowerCase?.() || "";
 
   console.log("Valid status for actions:", validStatus);
   console.log("BookingDetail status fields:", {
     reservationStatus: bookingDetail?.reservationStatus,
     status: bookingDetail?.status,
-    bookingStatus: booking?.status
+    bookingStatus: booking?.status,
   });
 
   const actionOptions = [
@@ -1306,7 +1309,10 @@ useEffect(() => {
       condition: () => {
         const today = new Date();
         const checkInDate = new Date(
-          bookingDetail?.checkIN || bookingDetail?.resCheckIn || bookingDetail?.checkIn || booking?.checkIn
+          bookingDetail?.checkIN ||
+            bookingDetail?.resCheckIn ||
+            bookingDetail?.checkIn ||
+            booking?.checkIn
         );
         // Only show if check-in date is on or before today
         return !isNaN(checkInDate.getTime()) && checkInDate <= today;
@@ -1339,14 +1345,24 @@ useEffect(() => {
         // Use bookingDetail (API response) as primary data source with booking as fallback
         ...bookingDetail,
         ...booking, // booking state can override API data if needed
-        reservationDetailID: reservationDetailId || bookingDetail?.reservationDetailID,
+        reservationDetailID:
+          reservationDetailId || bookingDetail?.reservationDetailID,
         reservationNo: bookingDetail?.reservationNo || booking?.reservationNo,
-        reservationID: currentReservationId || bookingDetail?.reservationID || booking?.reservationID,
+        reservationID:
+          currentReservationId ||
+          bookingDetail?.reservationID ||
+          booking?.reservationID,
         roomID: bookingDetail?.roomID || booking?.roomID,
-        guest: bookingDetail?.guest1 || booking?.guest || booking?.guestName || bookingDetail?.bookerFullName,
+        guest:
+          bookingDetail?.guest1 ||
+          booking?.guest ||
+          booking?.guestName ||
+          bookingDetail?.bookerFullName,
         roomNumber: bookingDetail?.roomNumber || booking?.roomNumber,
-        checkOut: bookingDetail?.checkOUT || booking?.resCheckOut || booking?.checkOut,
-        checkIn: bookingDetail?.checkIN || booking?.resCheckIn || booking?.checkIn,
+        checkOut:
+          bookingDetail?.checkOUT || booking?.resCheckOut || booking?.checkOut,
+        checkIn:
+          bookingDetail?.checkIN || booking?.resCheckIn || booking?.checkIn,
         mealPlan: bookingDetail?.basis || booking?.mealPlan,
       };
 
@@ -1572,9 +1588,7 @@ useEffect(() => {
     {
       key: "roomNumber",
       label: "Room Number",
-      value:
-        bookingDetail?.roomNumber ??
-        bookingDetail?.roomNumber,
+      value: bookingDetail?.roomNumber ?? bookingDetail?.roomNumber,
     },
     {
       key: "currencyCode",
@@ -1628,7 +1642,9 @@ useEffect(() => {
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading booking details...</p>
+              <p className="text-muted-foreground">
+                Loading booking details...
+              </p>
             </div>
           </div>
         </SheetContent>
@@ -1748,8 +1764,16 @@ useEffect(() => {
                         const selected = actionOptions.find(
                           (a) => a.label === e.target.value
                         );
-                        console.log("Action selected:", e.target.value, "Found option:", selected);
-                        if (selected && typeof selected.onClick === "function") {
+                        console.log(
+                          "Action selected:",
+                          e.target.value,
+                          "Found option:",
+                          selected
+                        );
+                        if (
+                          selected &&
+                          typeof selected.onClick === "function"
+                        ) {
                           try {
                             selected.onClick();
                           } catch (error) {
@@ -1869,9 +1893,7 @@ useEffect(() => {
                         <div>
                           <div className="font-medium">Created On</div>
                           <div className="">
-                            {safeFormatDateTime(
-                              bookingDetail?.createdOn
-                            )}
+                            {safeFormatDateTime(bookingDetail?.createdOn)}
                           </div>
                         </div>
 
@@ -1909,8 +1931,7 @@ useEffect(() => {
                   <div className="space-y-4 mt-6">
                     <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      Booker Details{" "}
-                      {bookingDetail?.reservationDetailID}
+                      Booker Details {bookingDetail?.reservationDetailID}
                     </h3>
                     <div className="space-y-3">
                       {/* Guest Profile ID */}
@@ -1931,8 +1952,7 @@ useEffect(() => {
                                 {text.nameText}
                               </p>
                               <p className="font-medium">
-                                {bookingDetail?.bookerFullName ||
-                                  "—"}
+                                {bookingDetail?.bookerFullName || "—"}
                               </p>
                             </div>
                             <div>
@@ -3437,69 +3457,39 @@ useEffect(() => {
                 );
               if (reservationDetailId) {
                 await Promise.all([
-                  dispatch(
-                    fetchFolioByDetailId(reservationDetailId)
-                  ),
+                  dispatch(fetchFolioByDetailId(reservationDetailId)),
                   dispatch(fetchRateDetailsById(reservationDetailId)),
                 ]);
               }
               setRollbackOpen(false);
             }}
             onConfirm={async (payload) => {
-  const CONFIRMED_STATUS_ID = 2; // your rollback target
-
-  try {
-    // 🔥 Call your slice exactly how it expects
-    await dispatch(
-      updateReservationStatus({
-        reservationDetailId: payload.reservationDetailId,
-        status: CONFIRMED_STATUS_ID, // <-- correct field for your thunk
-      })
-    ).unwrap();
-
-    toast.success("Booking rolled back");
-
-    // refresh after success
-    if (reservationDetailId)
-      await dispatch(
-        fetchReservationRateDetails({ reservationDetailId })
-      );
-
-    if (reservationDetailId) {
-      await Promise.all([
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
-        dispatch(fetchRateDetailsById(reservationDetailId)),
-      ]);
-    }
-
-    setRollbackOpen(false);
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to rollback booking");
-  }
-}}
+              const CONFIRMED_STATUS_ID = 2; // your rollback target
 
               try {
+                // 🔥 Call your slice exactly how it expects
                 await dispatch(
                   updateReservationStatus({
-                    reservationDetailId: reservationDetailId!,
-                    statusId: CONFIRMED_STATUS_ID,
+                    reservationDetailId: payload.reservationDetailId,
+                    status: CONFIRMED_STATUS_ID, // <-- correct field for your thunk
                   })
-                );
+                ).unwrap();
+
                 toast.success("Booking rolled back");
-                // refresh views
+
+                // refresh after success
                 if (reservationDetailId)
                   await dispatch(
                     fetchReservationRateDetails({ reservationDetailId })
                   );
+
                 if (reservationDetailId) {
                   await Promise.all([
-                    dispatch(
-                      fetchFolioByDetailId(reservationDetailId)
-                    ),
+                    dispatch(fetchFolioByDetailId(reservationDetailId)),
                     dispatch(fetchRateDetailsById(reservationDetailId)),
                   ]);
                 }
+
                 setRollbackOpen(false);
               } catch (err) {
                 console.error(err);
@@ -3509,7 +3499,6 @@ useEffect(() => {
           />
         </SheetContent>
       </Sheet>
-
       {cancelModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
           <div className="bg-background rounded-xl p-6 w-full max-w-md shadow-lg border">
