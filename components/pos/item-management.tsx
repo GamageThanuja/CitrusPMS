@@ -119,6 +119,10 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
 
   const { items } = useSelector((state: RootState) => state.items);
 
+
+  console.log("items : ", items);
+  
+
   const search = useTranslatedText("Search");
   const addNewItem = useTranslatedText("Add New Item");
   const editItem = useTranslatedText("Edit Item");
@@ -499,6 +503,9 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium">{item.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  Code: {item.itemCode || "-"}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {
                     formattedCategories.find((c) => c.id === item.category)

@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -19,41 +18,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "@/redux/store";
-import { AxiosError } from "axios";
+import type { AppDispatch } from "@/redux/store";
 
-import { createHotelPosCenterTaxConfig } from "@/redux/slices/createHotelPosCenterTaxConfigSlice";
-import { fetchHotelPosCenters } from "@/redux/slices/hotelPosCenterSlice";
 import {
-  createPosCenter,
-  selectCreatePosCenterStatus,
-  selectCreatePosCenterError,
-} from "@/redux/slices/createPosCenterSlice";
+  createHotelPOSCenterMas,
+  selectCreateHotelPOSCenterMasLoading,
+  selectCreateHotelPOSCenterMasError,
+} from "@/redux/slices/createHotelPOSCenterMasSlice";
+
+// ✅ use HotelPOSCenterMas fetch slice instead of hotelPosCenterSlice
 import {
-  fetchCurrencies,
-  selectCurrencies,
-  selectCurrencyLoading,
-  selectCurrencyError,
-} from "@/redux/slices/currencySlice";
+  fetchHotelPOSCenterMas,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
+
+// ✅ use CurrencyMas slice
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+  selectCurrencyMasSuccess,
+} from "@/redux/slices/fetchCurrencyMasSlice";
 
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
-import { useHotelDetails } from "@/hooks/useHotelDetails";
-
-/* === Country/Hotel tax sources === */
-import {
-  fetchTaxConfigByCountry,
-  makeSelectCountryTaxByCode,
-  selectCountryTaxLoading,
-  selectCountryTaxError,
-} from "@/redux/slices/taxConfigByCountrySlice";
-import {
-  fetchHotelTaxConfigs,
-  selectHotelTaxConfigs,
-  selectHotelTaxConfigsLoading,
-  selectHotelTaxConfigsError,
-} from "@/redux/slices/hotelTaxConfigSlice";
 import VideoOverlay from "../videoOverlay";
 import VideoButton from "../videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -63,7 +52,7 @@ interface OutletCenterDrawerProps {
   open: boolean;
   onClose: () => void;
   onCreated?: (created: PosCenter) => void;
-  onTaxesSaved?: () => void;
+  onTaxesSaved?: () => void; // kept for backwards compatibility
 }
 
 type PosCenter = {
@@ -81,84 +70,33 @@ type PosCenter = {
   isShowOnGSS: boolean;
 };
 
-type CalcBase = "Base" | `Subtotal${number}`;
-
-type DynamicTaxRow = {
-  taxName: string; // display + POST
-  pctStr: string; // controlled input (0–100, string)
-  calcBasedOn: CalcBase; // POST exactly as source (default "Base")
-  accountId?: number | null;
-};
-
 /* ---------------- Helpers ---------------- */
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-const trim = (s: any) => (typeof s === "string" ? s.trim() : s ?? "");
-const canon = (s: string) =>
-  trim(s)
-    .toLowerCase()
-    .replace(/[\s_]+/g, "");
-
-const normBase = (v?: string | null): CalcBase => {
-  const raw = trim(v).toUpperCase().replace(/\s+/g, "");
-  if (!raw || raw.startsWith("BASE")) return "Base";
-  const m = raw.match(/SUBTOTAL(\d+)/);
-  if (m?.[1]) {
-    const n = parseInt(m[1], 10);
-    if (Number.isFinite(n) && n >= 1) return `Subtotal${n}`;
-  }
-  return "Base";
-};
 
 /* ---------------- Component ---------------- */
 export function OutletCenterDrawer({
   open,
   onClose,
   onCreated,
-  onTaxesSaved,
 }: OutletCenterDrawerProps) {
   const dispatch = useDispatch<AppDispatch>();
   const { fullName } = useUserFromLocalStorage();
-  const { hotelCountry } = useHotelDetails();
-  const country = (hotelCountry || "LK").toUpperCase();
 
-  /* -------- currencies -------- */
-  const currencies = useSelector(selectCurrencies);
-  const currenciesLoading = useSelector(selectCurrencyLoading);
-  const currenciesError = useSelector(selectCurrencyError);
-  const currenciesLoadedOnce = useSelector((s: any) =>
-    Boolean(s.currency?.loadedOnce)
-  );
+  /* -------- currencies (via CurrencyMas) -------- */
+  const currencies = useSelector(selectCurrencyMasItems);
+  const currenciesLoading = useSelector(selectCurrencyMasLoading);
+  const currenciesError = useSelector(selectCurrencyMasError);
+  const currenciesLoadedOnce = useSelector(selectCurrencyMasSuccess);
 
   useEffect(() => {
     if (open && !currenciesLoadedOnce && !currenciesLoading) {
-      dispatch(fetchCurrencies() as any);
+      dispatch(fetchCurrencyMas(undefined) as any);
     }
   }, [open, currenciesLoadedOnce, currenciesLoading, dispatch]);
 
-  /* -------- country/hotel tax sources -------- */
-  useEffect(() => {
-    if (open) {
-      dispatch(fetchTaxConfigByCountry());
-      dispatch(fetchHotelTaxConfigs());
-    }
-  }, [open, dispatch]);
-
-  const selectByCountry = useMemo(
-    () => makeSelectCountryTaxByCode(country),
-    [country]
-  );
-  const countryRows = useSelector((s: RootState) => selectByCountry(s));
-  const countryLoading = useSelector(selectCountryTaxLoading);
-  const countryError = useSelector(selectCountryTaxError);
-
-  const hotelRows = useSelector(selectHotelTaxConfigs);
-  const hotelLoading = useSelector(selectHotelTaxConfigsLoading);
-  const hotelError = useSelector(selectHotelTaxConfigsError);
-
   /* -------- outlet creation -------- */
-  const createStatus = useSelector(selectCreatePosCenterStatus);
-  const createErrSel = useSelector(selectCreatePosCenterError);
+  const createLoading = useSelector(selectCreateHotelPOSCenterMasLoading);
+  const createError = useSelector(selectCreateHotelPOSCenterMasError);
 
   // Details tab state
   const [posCenter, setPosCenter] = useState("");
@@ -172,11 +110,8 @@ export function OutletCenterDrawer({
 
   const [showRawOverlay, setShowRawOverlay] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
-  const { tutorial, status: tutStatus } = useTutorial("onBoarding", "taxes");
+  const { tutorial } = useTutorial("onBoarding", "taxes");
 
-  console.log("videoUrl : ", videoUrl);
-
-  // If your tutorial has a videoURL, use it for the overlay/button automatically
   useEffect(() => {
     if (tutorial?.videoURL) {
       setVideoUrl(tutorial.videoURL);
@@ -189,122 +124,113 @@ export function OutletCenterDrawer({
     if (open) setActiveTab("details");
   }, [open]);
 
-  // Persist taxes toggle
-  const [persistTaxes, setPersistTaxes] = useState(true);
+  /* -------- Taxes (user-entered, used in single MAS API call) -------- */
+  const [serviceChargeStr, setServiceChargeStr] = useState("0");
+  const [vatStr, setVatStr] = useState("0");
+  const [nbtStr, setNbtStr] = useState("0");
+  const [ctStr, setCtStr] = useState("0");
 
-  /* -------- Taxes: dynamic (no hard-code) -------- */
-  const [taxRows, setTaxRows] = useState<DynamicTaxRow[]>([]);
-  const seededOnce = useRef(false);
+  const serviceChargePct = useMemo(
+    () => (parseFloat(serviceChargeStr || "0") || 0),
+    [serviceChargeStr]
+  );
+  const vatPct = useMemo(() => (parseFloat(vatStr || "0") || 0), [vatStr]);
+  const nbtPct = useMemo(() => (parseFloat(nbtStr || "0") || 0), [nbtStr]);
+  const ctPct = useMemo(() => (parseFloat(ctStr || "0") || 0), [ctStr]);
 
-  // Build normalized lists from sources
-  // const normHotel = useMemo<DynamicTaxRow[]>(() => {
-  //   return (hotelRows || [])
-  //     .filter((r: any) => trim(r.taxName))
-  //     .map((r: any) => ({
-  //       taxName: trim(r.taxName),
-  //       pctStr:
-  //         r.percentage == null || Number.isNaN(Number(r.percentage))
-  //           ? "0"
-  //           : String(r.percentage),
-  //       calcBasedOn: normBase(r.calcBasedOn),
-  //     }));
-  // }, [hotelRows]);
-
-  const normCountry = useMemo<DynamicTaxRow[]>(() => {
-    return (countryRows || [])
-      .filter((r: any) => {
-        const name = trim(r.taxCompenent);
-        return name && !name.toUpperCase().startsWith("SUB TOTAL");
-      })
-      .map((r: any) => ({
-        taxName: trim(r.taxCompenent),
-        pctStr:
-          r.taxPercentage == null || Number.isNaN(Number(r.taxPercentage))
-            ? "0"
-            : String(r.taxPercentage),
-        calcBasedOn: normBase(r.calcBasedOn),
-        accountId: r.accountId ?? null,
-      }));
-  }, [countryRows]);
-
-  const countryAccountIdByCanon = useMemo(() => {
-    const m = new Map<string, number | null>();
-    (countryRows || []).forEach((r: any) => {
-      const name = trim(r.taxCompenent);
-      if (!name) return;
-      m.set(canon(name), r.accountId ?? null);
+  const taxInputsValid = useMemo(() => {
+    const vals = [serviceChargeStr, vatStr, nbtStr, ctStr];
+    return vals.every((v) => {
+      if (v === "") return false;
+      const num = Number(v);
+      return !Number.isNaN(num) && num >= 0 && num <= 100;
     });
-    return m;
-  }, [countryRows]);
-
-  // Seed from hotel, else country, when data ready
-
-  // service charge + other sum (for outlet create payload)
-  const serviceChargePct = useMemo(() => {
-    const sc = taxRows.find((r) => canon(r.taxName) === "servicecharge");
-    return sc ? parseFloat(sc.pctStr || "0") || 0 : 0;
-  }, [taxRows]);
-
-  const otherTaxesSumPct = useMemo(() => {
-    return taxRows.reduce((sum, r) => {
-      if (canon(r.taxName) === "servicecharge") return sum;
-      const v = parseFloat(r.pctStr || "0") || 0;
-      return sum + v;
-    }, 0);
-  }, [taxRows]);
-
-  // ----- helpers -----
-  function axiosErrMsg(e: unknown) {
-    const ax = e as AxiosError<any>;
-    return (
-      ax?.response?.data?.detail ||
-      ax?.response?.data?.message ||
-      (typeof ax?.response?.data === "string" ? ax.response.data : null) ||
-      (ax?.response?.status
-        ? `${ax.response.status} ${ax.response.statusText}`
-        : null) ||
-      ax?.message ||
-      "Unknown error"
-    );
-  }
+  }, [serviceChargeStr, vatStr, nbtStr, ctStr]);
 
   const handleCreateOutlet = async () => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens?.accessToken;
     const hotelId = property?.id;
 
-    const creator =
-      (fullName && String(fullName).trim()) ||
-      tokens?.fullName ||
-      tokens?.email ||
-      "System";
+    const creator = (fullName && String(fullName).trim()) || "System";
 
     if (!hotelId) return alert("Missing hotelId (select a property).");
-    if (!accessToken) return alert("Missing access token (please sign in).");
     if (!posCenter.trim()) return alert("Please enter a POS Center name.");
+    if (!outletCurrency) {
+      return alert("Please select an outlet currency.");
+    }
+    if (!taxInputsValid) {
+      return alert("Please enter valid tax percentages (0–100).");
+    }
     if (!creator) return alert("Missing createdBy.");
 
     try {
       setCreatingOutlet(true);
+
+      const nowIso = new Date().toISOString();
+
+      const payload = {
+        posCenterID: 0,
+        posCenterCode: posCenter
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, "_")
+          .slice(0, 20),
+        posCenterName: posCenter.trim(),
+        nextBillNo: "1",
+        hotelCode: property?.hotelCode || property?.hotelCode?.toString() || "",
+        createdBy: creator,
+        createdOn: nowIso,
+        finAct: true,
+        kotPrinterName: kotPrinter || "",
+        botPrinterName: botPrinter || "",
+        billPrinterName: billPrinter || "",
+        nextOrderNo: "1",
+        locationID: property?.locationID || 0,
+        show: true,
+        isTaxInclusivePrices: false,
+        isAskRoomNo: false,
+        isAskTableNo: false,
+        isAskDeliveryMtd: false,
+        isAskPOSCenter: false,
+        isAskNoOfPax: false,
+        isChargeSeperateSC: true,
+
+        // TAXES from Tax tab
+        vat: Number(round2(vatPct)),
+        nbt: Number(round2(nbtPct)),
+        sc: Number(round2(serviceChargePct)),
+        ct: Number(round2(ctPct)),
+
+        gotoLogin: false,
+        isNBTPlusVat: false,
+        printBillOnLQ: false,
+        usdBilling: false,
+        noOfBillCopies: billCopies ? Number(billCopies) : 1,
+        isPossibleToPostToFOCashier: true,
+        isTakeAway: false,
+        outletGroup: "",
+        isProfitCenter: true,
+        roomServiceSC: Number(round2(serviceChargePct)),
+        takeAwaySC: Number(round2(serviceChargePct)),
+        deliverySC: Number(round2(serviceChargePct)),
+        allowDirectBill: true,
+        printKOTCopyAtBILLPrinter: false,
+        costPercentage: 0,
+        isBar: false,
+        isMergeTableWhenPrintSt: false,
+        koT_paperwidth: 80,
+        boT_paperwidth: 80,
+        bilL_paperwidth: 80,
+        showOnGSS: true,
+      };
+
       const result = await dispatch(
-        createPosCenter({
-          posCenter: posCenter.trim(),
-          serviceCharge: Number(round2(serviceChargePct)),
-          taxes: Number(round2(otherTaxesSumPct)),
-          createdBy: creator,
-          kotPrinter: kotPrinter || "",
-          billPrinter: billPrinter || "",
-          botPrinter: botPrinter || "",
-          billCopies: billCopies ? Number(billCopies) : 1,
-          isShowOnGSS: true,
-          outletCurrency: outletCurrency,
-        })
+        createHotelPOSCenterMas(payload as any)
       ).unwrap();
 
-      const newId = Number(result?.hotelPosCenterId);
+      const newId = Number(result?.posCenterID ?? result?.hotelPosCenterId);
       if (!Number.isFinite(newId) || newId <= 0) {
         console.warn("Create response (no id):", result);
         throw new Error("API did not return a recognizable outlet id.");
@@ -312,86 +238,34 @@ export function OutletCenterDrawer({
 
       setPosCenterId(newId);
       localStorage.setItem("lastCreatedPosCenterId", String(newId));
-      setActiveTab("taxes");
-      await dispatch(fetchHotelPosCenters());
+
+      // ✅ refresh POS centers using HotelPOSCenterMas thunk
+      try {
+        await dispatch(fetchHotelPOSCenterMas() as any);
+        console.log("✅ Redux store refreshed after outlet creation (HotelPOSCenterMas)");
+      } catch (refreshError) {
+        console.error("Failed to refresh outlet list:", refreshError);
+      }
+
       onCreated?.(result as PosCenter);
+
+      alert("Outlet created successfully.");
+      handleClose();
     } catch (e: any) {
-      console.error("Create POS Center failed:", e);
+      console.error("Create POS Center (MAS) failed:", e);
       const msg =
         typeof e === "string"
           ? e
-          : e?.message || createErrSel || "Failed to create POS center";
+          : e?.message || createError || "Failed to create Hotel POS Center.";
       alert("Failed: " + msg);
     } finally {
       setCreatingOutlet(false);
     }
   };
 
-  // -------- TAXES SAVE (create-only for POS) --------
-  const [savingTaxes, setSavingTaxes] = useState(false);
-
-  const handleSaveTaxes = async () => {
-    if (!posCenterId)
-      return alert("Create the outlet first. No outlet id found.");
-    if (!persistTaxes) return alert("Enable 'Persist taxes' to save taxes.");
-
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    const accessToken = tokens?.accessToken;
-    const hotelId = property?.id;
-
-    if (!hotelId) return alert("Missing hotelId.");
-    if (!accessToken) return alert("Missing access token.");
-
-    const creator =
-      (fullName && String(fullName).trim()) ||
-      tokens?.fullName ||
-      tokens?.email ||
-      "System";
-
-    setSavingTaxes(true);
-    try {
-      // Post rows exactly as displayed (no hard-coded list)
-      const tasks: Promise<any>[] = [];
-
-      taxRows.forEach((r) => {
-        const pct = parseFloat(r.pctStr || "0") || 0;
-        tasks.push(
-          dispatch(
-            createHotelPosCenterTaxConfig({
-              hotelPOSCenterId: Number(posCenterId),
-              taxName: r.taxName,
-              percentage: Number(round2(pct)),
-              calcBasedOn:
-                r.calcBasedOn === "Base"
-                  ? "base"
-                  : `sub${r.calcBasedOn.match(/\d+/)?.[0] || "1"}`,
-              createdBy: creator,
-              accountId: r.accountId ?? null,
-            })
-          ).unwrap()
-        );
-      });
-
-      const results = await Promise.allSettled(tasks);
-      const failures = results.filter((r) => r.status === "rejected");
-      if (failures.length) {
-        console.error("Some POS-Center Tax rows failed:", failures);
-        alert(
-          `Saved with ${failures.length} error(s). See console for details.`
-        );
-      } else {
-        onTaxesSaved?.();
-      }
-    } catch (e) {
-      console.error("Save taxes failed:", e);
-      alert("Failed: " + axiosErrMsg(e));
-    } finally {
-      setSavingTaxes(false);
-      onClose();
-    }
+  const handleClose = () => {
+    onClose();
+    resetAll();
   };
 
   // -------- RESET EVERYTHING --------
@@ -402,44 +276,32 @@ export function OutletCenterDrawer({
     setBotPrinter("");
     setBillCopies("");
     setOutletCurrency("");
-    setTaxRows([]);
     setPosCenterId(null);
     localStorage.removeItem("lastCreatedPosCenterId");
     setActiveTab("details");
-    seededOnce.current = false;
+    setServiceChargeStr("0");
+    setVatStr("0");
+    setNbtStr("0");
+    setCtStr("0");
   };
 
-  const normHotel = useMemo<DynamicTaxRow[]>(() => {
-    return (hotelRows || [])
-      .filter((r: any) => trim(r.taxName))
-      .map((r: any) => {
-        const k = canon(r.taxName);
-        const accountId = r.accountId ?? countryAccountIdByCanon.get(k) ?? null; // 👈
-        return {
-          taxName: trim(r.taxName),
-          pctStr:
-            r.percentage == null || Number.isNaN(Number(r.percentage))
-              ? "0"
-              : String(r.percentage),
-          calcBasedOn: normBase(r.calcBasedOn),
-          accountId, // 👈
-        };
-      });
-  }, [hotelRows, countryAccountIdByCanon]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (countryLoading || hotelLoading) return;
-
-    const hasHotel = (normHotel?.length ?? 0) > 0;
-    const src = hasHotel ? normHotel : normCountry;
-
-    setTaxRows(src.map((r) => ({ ...r })));
-    seededOnce.current = true;
-  }, [open, countryLoading, hotelLoading, normHotel, normCountry]);
+  // helper for numeric percentage input
+  const handlePctChange =
+    (setter: (v: string) => void) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      if (val === "") {
+        setter("");
+        return;
+      }
+      if (/^\d{0,3}(\.\d{0,2})?$/.test(val)) {
+        const num = parseFloat(val);
+        if (num <= 100) setter(val);
+      }
+    };
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-2xl overflow-y-auto rounded-l-2xl"
@@ -447,7 +309,7 @@ export function OutletCenterDrawer({
         <SheetHeader>
           <SheetTitle>Create POS Outlet</SheetTitle>
           <SheetDescription>
-            Enter new outlet center information
+            Enter new outlet center information and configure taxes.
           </SheetDescription>
         </SheetHeader>
 
@@ -488,7 +350,7 @@ export function OutletCenterDrawer({
                   </SelectTrigger>
                   <SelectContent className="dark:bg-black dark:text-white max-h-64">
                     {currencies.map((c) => (
-                      <SelectItem key={c.currencyId} value={c.currencyCode}>
+                      <SelectItem key={c.currencyID} value={c.currencyCode}>
                         {c.currencyCode} — {c.currencyName}
                       </SelectItem>
                     ))}
@@ -500,44 +362,10 @@ export function OutletCenterDrawer({
                   </p>
                 )}
               </div>
-
-              <Input
-                placeholder="KOT Printer"
-                value={kotPrinter}
-                onChange={(e) => setKotPrinter(e.target.value)}
-              />
-              <Input
-                placeholder="Bill Printer"
-                value={billPrinter}
-                onChange={(e) => setBillPrinter(e.target.value)}
-              />
-              <Input
-                placeholder="BOT Printer"
-                value={botPrinter}
-                onChange={(e) => setBotPrinter(e.target.value)}
-              />
-              <Input
-                type="number"
-                placeholder="Bill Copies"
-                value={billCopies}
-                onChange={(e) => setBillCopies(e.target.value)}
-              />
-
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox
-                  id="persistTaxes"
-                  checked={persistTaxes}
-                  onCheckedChange={(v) => setPersistTaxes(Boolean(v))}
-                />
-                <Label htmlFor="persistTaxes" className="text-sm">
-                  Persist taxes to this outlet (enables the Save Taxes button)
-                </Label>
-              </div>
-
               <div className="text-xs text-slate-500">
                 {posCenterId ? (
                   <>
-                    Outlet created with ID:{" "}
+                    Last created outlet ID:{" "}
                     <span className="font-medium">{posCenterId}</span>
                   </>
                 ) : (
@@ -545,27 +373,13 @@ export function OutletCenterDrawer({
                 )}
               </div>
 
-              {(countryError || hotelError) && (
-                <div className="text-xs text-amber-600">
-                  {hotelError || countryError}
-                </div>
-              )}
+              <p className="text-xs text-slate-500">
+                After filling these details, go to the{" "}
+                <span className="font-semibold">Taxes</span> tab to enter tax
+                percentages and create the outlet.
+              </p>
 
               <div className="flex gap-2 pt-2">
-                <Button
-                  onClick={handleCreateOutlet}
-                  disabled={
-                    creatingOutlet ||
-                    createStatus === "loading" ||
-                    countryLoading ||
-                    hotelLoading
-                  }
-                  className="w-1/2"
-                >
-                  {creatingOutlet || createStatus === "loading"
-                    ? "Creating…"
-                    : "Create Outlet"}
-                </Button>
                 <Button
                   variant="secondary"
                   onClick={resetAll}
@@ -573,105 +387,138 @@ export function OutletCenterDrawer({
                 >
                   Reset
                 </Button>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setActiveTab("taxes")}
+                  className="w-1/2"
+                  disabled={!posCenter.trim() || !outletCurrency}
+                >
+                  Go to Taxes
+                </Button>
               </div>
             </div>
           </TabsContent>
 
-          {/* -------- Taxes Tab (dynamic; 2-column grid) -------- */}
+          {/* -------- Taxes Tab (explicit fields; single Create Outlet) -------- */}
           <TabsContent value="taxes" className="mt-4">
             <div className="space-y-4">
-              {taxRows.length === 0 && (
-                <div className="rounded-xl border p-4 text-sm text-slate-500">
-                  No tax data found for this hotel/country.
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-xl border p-4 bg-white dark:bg-black">
+                  <Label className="text-xs text-slate-500">
+                    Service Charge (SC) %
+                  </Label>
+                  <div className="relative mt-2">
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="pr-8"
+                      value={serviceChargeStr}
+                      onChange={handlePctChange(setServiceChargeStr)}
+                      placeholder="e.g. 10"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
                 </div>
-              )}
 
-              {/* 2-column grid of tax inputs */}
-              {taxRows.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {taxRows.map((row, idx) => (
-                    <div
-                      key={`${row.taxName}-${idx}`}
-                      className="rounded-xl border p-4 bg-white dark:bg-black"
-                    >
-                      <Label className="text-xs text-slate-500">
-                        {row.taxName}
-                      </Label>
-                      <div className="relative mt-2">
-                        <Input
-                          type="text"
-                          inputMode="decimal"
-                          className="pr-8"
-                          value={row.pctStr}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setTaxRows((prev) => {
-                              const next = [...prev];
-                              if (val === "") {
-                                next[idx] = { ...next[idx], pctStr: "" };
-                                return next;
-                              }
-                              if (/^\d{0,3}(\.\d{0,2})?$/.test(val)) {
-                                const num = parseFloat(val);
-                                if (num <= 100)
-                                  next[idx] = { ...next[idx], pctStr: val };
-                              }
-                              return next;
-                            });
-                          }}
-                          placeholder="e.g. 10"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          %
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="rounded-xl border p-4 bg-white dark:bg-black">
+                  <Label className="text-xs text-slate-500">VAT %</Label>
+                  <div className="relative mt-2">
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="pr-8"
+                      value={vatStr}
+                      onChange={handlePctChange(setVatStr)}
+                      placeholder="e.g. 18"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
                 </div>
-              )}
+
+                <div className="rounded-xl border p-4 bg-white dark:bg-black">
+                  <Label className="text-xs text-slate-500">NBT %</Label>
+                  <div className="relative mt-2">
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="pr-8"
+                      value={nbtStr}
+                      onChange={handlePctChange(setNbtStr)}
+                      placeholder="e.g. 2"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4 bg-white dark:bg-black">
+                  <Label className="text-xs text-slate-500">CT %</Label>
+                  <div className="relative mt-2">
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="pr-8"
+                      value={ctStr}
+                      onChange={handlePctChange(setCtStr)}
+                      placeholder="e.g. 0"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               <div className="flex gap-2 pt-2">
                 <Button
-                  onClick={handleSaveTaxes}
+                  onClick={handleCreateOutlet}
                   disabled={
-                    !posCenterId ||
-                    savingTaxes ||
-                    !persistTaxes ||
-                    taxRows.length === 0
+                    creatingOutlet ||
+                    createLoading ||
+                    !posCenter.trim() ||
+                    !outletCurrency ||
+                    !taxInputsValid
                   }
                   className="w-1/2"
                 >
-                  {savingTaxes ? "Saving Taxes…" : "Save Taxes to Outlet"}
+                  {creatingOutlet || createLoading
+                    ? "Creating…"
+                    : "Create Outlet"}
                 </Button>
 
                 <Button
                   variant="secondary"
-                  onClick={() =>
-                    setTaxRows((prev) =>
-                      prev.map((r) => ({ ...r, pctStr: "0" }))
-                    )
-                  }
+                  onClick={() => {
+                    setServiceChargeStr("0");
+                    setVatStr("0");
+                    setNbtStr("0");
+                    setCtStr("0");
+                  }}
                   className="w-1/2"
                 >
-                  Clear
+                  Clear Taxes
                 </Button>
               </div>
 
-              {!posCenterId && (
+              {!posCenter.trim() || !outletCurrency ? (
                 <p className="text-xs text-amber-600">
-                  Create the outlet first to enable tax saving.
+                  Fill the outlet details (name & currency) first in the
+                  Details tab.
                 </p>
-              )}
+              ) : null}
             </div>
           </TabsContent>
         </Tabs>
 
         <div className="mt-6">
           <Button
-            onClick={() => {
-              onClose();
-              resetAll();
-            }}
+            onClick={handleClose}
             variant="outline"
             className="w-full"
           >
