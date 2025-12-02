@@ -82,11 +82,11 @@ import { fetchCategories } from "@/redux/slices/fetchCategoriesSlice";
 import AddItemDrawer from "@/components/drawers/add-item-drawer";
 import { useAppSelector } from "@/redux/hooks";
 import {
-  fetchHotelPosCenters,
-  selectHotelPosCenters,
-  selectHotelPosCentersLoading,
-  selectHotelPosCentersError,
-} from "@/redux/slices/hotelPosCenterSlice";
+  fetchHotelPOSCenterMas,
+  selectHotelPOSCenterMasData,
+  selectHotelPOSCenterMasLoading,
+  selectHotelPOSCenterMasError,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
 import {
   fetchHotelPosCenterTaxConfig,
   type HotelPosCenterTaxConfig,
@@ -160,9 +160,9 @@ type TaxBreakdown = {
 export default function POSPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: fetchedOutlets, loading: loadingOutlets } = useSelector(
-    (state: RootState) => state.hotelPosCenter
-  );
+  const fetchedOutlets = useSelector(selectHotelPOSCenterMasData);
+  const loadingOutlets = useSelector(selectHotelPOSCenterMasLoading);
+  const fetchedOutletsError = useSelector(selectHotelPOSCenterMasError); // optional, if you want it
   const [hotelId, setHotelId] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
   const SEARCH_TAB = "search";
@@ -493,9 +493,8 @@ export default function POSPage() {
 
   const currentOutletObj = useMemo(
     () =>
-      fetchedOutlets?.find(
-        (o: any) => o.hotelPosCenterId === selectedCenterId
-      ) ?? null,
+      fetchedOutlets?.find((o: any) => o.posCenterID === selectedCenterId) ??
+      null,
     [fetchedOutlets, selectedCenterId]
   );
 
@@ -518,16 +517,12 @@ export default function POSPage() {
   console.log("selectedOutlet ✅✅✅  :", selectedOutlet);
 
   const dispatch = useDispatch();
-  const posCenters = useAppSelector(selectHotelPosCenters);
-  const loading = useAppSelector(selectHotelPosCentersLoading);
+  const posCenters = useAppSelector(selectHotelPOSCenterMasData);
+  const loading = useAppSelector(selectHotelPOSCenterMasLoading);
 
   useEffect(() => {
-    if (addOpen) dispatch(fetchHotelPosCenters());
+    if (addOpen) dispatch(fetchHotelPOSCenterMas());
   }, [addOpen, dispatch]);
-
-  // const { categories: reduxCategories } = useSelector(
-  //   (state: RootState) => (state as any).categories
-  // );
 
   const categoriesState = useSelector(
     (state: RootState) => state.fetchCategories
@@ -589,10 +584,9 @@ export default function POSPage() {
   );
 
   const getPosCenterNameById = (id?: number | null) =>
-    fetchedOutlets.find((o: any) => o.hotelPosCenterId === id)?.posCenter ?? "";
+    fetchedOutlets.find((o: any) => o.posCenterID === id)?.posCenterName ?? "";
   const getPosCenterIdById = (id?: number | null) =>
-    fetchedOutlets.find((o: any) => o.hotelPosCenterId === id)
-      ?.hotelPosCenterId ?? null;
+    fetchedOutlets.find((o: any) => o.posCenterID === id)?.posCenterID ?? null;
 
   useEffect(() => {
     const saved = localStorage.getItem("hm_selected_pos_center_id");
@@ -620,7 +614,12 @@ export default function POSPage() {
       if (prevSelectedCenterIdRef.current !== selectedCenterId) {
         dispatch(clearCart());
         setSelectedTableForOrder(null); // Also clear any selected table
-        console.log("✅ Cart cleared because outlet changed from", prevSelectedCenterIdRef.current, "to", selectedCenterId);
+        console.log(
+          "✅ Cart cleared because outlet changed from",
+          prevSelectedCenterIdRef.current,
+          "to",
+          selectedCenterId
+        );
       }
     }
     // Update the ref to the current outlet ID
@@ -722,39 +721,6 @@ export default function POSPage() {
   console.log("outlets", outlets);
   console.log("allItems", allItems);
 
-  // useEffect(() => {
-  //   const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-  //   const property = JSON.parse(
-  //     localStorage.getItem("selectedProperty") || "{}"
-  //   );
-  //   const hotelID = property.id;
-  //   const accessToken = tokens.accessToken;
-
-  //   if (!accessToken || !hotelID) return;
-
-  //   // Fetch categories
-  //   getCategory({ token: accessToken, hotelID })
-  //     .then((data) => {
-  //       const transformed = data.map((cat: any) => ({
-  //         id: cat.categoryID.toString(),
-  //         name: cat.categoryName,
-  //       }));
-  //       setCategories(transformed);
-  //       const defaultCategory = transformed.find(
-  //         (c: { id: string; name: string }) => c.id === "1"
-  //       );
-  //       if (defaultCategory) {
-  //         setActiveTab(1);
-  //       } else if (transformed.length > 0) {
-  //         setActiveTab(Number(transformed[0].id)); // fallback
-  //       }
-  //     })
-  //     .catch((err) => {
-  //       console.error("Failed to load categories:", err);
-  //       setCategories([]); // fallback to empty array on error
-  //     });
-  // }, []);
-
   const itemState = useSelector((state: RootState) => state.items);
   const { items, status, error } = itemState;
 
@@ -770,8 +736,32 @@ export default function POSPage() {
   }, [dispatch]);
 
   useEffect(() => {
-    dispatch(fetchHotelPosCenters());
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+    // Dispatch with proper parameters
+    dispatch(fetchHotelPOSCenterMas({ hotelCode: property.hotelCode }));
   }, [dispatch]);
+
+  // Map fetchedOutlets to the expected format
+  useEffect(() => {
+    if (fetchedOutlets && Array.isArray(fetchedOutlets)) {
+      const mappedOutlets = fetchedOutlets.map((outlet: any) => ({
+        hotelPosCenterId: outlet.posCenterID,
+        posCenter: outlet.posCenterName,
+        outletCurrency: outlet.outletCurrency || "USD",
+        serviceCharge: outlet.sc || 0,
+        taxes: {
+          vat: outlet.vat || 0,
+          nbt: outlet.nbt || 0,
+          sc: outlet.sc || 0,
+          ct: outlet.ct || 0,
+        },
+      }));
+      setOutlets(mappedOutlets);
+      console.log("Mapped outlets:", mappedOutlets);
+    }
+  }, [fetchedOutlets]);
 
   useEffect(() => {
     const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
@@ -928,31 +918,6 @@ export default function POSPage() {
       dispatch(clearCart());
     }
   };
-
-  // const fetchCategories = async () => {
-  //   try {
-  //     const transformed = reduxCategories.map((cat) => ({
-  //       id: cat.categoryID.toString(),
-  //       name: cat.categoryName,
-  //     }));
-
-  //     setCategories(transformed);
-
-  //     const defaultCategory = transformed.find((c) => c.id === "1");
-  //     if (defaultCategory) {
-  //       setActiveTab(1);
-  //     } else if (transformed.length > 0) {
-  //       setActiveTab(Number(transformed[0].id)); // fallback
-  //     }
-  //   } catch (err) {
-  //     console.error("Failed to load categories:", err);
-  //     setCategories([]); // fallback to empty array on error
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchCategories();
-  // }, []);
 
   const selectedOutletName = useMemo(() => {
     if (!selectedCenterId || !Array.isArray(fetchedOutlets)) return "";
@@ -1267,8 +1232,9 @@ export default function POSPage() {
 
     const posCenterId = Number(
       selectedCenterId ||
-      outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
-        ?.hotelPosCenterId || 0
+        outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
+          ?.hotelPosCenterId ||
+        0
     );
 
     const payload = {
@@ -1470,14 +1436,14 @@ export default function POSPage() {
             <div className="py-6 text-muted-foreground">Loading outlets...</div>
           ) : outlets.length > 0 ? (
             <>
-              <div className="grid gap-3 mt-4">
+              <div className="grid gap-3 mt-4 ">
                 {fetchedOutlets.map((outlet) => (
                   <Button
-                    key={outlet.hotelPosCenterId}
+                    key={outlet.posCenterID}
                     className="w-full"
                     onClick={() => handleOutletSelect(outlet)}
                   >
-                    {outlet.posCenter}
+                    {outlet.posCenterName}
                   </Button>
                 ))}
               </div>
@@ -1799,7 +1765,7 @@ export default function POSPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {cart.length > 0 ? (
                     <div className="flex flex-col gap-4">
                       {cart.map((item: CartItem) => (
@@ -2143,7 +2109,7 @@ export default function POSPage() {
             onClose={
               (/* no args */) => {
                 setShowOutletCenter(false);
-                dispatch(fetchHotelPosCenters());
+                dispatch(fetchHotelPOSCenterMas());
                 // do NOT open the Select Outlet modal here
               }
             }
@@ -2156,18 +2122,24 @@ export default function POSPage() {
                 // Note: If taxes haven't been saved yet, this will return empty, which is fine
                 // The tax config will be refreshed again when onTaxesSaved is called
                 dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
-                console.log("✅ Tax config refresh triggered for newly created outlet:", newOutletId);
+                console.log(
+                  "✅ Tax config refresh triggered for newly created outlet:",
+                  newOutletId
+                );
               }
             }}
             onTaxesSaved={() => {
               // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
               setSuppressOutletModal(false);
               localStorage.removeItem(STORAGE_SUPPRESS_KEY);
-              
+
               // ✅ Refresh tax config if an outlet is currently selected
               if (selectedCenterId) {
                 dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
-                console.log("✅ Tax config refreshed after taxes saved for outlet:", selectedCenterId);
+                console.log(
+                  "✅ Tax config refreshed after taxes saved for outlet:",
+                  selectedCenterId
+                );
               }
             }}
           />
