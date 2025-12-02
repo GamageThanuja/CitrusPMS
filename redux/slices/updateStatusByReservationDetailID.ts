@@ -15,21 +15,11 @@ export const updateReservationStatus = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const storedToken = localStorage.getItem("hotelmateTokens");
-      const parsed = storedToken ? JSON.parse(storedToken) : null;
-      const accessToken = parsed?.accessToken;
-      if (!accessToken) throw new Error("Token not found");
-
       const url = `${BASE_URL}/api/Reservation/detail/${reservationDetailId}/status`;
 
-      // Swagger shows the body is just the numeric status id
-      const res = await axios.put(url, statusId, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
+      // Backend expects the statusId in the body (as per your swagger comment)
+      // No Authorization / tokens used here
+      const res = await axios.put(url, statusId);
 
       return { reservationDetailId, statusId, data: res.data };
     } catch (err: any) {
@@ -43,7 +33,7 @@ export const updateReservationStatus = createAsyncThunk(
   }
 );
 
-// --- add fields to initialState
+// --- initial state (extend with your existing fields)
 const initialState = {
   // ...your existing state
   updateStatusLoading: false,
@@ -51,7 +41,7 @@ const initialState = {
   updateStatusError: null as string | null,
 };
 
-// --- slice (show only the extraReducers bit to merge into yours)
+// --- slice
 const reservationStatusSlice = createSlice({
   name: "reservation",
   initialState,

@@ -29,11 +29,33 @@ import {
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
-import { fetchGlAccounts } from "@/redux/slices/glAccountSlice";
-// ✅ use the new slice
-import { fetchReservationById } from "@/redux/slices/reservationByIdSlice";
+import {
+  fetchGLAccount,
+  selectGLAccountData,
+  selectGLAccountLoading,
+} from "@/redux/slices/fetchGLAccountSlices";
+import {
+  fetchGLAccountType,
+  selectGLAccountTypeData,
+} from "@/redux/slices/fetchGLAccountTypeSlice";
+import {
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+} from "@/redux/slices/fetchCurrencyMasSlice";
+import {
+  fetchNameMas,
+  selectFetchNameMasItems,
+} from "@/redux/slices/fetchNameMasSlice";
+import {
+  fetchReservationDetailsById,
+  selectReservationDetailsItems,
+} from "@/redux/slices/fetchreservtaionByIdSlice";
 import { useAppSelector, useAppDispatch } from "@/redux/hooks";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useStoredCurrencyCode } from "@/hooks/useStoredCurrencyCode";
 import { fetchExchangeRate } from "@/redux/slices/currencyExchangeSlice";
@@ -88,10 +110,20 @@ export function TakePaymentsDrawer({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("");
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [currencies, setCurrencies] = useState<
-    { currencyId: string; currencyCode: string; currencyName: string }[]
-  >([]);
-  console.log("currencies : ", currencies);
+const currencyMasItems = useAppSelector(selectCurrencyMasItems);
+
+// Normalize to what the UI already expects
+const currencies = useMemo(
+  () =>
+    (currencyMasItems || []).map((c) => ({
+      currencyId: String(c.currencyID),
+      currencyCode: c.currencyCode,
+      currencyName: c.currencyName,
+    })),
+  [currencyMasItems]
+);
+
+console.log("currencies from CurrencyMas:", currencies);
   console.log("booking detail take payment : ", bookingDetail);
 
   console.log("amount : ", amount);
@@ -171,7 +203,6 @@ export function TakePaymentsDrawer({
     { accountID: number; accountName: string; accountTypeID: number }[]
   >([]);
   const [selectedAccountID, setSelectedAccountID] = useState("");
-  const [agents, setAgents] = useState<{ nameID: number; name: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [payloadPreview, setPayloadPreview] = useState("");
   const hotelCurrency = useStoredCurrencyCode();
@@ -496,16 +527,42 @@ export function TakePaymentsDrawer({
   const rateReady =
     !needsRate || (typeof rate === "number" && isFinite(rate) && rate > 0);
 
-  const glAccounts =
-    useSelector((state: RootState) => state.glAccount.list) ?? [];
-  const accountListLoading = useSelector(
-    (state: RootState) => state.glAccount.listLoading
+  const glAccounts = useSelector(selectGLAccountData);
+  const accountListLoading = useSelector(selectGLAccountLoading);
+
+  const glAccountTypes = useSelector(selectGLAccountTypeData);
+
+  // find the type with accountTypeID = 1
+  const paymentAccountType = useMemo(
+    () => glAccountTypes.find((t: any) => t.accountTypeID === 1),
+    [glAccountTypes]
   );
 
   // NEW: reservation (rooms) when in booking view
-  const reservationById = useSelector(
-    (state: RootState) => state.reservationById?.data
-  );
+  // Raw items from new slice
+  const reservationDetailsItems = useAppSelector(selectReservationDetailsItems);
+
+  // Derive a "reservationById-like" object so the rest of the code can stay the same
+  const reservationById = useMemo(() => {
+    if (!reservationDetailsItems || reservationDetailsItems.length === 0) {
+      return null;
+    }
+
+    const first = reservationDetailsItems[0];
+
+    return {
+      reservationID: first.reservationID,
+      bookerFullName: first.bookerFullName,
+      rooms: reservationDetailsItems.map((item) => ({
+        reservationDetailID: item.reservationDetailID,
+        roomNumber: item.roomNumber,
+        roomType: item.roomType,
+        guest1: item.guest1,
+        guest2: (item as any).guest2, 
+        basis: item.basis,
+      })),
+    };
+  }, [reservationDetailsItems]);
 
   console.log("booking page view : ", isBookingPageView);
 
@@ -515,20 +572,23 @@ export function TakePaymentsDrawer({
   );
   const hotelId = selectedProperty.id;
 
-  const filteredAccounts = useMemo(
-    () =>
-      (Array.isArray(glAccounts) ? glAccounts : []).filter(
-        (acc) =>
-          (acc.hotelID === String(hotelId) || acc.hotelID === "0") &&
-          acc.accountTypeID === 1 &&
-          acc.finAct === false
-      ),
-    [glAccounts, hotelId]
-  );
+  console.log("glAccounts raw:", glAccounts);
+  console.log("hotelId from selectedProperty:", hotelId);
 
-  // Fetch GL accounts
+  const filteredAccounts = useMemo(() => {
+    const all = Array.isArray(glAccounts) ? glAccounts : [];
+
+    const type1 = all.filter((acc: any) => Number(acc.accountTypeID) === 1);
+
+    console.log("Accounts with accountTypeID=1:", type1);
+    return type1;
+  }, [glAccounts]);
+
+  // Fetch GL accounts (new slice)
+  // Fetch GL accounts + account types
   useEffect(() => {
-    dispatch(fetchGlAccounts());
+    dispatch(fetchGLAccount()); // GLAccount list
+    dispatch(fetchGLAccountType()); // GLAccountType list
   }, [dispatch]);
 
   useEffect(() => {
@@ -541,51 +601,51 @@ export function TakePaymentsDrawer({
   }, [isCityLedger]);
 
   // Fetch reservation (room cards) if booking view
+  // Fetch reservation details (room cards) if booking view
   useEffect(() => {
     if (isBookingPageView && bookingDetail?.reservationID) {
-      dispatch(fetchReservationById(bookingDetail.reservationID));
+      dispatch(
+        fetchReservationDetailsById({
+          reservationId: bookingDetail.reservationID,
+        })
+      );
     }
   }, [dispatch, isBookingPageView, bookingDetail?.reservationID]);
 
+
+  // All NameMas rows from Redux
+const nameMasItems = useAppSelector(selectFetchNameMasItems);
+
+// Derive the "agents" array (same shape as before)
+const agents = useMemo(() => {
+  if (typeof window === "undefined") return [];
+
+  const selectedPropertyRaw = localStorage.getItem("selectedProperty");
+  const selectedProperty = selectedPropertyRaw
+    ? JSON.parse(selectedPropertyRaw)
+    : {};
+  const hotelCode = selectedProperty.hotelCode;
+
+  return (nameMasItems || [])
+    .filter(
+      (item) =>
+        String(item.hotelCode) === String(hotelCode) &&
+        item.nameType === "Customer" &&
+        item.taType === "Online Travel Agent"
+    )
+    .map((item) => ({
+      nameID: item.nameID,
+      name: item.name,
+    }));
+}, [nameMasItems]);
+
   // Common: fetch currencies, GL accounts (raw), agents
-  useEffect(() => {
-    const tokenData = localStorage.getItem("hotelmateTokens");
-    const parsed = tokenData ? JSON.parse(tokenData) : null;
-    const accessToken = parsed?.accessToken;
-    if (!accessToken) return;
-
-    fetch(`${BASE_URL}/api/Currency`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => res.json())
-      .then((data) => setCurrencies(data))
-      .catch((err) => console.error("Currency fetch error:", err));
-
-    fetch(`${BASE_URL}/api/GlAccount`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => res.json())
-      .then((data) => setAccounts(data))
-      .catch((err) => console.error("GL Account fetch error:", err));
-
-    fetch(`${BASE_URL}/api/NameMaster`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const hotelCode = JSON.parse(
-          localStorage.getItem("selectedProperty") || "{}"
-        ).hotelCode;
-        const filteredAgents = data.filter(
-          (item: any) =>
-            item.hotelCode === hotelCode &&
-            item.nameType === "Customer" &&
-            item.taType === "Online Travel Agent"
-        );
-        setAgents(filteredAgents);
-      })
-      .catch((err) => console.error("Agent fetch error:", err));
-  }, []);
+// Common: fetch currencies + NameMas via Redux
+useEffect(() => {
+  dispatch(fetchCurrencyMas());
+  // Optionally pass filters; we filter again on client anyway
+  dispatch(fetchNameMas({ nameType: "Customer" }));
+}, [dispatch]);
 
   const currencyCodeResolved =
     currencies.find((c) => c.currencyCode === currency)?.currencyCode || "";
@@ -605,6 +665,8 @@ export function TakePaymentsDrawer({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelCode = selectedProperty?.hotelCode ?? "string";
+
+    console.log("Building payment body with:", reservationDetailId, reservationId);
 
     // IMPORTANT: no conversion
     const nowIso = new Date().toISOString();
@@ -654,7 +716,7 @@ export function TakePaymentsDrawer({
       chequeNo: method === "Cheque" ? "string" : "string",
       paymentMethod: mapPaymentMethod(method),
       chequeDate: nowIso,
-      reservationDetailId: Number(reservationDetailId || 0),
+      reservationDetailId: Number(reservationDetailId || "7225" || 7225),
       isGuestLedger: true,
       reservationId: Number(reservationId || 0),
       comment: "",
@@ -663,21 +725,20 @@ export function TakePaymentsDrawer({
     };
   };
 
-  const rdId =
-    bookingDetail?.reservationDetailID ??
-    bookingDetail?.rooms?.[0]?.reservationDetailID ??
-    bookingDetail?.id;
+  const rdId = bookingDetail?.reservationDetailId;
+
+  console.log("rdId : ", rdId);
 
   // Folio
-  const { data: folioItems = [], loading: folioLoading } = useAppSelector(
-    (state) => state.folio || { data: [], loading: false }
-  );
+  // Folio (from fetchFolioByDetailId slice)
+  const folioItems = useAppSelector(selectFolioByDetailIdData);
+  const folioLoading = useAppSelector(selectFolioByDetailIdLoading);
 
   console.log("Folio Items : ", folioItems);
 
   useEffect(() => {
     if (rdId) {
-      dispatch(fetchFolioByReservationDetailId(rdId));
+      dispatch(fetchFolioByDetailId(rdId));
     }
   }, [dispatch, rdId]);
 
@@ -811,16 +872,8 @@ export function TakePaymentsDrawer({
   ]);
 
   const handleConfirm = () => {
+    console.log("handleConfirm clicked");
     setIsSubmitting(true);
-
-    const tokenData = localStorage.getItem("hotelmateTokens");
-    const parsedToken = tokenData ? JSON.parse(tokenData) : null;
-    const accessToken = parsedToken?.accessToken;
-
-    if (!accessToken) {
-      setIsSubmitting(false);
-      return;
-    }
 
     // ---- MODE A: Booking Page View (per-room) ----
     if (isBookingPageView && reservationById?.rooms?.length) {
@@ -838,12 +891,12 @@ export function TakePaymentsDrawer({
 
           const exch = base === hotelCurrency ? 1 : perRoomRate[rdid] ?? 0;
 
-          if (base !== hotelCurrency && !(exch > 0)) {
-            toast.error(
-              `Exchange rate unavailable for ${base} → ${hotelCurrency}.`
-            );
-            return null; // skip this room
-          }
+          // if (base !== hotelCurrency && !(exch > 0)) {
+          //   toast.error(
+          //     `Exchange rate unavailable for ${base} → ${hotelCurrency}.`
+          //   );
+          //   return null; 
+          // }
 
           return buildPaymentBody({
             amountNumber: num,
@@ -864,6 +917,7 @@ export function TakePaymentsDrawer({
       console.log("payload preview : ", payloadPreview);
 
       console.log("Taking group payment:", bodies);
+      console.log("reservationdetailid in takepayment:", bookingDetail?.reservationDetailId);
 
       dispatch(takeReservationPayment(bodies as any))
         .unwrap()
@@ -985,11 +1039,11 @@ export function TakePaymentsDrawer({
           : 0
         : 1;
 
-    if (base !== hotelCurrency && !(exch > 0)) {
-      toast.error(`Exchange rate unavailable for ${base} → ${hotelCurrency}.`);
-      setIsSubmitting(false);
-      return;
-    }
+    // if (base !== hotelCurrency && !(exch > 0)) {
+    //   toast.error(`Exchange rate unavailable for ${base} → ${hotelCurrency}.`);
+    //   setIsSubmitting(false);
+    //   return;
+    // }
 
     const body = buildPaymentBody({
       amountNumber,
@@ -1226,6 +1280,29 @@ export function TakePaymentsDrawer({
     }
     return 0;
   }
+
+  console.log("TakePaymentsDrawer debug:", {
+  isBookingPageView,
+  isCityLedger,
+  method,
+  amount,
+  currency,
+  selectedAccountID,
+  perRoomAmounts,
+  totalDue,
+  canSubmitSingle: !isBookingPageView &&
+    !!amount &&
+    !!method &&
+    !!currency &&
+    (!!selectedAccountID || method === "Credit" || isCityLedger) &&
+    !isSubmitting,
+  canSubmitBooking: isBookingPageView &&
+    !!method &&
+    (!!selectedAccountID || method === "Credit" || isCityLedger) &&
+    Object.values(perRoomAmounts).some((v) => Number(v) > 0) &&
+    !isSubmitting,
+  isTakingPayment,
+});
 
   return (
     <>
@@ -1540,14 +1617,21 @@ export function TakePaymentsDrawer({
                 {/* --- Account (hide for Credit) --- */}
                 {method !== "Credit" && method !== "City Ledger" && (
                   <div className="space-y-2 mt-3 px-[10px]">
-                    <label className="block text-sm font-medium">Account</label>
+                    <label className="block text-sm font-medium">
+                      Account
+                      {paymentAccountType && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({paymentAccountType.accountType})
+                        </span>
+                      )}
+                    </label>
                     <select
                       className="w-full border rounded-md p-2 text-sm"
                       value={selectedAccountID}
                       onChange={(e) => setSelectedAccountID(e.target.value)}
                     >
                       <option value="">Select account</option>
-                      {filteredAccounts.map((acc) => (
+                      {filteredAccounts.map((acc: any) => (
                         <option key={acc.accountID} value={acc.accountID}>
                           {acc.accountName}
                         </option>

@@ -28,9 +28,21 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { editRoomMas } from "@/redux/slices/editRoomMasSlice";
-import { updateRoomHousekeepingStatus } from "@/redux/slices/roomMasSlice";
+import {
+  updateHousekeepingStatus,
+  type UpdateHousekeepingPayload,
+} from "@/redux/slices/housekeepingStatusSlice";
+
+// replace with:
 import { differenceInCalendarDays } from "date-fns";
+
+import {
+  CalendarRange,
+  BedSingle,
+  BriefcaseBusiness,
+  Zap,
+  Wrench,
+} from "lucide-react";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -40,15 +52,12 @@ interface Room {
   number: string;
   rate: number;
   housekeepingStatus?: "Clean" | "Occupied" | "Dirty" | "WIP" | string;
-  houseKeepingStatusID?: number; // 1=Clean, 2=Dirty, 5=WIP, 6=Occupied Clean, 7=Occupied Dirty
 }
-
 interface RoomType {
   id: string;
   name: string;
   rooms: Room[];
 }
-
 interface Booking {
   id: string;
   roomId: string;
@@ -58,10 +67,10 @@ interface Booking {
   checkOut?: Date;
   status: string;
   statusColor?: string;
-  agentLogoURL?: string;
-  reservationNo?: string;
+  agentLogoURL?: string; // ⬅️ already used in your render
+  reservationNo?: string; // optional
   source?: string;
-  sourceOfBooking?: string;
+  reservationType?: string;
 }
 
 // --- Props ---
@@ -86,13 +95,21 @@ interface GridLayoutProps {
     roomTypeId: number;
     availability: { date: string; count: number }[];
   }[];
-  onSelectRange?: (payload: {
+  onQuickSelectRange?: (payload: {
     roomId: string;
     roomNumber: string;
-    startDate: Date;
-    endDate: Date;
     roomTypeId: string;
     roomTypeName: string;
+    startDate: Date;
+    endDate: Date;
+  }) => void;
+  onBusinessSelectRange?: (payload: {
+    roomId: string;
+    roomNumber: string;
+    roomTypeId: string;
+    roomTypeName: string;
+    startDate: Date;
+    endDate: Date;
   }) => void;
 }
 
@@ -101,8 +118,8 @@ type DragSel = {
   roomNumber: string;
   roomTypeId: string;
   roomTypeName: string;
-  startIdx: number;
-  endIdx: number;
+  startIdx: number; // column index where drag started
+  endIdx: number; // column index where drag currently is
 } | null;
 
 // --- Component ---
@@ -122,11 +139,16 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       computeBookingPosition: _computeBookingPosition,
       computeCellBasePosition,
       roomAvailability,
-      onSelectRange,
+      onQuickSelectRange,
+      onBusinessSelectRange,
     },
     ref
   ) => {
+    // Responsive day column width logic
     console.log("roomAvailability aaaa : ", roomAvailability);
+
+    console.log("test booking : ", statusColors);
+    console.log("test boking block : ", nonSameDayBookings);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [responsiveDayColWidth, setResponsiveDayColWidth] =
@@ -142,8 +164,36 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       top: number;
       height: number;
     } | null>(null);
+    type SelectPayload = {
+      roomId: string;
+      roomNumber: string;
+      roomTypeId: string;
+      roomTypeName: string;
+      startDate: Date; // check-in (inclusive)
+      endDate: Date; // check-out (exclusive)
+    };
+
+    const [finalSel, setFinalSel] = useState<{
+      roomId: string;
+      roomNumber: string;
+      roomTypeId: string;
+      roomTypeName: string;
+      startIdx: number;
+      endIdx: number;
+    } | null>(null);
+
+    const [selectionMenu, setSelectionMenu] = useState<{
+      x: number;
+      y: number;
+      placement: "top" | "bottom";
+      payload: SelectPayload;
+    } | null>(null);
 
     const [dragSel, setDragSel] = useState<DragSel>(null);
+    // add near other refs
+    const rowBoxMap = useRef<Record<string, { top: number; height: number }>>(
+      {}
+    );
 
     console.log("hotel id :", hotelId);
     console.log("accessToken :", accessToken);
@@ -153,70 +203,155 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
     const systemDate = useAppSelector(
       (state: RootState) => state.systemDate.value
     );
-    const roomMasData = useAppSelector((state: RootState) => state.roomMas?.items || []);
 
-    // Helper function to get the current housekeeping status from Redux store
-    const getCurrentHkStatus = (roomId: string): number => {
-      const roomFromStore = roomMasData.find(room => room.roomID.toString() === roomId);
-      return hkOverride[roomId] ?? roomFromStore?.houseKeepingStatusID ?? 1;
-    };
+    // For each room, which day indices are occupied?
+    const occupiedByRoom: Record<string, Set<number>> = {};
+    roomTypes.forEach((t) =>
+      t.rooms.forEach((r) => (occupiedByRoom[r.id] = new Set()))
+    );
 
     useEffect(() => {
       dispatch(fetchSystemDate());
     }, [dispatch]);
 
     const commitDrag = useCallback(() => {
-      if (!dragSel || !onSelectRange) return;
+      if (!dragSel) return;
 
       const start = Math.min(dragSel.startIdx, dragSel.endIdx);
       const endInclusive = Math.max(dragSel.startIdx, dragSel.endIdx);
-      const endExclusive = Math.min(endInclusive + 1, dates.length);
 
+      // reject if any cell in the span is occupied
+      const occ = occupiedByRoom[dragSel.roomId] || new Set<number>();
+      for (let i = start; i <= endInclusive; i++) {
+        if (occ.has(i)) {
+          setDragSel(null);
+          setFinalSel(null);
+          return;
+        }
+      }
+
+      // [check-in, check-out)
+      const endExclusive = Math.min(endInclusive + 1, dates.length);
       const startDate = dates[start];
       const endDate =
         endExclusive < dates.length
           ? dates[endExclusive]
           : new Date(dates[dates.length - 1].getTime() + 24 * 60 * 60 * 1000);
 
-      onSelectRange({
+      // base X (center of the range)
+      const left = fixedColWidth + start * responsiveDayColWidth;
+      const width = Math.max(
+        0,
+        (endInclusive - start + 1) * responsiveDayColWidth
+      );
+      const x = left + width / 2;
+
+      // vertical measurements
+      const box = rowBoxMap.current[dragSel.roomId];
+      const selTop = box?.top ?? rowTopMap.current[dragSel.roomId] ?? 0;
+      const selBottom = selTop + (box?.height ?? rowHeight);
+
+      // decide placement relative to the visible viewport
+      const container = containerRef.current!;
+      const viewTop = container.scrollTop;
+      const viewBottom = viewTop + container.clientHeight;
+      const selMid = (selTop + selBottom) / 2;
+
+      // if selection's middle is in the top half of viewport -> place menu below; else above
+      const placement: "top" | "bottom" =
+        selMid - viewTop < container.clientHeight / 2 ? "bottom" : "top";
+
+      // anchor y just outside the selection box
+      const OFFSET = 8;
+      const y = placement === "bottom" ? selBottom + OFFSET : selTop - OFFSET;
+
+      // keep the highlight persisted
+      setFinalSel({
         roomId: dragSel.roomId,
         roomNumber: dragSel.roomNumber,
-        startDate,
-        endDate,
         roomTypeId: dragSel.roomTypeId,
         roomTypeName: dragSel.roomTypeName,
+        startIdx: start,
+        endIdx: endInclusive,
+      });
+
+      setSelectionMenu({
+        x,
+        y,
+        placement,
+        payload: {
+          roomId: dragSel.roomId,
+          roomNumber: dragSel.roomNumber,
+          roomTypeId: dragSel.roomTypeId,
+          roomTypeName: dragSel.roomTypeName,
+          startDate,
+          endDate,
+        },
       });
 
       setDragSel(null);
-    }, [dragSel, onSelectRange, dates]);
+    }, [
+      dragSel,
+      dates,
+      fixedColWidth,
+      occupiedByRoom,
+      responsiveDayColWidth,
+      rowHeight,
+    ]);
 
     useEffect(() => {
       const up = () => commitDrag();
-      const esc = (e: KeyboardEvent) => e.key === "Escape" && setDragSel(null);
+      const esc = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setDragSel(null);
+          setFinalSel(null);
+          setSelectionMenu(null);
+        }
+      };
+
+      // optional: click outside the menu to clear
+      const onDocClick = (e: MouseEvent) => {
+        // if a menu is open and the click is not on it, clear
+        if (selectionMenu) {
+          const target = e.target as HTMLElement;
+          // if your menu has a wrapping class or role, you can refine this check
+          if (!target.closest(".selection-menu-popover")) {
+            setSelectionMenu(null);
+            setFinalSel(null);
+          }
+        }
+      };
+
       window.addEventListener("mouseup", up);
       window.addEventListener("keydown", esc);
+      document.addEventListener("mousedown", onDocClick);
+
       return () => {
         window.removeEventListener("mouseup", up);
         window.removeEventListener("keydown", esc);
+        document.removeEventListener("mousedown", onDocClick);
       };
-    }, [commitDrag]);
+    }, [commitDrag, selectionMenu]);
 
     const didInitialCenter = useRef(false);
 
     function centerOnColumn(index: number) {
-      if (!containerRef.current) return;
+      const scrollEl = scrollableBodyRef.current || containerRef.current;
+      if (!scrollEl) return;
 
-      const viewport =
-        containerRef.current.clientWidth - Math.max(0, fixedColWidth);
+      // visible width excluding the fixed room column
+      const viewport = scrollEl.clientWidth - Math.max(0, fixedColWidth);
 
+      // pixel where the target column starts
       const colLeft = fixedColWidth + index * responsiveDayColWidth;
 
+      // we want the column centered in the scrollable viewport
       const targetScrollLeft = Math.max(
         0,
         colLeft - (viewport - responsiveDayColWidth) / 2
       );
 
-      containerRef.current.scrollLeft = targetScrollLeft;
+      scrollEl.scrollLeft = targetScrollLeft;
     }
 
     useEffect(() => {
@@ -226,11 +361,13 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const sys = startOfDay(new Date(systemDate)).getTime();
       const idx = dates.findIndex((d) => startOfDay(d).getTime() === sys);
       if (idx !== -1) {
+        // wait a frame to ensure widths are measured
         requestAnimationFrame(() => {
           centerOnColumn(idx);
           didInitialCenter.current = true;
         });
       }
+      // run when dates/width/systemDate become ready
     }, [dates, responsiveDayColWidth, systemDate, fixedColWidth]);
 
     function getRoomTypeInfo(roomId: string) {
@@ -241,110 +378,68 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       return { roomTypeId: "", roomTypeName: "" };
     }
 
+    /** After the user changes the date range (dates array changes),
+     *  align to the left edge (start date) instead of re-centering. */
     useEffect(() => {
-      if (!didInitialCenter.current) return;
-      if (!containerRef.current) return;
-      containerRef.current.scrollLeft = 0;
+      if (!didInitialCenter.current) return; // skip the very first render
+      const scrollEl = scrollableBodyRef.current || containerRef.current;
+      if (!scrollEl) return;
+      // snap to the start of the grid (left-aligned)
+      scrollEl.scrollLeft = 0;
     }, [dates]);
 
     console.log("System Date in Quick Reservation Drawer:", systemDate);
     const overlayHostRef = useRef<HTMLDivElement>(null);
     const isToday = systemDate;
 
-    const hkDotColor = (statusID?: number) => {
-      switch (statusID) {
-        case 1: // Clean
+    const hkDotColor = (status?: string) => {
+      switch ((status || "").trim()) {
+        case "Clean":
           return "bg-green-500";
-        case 2: // Dirty
-          return "bg-red-500";
-        case 5: // WIP
-          return "bg-blue-500";
-        case 6: // Occupied Clean
+        case "Occupied":
           return "bg-yellow-500";
-        case 7: // Occupied Dirty
-          return "bg-orange-500";
+        case "Dirty":
+          return "bg-red-500";
+        case "WIP":
+          return "bg-blue-500";
         default:
-          return "bg-gray-400";
-      }
-    };
-
-    const hkStatusLabel = (statusID?: number) => {
-      switch (statusID) {
-        case 1:
-          return "Clean";
-        case 2:
-          return "Dirty";
-        case 5:
-          return "WIP";
-        case 6:
-          return "Occupied Clean";
-        case 7:
-          return "Occupied Dirty";
-        default:
-          return "Unknown";
+          return "bg-black";
       }
     };
 
     // Optimistic HK overrides so the dot updates immediately
-    const [hkOverride, setHkOverride] = useState<Record<string, number>>({});
+    const [hkOverride, setHkOverride] = useState<Record<string, string>>({});
     const [hkUpdating, setHkUpdating] = useState<Record<string, boolean>>({});
 
-    
-
-    // Housekeeping status updater using RoomMas PUT endpoint
-    const handleHkChange = async (room: Room, nextStatusID: number) => {
+    const handleHkChange = async (
+      room: Room,
+      next: "Clean" | "Dirty" | "Occupied" | "WIP"
+    ) => {
       const roomKey = room.id.toString();
-
-      console.log("room key :", roomKey);  
+      const prev = hkOverride[roomKey] ?? room.housekeepingStatus ?? "Clean";
 
       // optimistic update
-      setHkOverride((m) => ({ ...m, [roomKey]: nextStatusID }));
+      setHkOverride((m) => ({ ...m, [roomKey]: next }));
       setHkUpdating((m) => ({ ...m, [roomKey]: true }));
 
-      // identify roomType from current grid data
-      const { roomTypeId } = getRoomTypeInfo(room.id);
+      const payload: UpdateHousekeepingPayload = {
+        id: Number(roomKey), // 🔁 If your API needs roomID instead, replace with that
+        housekeepingStatus: next,
+      };
 
-      // Dispatch PUT /api/RoomMas/{roomTypeId}/{roomId}/{roomNumber}
-      const action = await (dispatch as any)(
-        editRoomMas({
-          roomTypeId: Number(roomTypeId),
-          roomId: Number(roomKey),
-          roomNumber: room.number,
-          body: {
-            houseKeepingStatusID: nextStatusID,
-          },
-        })
-      );
-
-      // unset updating flag
+      const action = await dispatch(updateHousekeepingStatus(payload));
       setHkUpdating((m) => ({ ...m, [roomKey]: false }));
 
-      if (editRoomMas.rejected.match(action)) {
+      if (updateHousekeepingStatus.rejected.match(action)) {
         // revert on failure
-        setHkOverride((m) => ({ ...m, [roomKey]: room.houseKeepingStatusID ?? 1 }));
+        setHkOverride((m) => ({ ...m, [roomKey]: prev }));
         toast.error(
-          (action as any)?.payload ||
-            `Failed to update housekeeping for room ${room.number}`
+          (action as any)?.payload || `Failed to update room ${room.number}`
         );
       } else {
-        // Update the Redux store with the new housekeeping status
-        (dispatch as any)(updateRoomHousekeepingStatus({
-          roomID: Number(roomKey),
-          houseKeepingStatusID: nextStatusID
-        }));
-        
-        // Clear the optimistic override since the store is now updated
-        setHkOverride((m) => {
-          const newMap = { ...m };
-          delete newMap[roomKey];
-          return newMap;
-        });
-        
-        toast.success(`Room ${room.number} marked ${hkStatusLabel(nextStatusID)}`);
+        toast.success(`Room ${room.number} marked ${next}`);
       }
     };
-
-
 
     function AgentBadge({
       name,
@@ -389,13 +484,30 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       );
     }
 
+    const getBookingBgColor = (booking: Booking | any) => {
+      // 1. Business Block override
+      if (booking.reservationType === "BUSINESS_BLOCK") {
+        if (statusLegend["Block"]) {
+          return statusLegend["Block"]; // 👈 use Block color from legend
+        }
+      }
+
+      // 2. Normal behavior
+      return (
+        booking.statusColor ||
+        statusColors[booking.status] || // from props
+        "#ccc"
+      );
+    };
+
+    // Dynamically compute day column width based on container width and number of days
     useEffect(() => {
       const updateWidth = () => {
         requestAnimationFrame(() => {
-          if (containerRef.current) {
+          const el = scrollableBodyRef.current || containerRef.current;
+          if (el) {
             const containerWidth =
-              containerRef.current.getBoundingClientRect().width -
-              fixedColWidth;
+              el.getBoundingClientRect().width - fixedColWidth;
             const newDayColWidth = containerWidth / dates.length;
             setResponsiveDayColWidth(newDayColWidth);
           }
@@ -404,18 +516,18 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
 
       updateWidth();
       const resizeObserver = new ResizeObserver(updateWidth);
-      if (containerRef.current) {
-        resizeObserver.observe(containerRef.current);
+      const el = scrollableBodyRef.current || containerRef.current;
+      if (el) {
+        resizeObserver.observe(el);
       }
 
       window.addEventListener("resize", updateWidth);
       return () => {
         window.removeEventListener("resize", updateWidth);
-        if (containerRef.current)
-          resizeObserver.unobserve(containerRef.current);
+        if (el) resizeObserver.unobserve(el);
       };
     }, [dates.length, fixedColWidth]);
-
+    // Ensure all Room.id values are strings to match Booking.roomId
     roomTypes = roomTypes.map((type) => ({
       ...type,
       rooms: type.rooms.map((room) => ({
@@ -424,6 +536,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       })),
     }));
 
+    // Map of roomId -> pixel offset of its table row (relative to the GridLayout container)
     const rowTopMap = useRef<Record<string, number>>({});
 
     const normalizeBookings = (raw: Booking[]): Booking[] =>
@@ -433,20 +546,24 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
         checkOut: b.checkOut ? new Date(b.checkOut) : undefined,
       }));
 
+    // Combine and normalize all bookings (same-day and non-same-day)
     const allBookings = normalizeBookings([
       ...nonSameDayBookings,
       ...sameDayBookings,
     ]);
 
+    type DragSel = {
+      roomId: string;
+      roomNumber: string;
+      startIdx: number;
+      endIdx: number;
+    } | null;
+
+    // helper: get day index within current grid
     const dayIndexOf = (d: Date) =>
       dates.findIndex(
         (x) => startOfDay(x).getTime() === startOfDay(d).getTime()
       );
-
-    const occupiedByRoom: Record<string, Set<number>> = {};
-    roomTypes.forEach((t) =>
-      t.rooms.forEach((r) => (occupiedByRoom[r.id] = new Set()))
-    );
 
     allBookings.forEach((b) => {
       const ci = startOfDay(new Date(b.checkIn));
@@ -458,10 +575,12 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const coIdx = dayIndexOf(co);
 
       if (ci.getTime() === co.getTime()) {
+        // same-day booking blocks that single day
         if (ciIdx >= 0) occupiedByRoom[b.roomId]?.add(ciIdx);
         return;
       }
 
+      // multi-night occupies [ci, co) (check-out exclusive)
       const first = Math.max(0, ciIdx);
       const last = (coIdx >= 0 ? coIdx : dates.length) - 1;
       for (let i = first; i <= last && i < dates.length; i++) {
@@ -471,6 +590,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
 
     console.log("all bookings :", allBookings);
 
+    // --- Pre‑compute bookings grouped by room (ALL bookings) ---
     const bookingsByRoom: Record<string, Booking[]> = {};
     allBookings.forEach((bk) => {
       (bookingsByRoom[bk.roomId] ||= []).push(bk);
@@ -479,9 +599,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       arr.sort((a, b) => a.checkIn.getTime() - b.checkIn.getTime())
     );
 
-    const bookingRowMap: Record<string, number> = {};
-    const rowsByRoom: Record<string, Booking[][]> = {};
+    // --- Assign each booking to the first free stack row that does NOT overlap ---
+    const bookingRowMap: Record<string, number> = {}; // bookingId -> stack row index
+    const rowsByRoom: Record<string, Booking[][]> = {}; // roomId -> rows of bookings
 
+    // Overlap detection: treat same-day bookings as having a visual span for stacking
     const overlaps = (a: Booking, b: Booking) => {
       const aStart = new Date(a.checkIn).getTime();
       const aEnd = a.checkOut ? new Date(a.checkOut).getTime() : aStart;
@@ -489,12 +611,14 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const bStart = new Date(b.checkIn).getTime();
       const bEnd = b.checkOut ? new Date(b.checkOut).getTime() : bStart;
 
+      // bookings do NOT overlap if one ends *on or before* the other starts
       return !(aEnd <= bStart || bEnd <= aStart);
     };
 
     for (const [roomId, bkArray] of Object.entries(bookingsByRoom)) {
       const rows: Booking[][] = [];
       bkArray.forEach((bk) => {
+        // try to place into the first row without overlap
         let placed = false;
         for (let i = 0; i < rows.length; i++) {
           if (rows[i].every((other) => !overlaps(bk, other))) {
@@ -504,6 +628,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
             break;
           }
         }
+        // if no existing row fits, start a new one
         if (!placed) {
           rows.push([bk]);
           bookingRowMap[bk.id] = rows.length - 1;
@@ -512,16 +637,20 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       rowsByRoom[roomId] = rows;
     }
 
+    // --- Compute the height required for each room based on the peak number of overlapping bookings ---
     const roomHeightMap: Record<string, number> = {};
     for (const [roomId, rows] of Object.entries(rowsByRoom)) {
-      const peak = rows.length;
-      const requiredHeight = peak * bookingBlockHeight + (peak - 1) * 2;
+      const peak = rows.length; // number of stack rows needed
+      const requiredHeight = peak * bookingBlockHeight + (peak - 1) * 2; // 2px gap between stacked blocks
       roomHeightMap[roomId] = Math.max(rowHeight, requiredHeight);
     }
 
     const [statusLegend, setStatusLegend] = useState<Record<string, string>>(
       {}
     );
+
+    console.log("statusLegend : ", statusLegend);
+
     const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("all");
 
     const [hotelDate, setHotelDate] = useState<Date | null>(null);
@@ -544,12 +673,12 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
         .catch((error) => {
           console.error("Failed to fetch hotel date:", error);
         });
-    }, [accessToken, hotelId]);
+    }, []);
 
     useEffect(() => {
-      if (!accessToken) return;
+      if (!accessToken) return; // wait until token is available
       api
-        .get("/Reservation/status-codes")
+        .get("/Reservation/status-codes") // goes through /api/hotelmate/...
         .then((res) => {
           const legendMap: Record<string, string> = {};
           res.data.forEach((s: any) => {
@@ -559,7 +688,6 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
         })
         .catch(console.error);
     }, [accessToken]);
-
     const startDate = dates[0];
     const endDate = dates[dates.length - 1];
     const weekStartMs = dates[0].setHours(0, 0, 0, 0);
@@ -567,20 +695,27 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
     const minX = fixedColWidth;
     const maxX = fixedColWidth + dates.length * responsiveDayColWidth;
 
+    // Helper to compute the top position of a booking
+    // Priority:
+    //   1. Use the real DOM‑measured offset stored in rowTopMap (pixel‑perfect)
+    //   2. Fallback to the previous manual calculation if the ref isn’t filled yet
     const computeBookingTop = (booking: Booking): number => {
       const domOffset = rowTopMap.current[booking.roomId];
       if (typeof domOffset === "number") {
         return domOffset;
       }
 
-      const STATIC_HEADER_ROWS = 2;
+      // ---- Fallback (first render before refs resolve) ----
+      const STATIC_HEADER_ROWS = 2; // "Rooms / Dates" + "Availability"
       let offset = STATIC_HEADER_ROWS * rowHeight;
 
+      // Only count room‑types that are currently visible
       const visibleTypes = roomTypes.filter(
         (t) => selectedRoomTypeId === "all" || t.id === selectedRoomTypeId
       );
 
       for (const type of visibleTypes) {
+        // Add the room‑type header row
         offset += rowHeight;
 
         for (const r of type.rooms) {
@@ -591,9 +726,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
         }
       }
 
-      return offset;
+      return offset; // shouldn’t normally be hit
     };
 
+    // Responsive computeBookingPosition: same-day bookings span full column,
+    // others start/end at midday of check-in/check-out days.
     const computeBookingPosition = (booking: Booking) => {
       const checkInTime = startOfDay(booking.checkIn).getTime();
       const checkOutTime = booking.checkOut
@@ -603,6 +740,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const gridStartTime = startOfDay(dates[0]).getTime();
       const gridEndTime = startOfDay(dates[dates.length - 1]).getTime();
 
+      // Determine if the booking continues across boundaries
       const continuesFromPrev = checkInTime < gridStartTime;
       const continuesToNext = checkOutTime > gridEndTime;
 
@@ -620,8 +758,9 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const finalEnd = endIndex !== -1 ? endIndex : dates.length - 1;
 
       const sameDay = clampedStart === clampedEnd;
-      const horizontalGap = 2;
+      const horizontalGap = 2; // or any value in pixels you prefer
 
+      // Modified left calculation per instructions:
       const left =
         sameDay || continuesFromPrev
           ? fixedColWidth + finalStart * responsiveDayColWidth
@@ -722,8 +861,58 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       return { totalRooms, getOccupiedCount };
     };
 
+    // Compute occupancy stats per room type
+    const getRoomTypeOccupancy = (roomType: RoomType, date: Date) => {
+      const roomIds = roomType.rooms.map((room) => room.id);
+      const totalRooms = roomIds.length;
+      const currentDay = startOfDay(date).getTime();
+
+      const occupiedRooms = new Set(
+        allBookings
+          .filter((b) => {
+            const checkIn = startOfDay(new Date(b.checkIn)).getTime();
+            const checkOut = b.checkOut
+              ? startOfDay(new Date(b.checkOut)).getTime()
+              : checkIn;
+            if (checkIn === checkOut) {
+              return checkIn === currentDay;
+            }
+            return checkIn <= currentDay && currentDay < checkOut;
+          })
+          .filter((b) => roomIds.includes(b.roomId))
+          .map((b) => b.roomId)
+      ).size;
+
+      const availableRooms = totalRooms - occupiedRooms;
+      return { available: availableRooms, total: totalRooms };
+    };
+
+    // Create a separate ref for the scrollable body section
+    const scrollableBodyRef = useRef<HTMLDivElement>(null);
+    const headerScrollRef = useRef<HTMLDivElement>(null);
+
+    // Sync horizontal scroll between header and body
     useEffect(() => {
-      const el = containerRef.current;
+      const bodyEl = scrollableBodyRef.current;
+      const headerEl = headerScrollRef.current;
+
+      if (!bodyEl || !headerEl) return;
+
+      const syncBodyToHeader = () => {
+        if (bodyEl && headerEl) {
+          headerEl.scrollLeft = bodyEl.scrollLeft;
+        }
+      };
+
+      bodyEl.addEventListener("scroll", syncBodyToHeader);
+
+      return () => {
+        bodyEl.removeEventListener("scroll", syncBodyToHeader);
+      };
+    }, []);
+
+    useEffect(() => {
+      const el = scrollableBodyRef.current;
       const overlay = overlayHostRef.current;
       if (!el || !overlay) return;
 
@@ -735,20 +924,24 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
           const containerRect = el.getBoundingClientRect();
           const overlayRect = overlay.getBoundingClientRect();
 
+          // Mouse position relative to SCROLLABLE BODY
           const xInContainer = e.clientX - containerRect.left;
           const yInContainer = e.clientY - containerRect.top;
 
+          // Column hover (same as before)
           setCursorPos({ x: xInContainer, y: yInContainer });
 
           const colIndex = Math.floor(
-            (xInContainer - fixedColWidth) / responsiveDayColWidth
+            (xInContainer - fixedColWidth + el.scrollLeft) /
+              responsiveDayColWidth
           );
           const colLeft =
             colIndex >= 0 && colIndex < dates.length
-              ? fixedColWidth + colIndex * responsiveDayColWidth
+              ? fixedColWidth + colIndex * responsiveDayColWidth - el.scrollLeft
               : null;
           setHoveredColLeft(colLeft);
 
+          // If pointer is above the overlay (i.e., on headers), clear row hover
           const overlayOffsetTopInContainer =
             overlayRect.top - containerRect.top;
 
@@ -757,9 +950,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
             return;
           }
 
+          // Convert to OVERLAY-relative Y (accounting for container scroll)
           const yInOverlay =
             yInContainer - overlayOffsetTopInContainer + el.scrollTop;
 
+          // Detect which room row we're over using rowTopMap + real heights
           let found: { id: string; top: number; height: number } | null = null;
           for (const [roomId, top] of Object.entries(rowTopMap.current)) {
             const height = roomHeightMap[roomId] ?? rowHeight;
@@ -801,6 +996,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
         const a = Math.min(startIdx, endIdx);
         const b = Math.max(startIdx, endIdx);
 
+        // reject if any cell in the span is occupied
         const occ = occupiedByRoom[roomId] || new Set<number>();
         for (let i = a; i <= b; i++) {
           if (occ.has(i)) {
@@ -809,6 +1005,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
           }
         }
 
+        // compute date range: [checkIn, checkOut)
         const startDate = startOfDay(dates[a]);
         const endDate = startOfDay(addDays(dates[b], 1));
 
@@ -816,14 +1013,14 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
           roomTypes.flatMap((t) => t.rooms).find((r) => r.id === roomId)
             ?.number ?? "";
 
-        onSelectRange?.({
-          roomId,
-          roomNumber,
-          roomTypeId: dragSel.roomTypeId,
-          roomTypeName: dragSel.roomTypeName,
-          startDate,
-          endDate,
-        });
+        // onSelectRange?.({
+        //   roomId,
+        //   roomNumber,
+        //   roomTypeId: dragSel.roomTypeId,
+        //   roomTypeName: dragSel.roomTypeName,
+        //   startDate,
+        //   endDate,
+        // });
         setDragSel(null);
       };
 
@@ -831,7 +1028,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
 
       window.addEventListener("mouseup", onUp);
       return () => window.removeEventListener("mouseup", onUp);
-    }, [dragSel, dates, occupiedByRoom, onSelectRange, roomTypes]);
+    }, [dragSel, dates, occupiedByRoom, roomTypes]);
 
     const [hoveredBooking, setHoveredBooking] = useState<{
       booking: Booking;
@@ -840,6 +1037,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       place: "top" | "bottom";
     } | null>(null);
 
+    // Helper: compute tooltip position relative to the scrollable container
     const computeTooltipPos = (e: React.MouseEvent) => {
       if (!containerRef.current)
         return { x: 0, y: 0, place: "bottom" as const };
@@ -848,9 +1046,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const scrollLeft = containerRef.current.scrollLeft;
       const scrollTop = containerRef.current.scrollTop;
 
+      // cursor position relative to the scrollable container
       const cursorX = e.clientX - rect.left + scrollLeft;
       const cursorY = e.clientY - rect.top + scrollTop;
 
+      // expected tooltip size (match your real tooltip)
       const tooltipW = 260;
       const tooltipH = 160;
       const gap = 12;
@@ -858,15 +1058,19 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       const maxW = rect.width;
       const maxH = rect.height;
 
+      // available space in each direction
       const spaceRight = scrollLeft + maxW - cursorX;
       const spaceBelow = scrollTop + maxH - cursorY;
 
+      // horizontal placement (prefer right of cursor)
       let x =
         cursorX + (spaceRight >= tooltipW + gap ? gap : -(tooltipW + gap));
+      // vertical placement: flip up if not enough room below
       const place =
         spaceBelow >= tooltipH + gap ? ("bottom" as const) : ("top" as const);
       let y = place === "bottom" ? cursorY + gap : cursorY - tooltipH - gap;
 
+      // clamp inside the visible scroll area
       x = Math.min(
         Math.max(x, scrollLeft + 4),
         scrollLeft + maxW - tooltipW - 4
@@ -876,6 +1080,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
       return { x, y, place };
     };
 
+    // Helper: room number lookup (used in tooltip)
     const getRoomNumber = (roomId: string) =>
       roomTypes.flatMap((t) => t.rooms).find((r) => r.id === roomId)?.number ??
       "-";
@@ -883,16 +1088,21 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
     return (
       <div
         ref={containerRef}
-        className="relative overflow-auto rounded-lg border border-gray-300 border-opacity-40 border-b border-b-[0.5px] w-full"
+        className="relative flex flex-col rounded-lg border border-gray-300 border-opacity-40 border-b border-b-[0.5px] w-full h-full"
       >
         {hotelDate && (
-          <div className="text-xs text-muted-foreground px-2 py-1">
+          <div className="text-xs text-muted-foreground px-2 py-1 shrink-0">
             Hotel Date: {hotelDate.toLocaleDateString()}{" "}
             {hotelDate.toLocaleTimeString()}
           </div>
         )}
-        <div className="relative w-full">
-          <div className="overflow-hidden">
+        <div className="relative w-full flex flex-col flex-1 min-h-0">
+          {/* Fixed Header Section - Does NOT scroll vertically, but scrolls horizontally */}
+          <div
+            ref={headerScrollRef}
+            className="overflow-x-auto overflow-y-hidden shrink-0 border-b border-gray-300 border-opacity-40"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             <Table>
               <TableHeader>
                 <TableRow className="border border-gray-300 border-opacity-40 border-[0.5px]">
@@ -986,6 +1196,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
 
                   return (
                     <>
+                      {/* Occupied Row */}
                       <TableRow className="border border-gray-300 border-opacity-40 border-[0.5px] h-[20px]">
                         <TableCell
                           className="pl-3 text-[11px] font-medium text-muted-foreground py-[2px] border-[1px]"
@@ -1004,6 +1215,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                         ))}
                       </TableRow>
 
+                      {/* Occupancy % Row */}
                       <TableRow className="border border-gray-300 border-opacity-40 border-[0.5px] h-[20px] ">
                         <TableCell
                           className="pl-3 text-[11px] font-medium text-muted-foreground py-[2px] border-[0.5px] "
@@ -1028,6 +1240,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                         })}
                       </TableRow>
 
+                      {/* Total (All) Row */}
                       <TableRow className="border border-gray-300 border-opacity-40 border-[0.5px] h-[20px]">
                         <TableCell
                           className="pl-3 text-[11px] font-semibold text-muted-foreground py-[2px]"
@@ -1081,7 +1294,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
               </TableHeader>
             </Table>
           </div>
-          <div className="max-h-[700px] overflow-y-auto no-scrollbar">
+          {/* Scrollable Body Section - Rooms can scroll */}
+          <div
+            ref={scrollableBodyRef}
+            className="flex-1 overflow-y-auto overflow-x-auto no-scrollbar min-h-0"
+          >
             <div ref={overlayHostRef} className="relative">
               <Table className="border-separate border-spacing-0 w-full">
                 <TableBody>
@@ -1095,25 +1312,59 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                       <React.Fragment key={type.id}>
                         <TableRow className="border border-gray-300 border-opacity-40 border-[0.5px]">
                           <TableCell
-                            colSpan={dates.length + 1}
-                            className="font-bold text-xs bg-muted/50 border  border-gray-300 border-opacity-40 border-[0.5px]"
+                            className="font-bold text-xs bg-muted/50 border border-gray-300 border-opacity-40 border-[0.5px] pl-3 py-1"
+                            style={{ width: `${fixedColWidth}px` }}
                           >
                             {type.name}
                           </TableCell>
+                          {dates.map((d, i) => {
+                            const { available, total } = getRoomTypeOccupancy(
+                              type,
+                              d
+                            );
+                            return (
+                              <TableCell
+                                key={i}
+                                className="text-center text-[10px] font-medium bg-muted/50 border border-gray-300 border-opacity-40 border-[0.5px] py-1"
+                                style={{ width: `${responsiveDayColWidth}px` }}
+                              >
+                                {`${available}/${total}`}
+                              </TableCell>
+                            );
+                          })}
                         </TableRow>
                         {type.rooms.map((room) => {
+                          let rendered = false;
                           return (
                             <TableRow
                               key={room.id}
                               ref={(node) => {
-                                if (node && overlayHostRef.current) {
-                                  const hostTop =
-                                    overlayHostRef.current.getBoundingClientRect()
-                                      .top;
-                                  const rowTop =
-                                    node.getBoundingClientRect().top - hostTop;
-                                  rowTopMap.current[room.id] = rowTop;
-                                }
+                                if (!node || !overlayHostRef.current) return;
+
+                                const host = overlayHostRef.current;
+
+                                const measure = () => {
+                                  const hostRect = host.getBoundingClientRect();
+                                  const rowRect = node.getBoundingClientRect();
+
+                                  const top = rowRect.top - hostRect.top; // coords relative to overlayHost
+                                  const height = rowRect.height; // actual rendered height
+
+                                  rowTopMap.current[room.id] = top; // keep your old map if others use it
+                                  rowBoxMap.current[room.id] = { top, height }; // new precise map
+                                };
+
+                                // initial + observe changes (font, content, stacking, window resize)
+                                measure();
+                                const ro = new ResizeObserver(measure);
+                                ro.observe(node);
+                                // also re-measure on host resize
+                                const hostRO = new ResizeObserver(measure);
+                                hostRO.observe(host);
+
+                                // store a cleanup on the node to disconnect observers when unmounted
+                                (node as any).__ro__ = ro;
+                                (node as any).__hostRO__ = hostRO;
                               }}
                               style={{
                                 height: `${
@@ -1133,8 +1384,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                 style={{ width: `${fixedColWidth}px` }}
                               >
                                 {(() => {
-                                  const effectiveStatusID = getCurrentHkStatus(room.id);
-                                  const isDirty = effectiveStatusID === 2;
+                                  const effectiveStatus =
+                                    hkOverride[room.id] ??
+                                    room.housekeepingStatus ??
+                                    "Clean";
+                                  const isDirty = effectiveStatus === "Dirty";
                                   const isUpdating = !!hkUpdating[room.id];
 
                                   return (
@@ -1144,13 +1398,13 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                           <button
                                             type="button"
                                             className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full ring-1 ring-black/10 ${hkDotColor(
-                                              effectiveStatusID
+                                              effectiveStatus
                                             )} ${
                                               isUpdating
                                                 ? "opacity-60 cursor-wait"
                                                 : "cursor-pointer"
                                             }`}
-                                            title={`HK: ${hkStatusLabel(effectiveStatusID)} • Click to change`}
+                                            title={`HK: ${effectiveStatus} • Click to change`}
                                             disabled={isUpdating}
                                           />
                                         </DropdownMenuTrigger>
@@ -1162,7 +1416,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                           {isDirty ? (
                                             <DropdownMenuItem
                                               onClick={() =>
-                                                handleHkChange(room, 1)
+                                                handleHkChange(room, "Clean")
                                               }
                                               disabled={isUpdating}
                                             >
@@ -1171,7 +1425,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                           ) : (
                                             <DropdownMenuItem
                                               onClick={() =>
-                                                handleHkChange(room, 2)
+                                                handleHkChange(room, "Dirty")
                                               }
                                               disabled={isUpdating}
                                             >
@@ -1179,24 +1433,13 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                             </DropdownMenuItem>
                                           )}
 
-                                          <DropdownMenuItem 
-                                            onClick={() => handleHkChange(room, 5)} 
-                                            disabled={isUpdating}
-                                          >
-                                            Mark WIP
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            onClick={() => handleHkChange(room, 6)} 
-                                            disabled={isUpdating}
-                                          >
-                                            Mark Occupied Clean
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            onClick={() => handleHkChange(room, 7)} 
-                                            disabled={isUpdating}
-                                          >
-                                            Mark Occupied Dirty
-                                          </DropdownMenuItem>
+                                          {/* If you want the extra options, uncomment these: */}
+                                          {/* <DropdownMenuItem onClick={() => handleHkChange(room, "Occupied")} disabled={isUpdating}>
+            Mark Occupied
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleHkChange(room, "WIP")} disabled={isUpdating}>
+            Mark WIP
+          </DropdownMenuItem> */}
                                         </DropdownMenuContent>
                                       </DropdownMenu>
 
@@ -1210,6 +1453,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                 {dates.map((date) => null)}
                               </TableCell>
                               {dates.map((date, di) => {
+                                // keep your existing booking lookup so occupied cells render as before
                                 const bookingsForCell = allBookings.filter(
                                   (b) =>
                                     b.roomId === room.id &&
@@ -1220,9 +1464,11 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                         startOfDay(date).getTime())
                                 );
 
+                                // NEW: fast occupied check for drag rules
                                 const isOccupied =
                                   occupiedByRoom[room.id]?.has(di) ?? false;
 
+                                // if there are bookings, render as you already do (no drag)
                                 if (bookingsForCell.length > 0) {
                                   return (
                                     <TableCell
@@ -1237,6 +1483,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                   );
                                 }
 
+                                // EMPTY CELL: enable drag-select here
                                 return (
                                   <TableCell
                                     key={di}
@@ -1251,17 +1498,19 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                                         getRoomTypeInfo(room.id);
                                       setDragSel({
                                         roomId: room.id,
-                                        startIdx: di,
-                                        endIdx: di,
                                         roomNumber: room.number,
                                         roomTypeId,
                                         roomTypeName,
+                                        startIdx: di,
+                                        endIdx: di,
                                       });
                                       e.preventDefault();
                                     }}
                                     onMouseEnter={() => {
+                                      // extend selection only if dragging and only within same room
                                       if (!dragSel) return;
                                       if (dragSel.roomId !== room.id) return;
+                                      // don’t extend into occupied cells
                                       if (isOccupied) return;
                                       setDragSel((sel) =>
                                         sel ? { ...sel, endIdx: di } : sel
@@ -1309,7 +1558,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                       top: `${topOffset}px`,
                       left: `${position.left}px`,
                       width: `${position.width}px`,
-                      backgroundColor: booking.statusColor || "#ccc",
+                      backgroundColor: getBookingBgColor(booking),
                       zIndex: 10,
                       flexDirection: "row",
                       display: "flex",
@@ -1355,75 +1604,166 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                 </div>
               )}
 
-              {dragSel &&
+              {selectionMenu && (
+                <div
+                  className="absolute z-[80] selection-menu-popover"
+                  style={{
+                    left: selectionMenu.x,
+                    top: selectionMenu.y,
+                    // if we placed it above, nudge up; if below, nudge down
+                    transform:
+                      selectionMenu.placement === "top"
+                        ? "translate(-50%, -100%)" // above anchor y
+                        : "translate(-50%, 0%)", // below anchor y
+                  }}
+                  aria-live="polite"
+                >
+                  {/* arrow tip */}
+                  {selectionMenu.placement === "top" ? (
+                    // Arrow sits at the BOTTOM edge pointing down to the selection
+                    <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 h-2 w-2 rotate-45 bg-background/90 border border-gray-200/60" />
+                  ) : (
+                    // Arrow sits at the TOP edge pointing up to the selection
+                    <div className="absolute left-1/2 -top-1 -translate-x-1/2 h-2 w-2 rotate-45 bg-background/90 border border-gray-200/60" />
+                  )}
+
+                  <div
+                    className="min-w-[180px] rounded-xl border border-gray-200/60 bg-background/90 backdrop-blur-md shadow-2xl ring-1 ring-black/5 overflow-hidden animate-in fade-in-0 zoom-in-95"
+                    role="menu"
+                    aria-label="Selection actions"
+                  >
+                    <ul className="p-1.5">
+                      <li>
+                        <button
+                          role="menuitem"
+                          className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium hover:bg-accent/60"
+                          onClick={() => {
+                            onQuickSelectRange?.(selectionMenu.payload);
+                            setSelectionMenu(null);
+                            setFinalSel(null);
+                          }}
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            className="opacity-80"
+                          >
+                            <path
+                              d="M7 6h11M7 12h7M7 18h11"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          Quick reservation
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          role="menuitem"
+                          className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium hover:bg-accent/60"
+                          onClick={() => {
+                            onBusinessSelectRange?.(selectionMenu.payload);
+                            setSelectionMenu(null);
+                            setFinalSel(null);
+                          }}
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            className="opacity-80"
+                          >
+                            <path
+                              d="M3 7h18M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M4 7v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          Business block
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          role="menuitem"
+                          className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium hover:bg-accent/60"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            className="opacity-80"
+                          >
+                            <path
+                              d="M4 12h16M12 4v16"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          Out of order
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {(dragSel || finalSel) &&
                 (() => {
-                  const start = Math.min(dragSel.startIdx, dragSel.endIdx);
-                  const end = Math.max(dragSel.startIdx, dragSel.endIdx);
+                  const sel = dragSel ?? finalSel!;
+                  const start = Math.min(sel.startIdx, sel.endIdx);
+                  const end = Math.max(sel.startIdx, sel.endIdx);
+
                   const left = fixedColWidth + start * responsiveDayColWidth;
                   const width = Math.max(
                     0,
                     (end - start + 1) * responsiveDayColWidth
                   );
-                  const top = rowTopMap.current[dragSel.roomId] ?? 0;
-                  const height = roomHeightMap[dragSel.roomId] ?? rowHeight;
+
+                  const box = rowBoxMap.current[sel.roomId];
+                  const top = box?.top ?? rowTopMap.current[sel.roomId] ?? 0;
+                  const height =
+                    box?.height ?? roomHeightMap[sel.roomId] ?? rowHeight;
+
+                  const startLabel = format(dates[start], "yyyy-MM-dd");
+                  const endLabel = format(addDays(dates[end], 1), "yyyy-MM-dd");
 
                   return (
                     <div
-                      className="pointer-events-none absolute z-[4] rounded-md border"
-                      style={{
-                        left,
-                        top,
-                        width,
-                        height,
-                        borderColor: "rgba(59,130,246,0.55)",
-                        boxShadow: "0 0 0 2px rgba(59,130,246,0.25) inset",
-                        background:
-                          "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(59,130,246,0.06))",
-                        transition: "left 120ms ease, width 120ms ease",
-                      }}
+                      className="pointer-events-none absolute z-[7]"
+                      style={{ left, top, width, height }}
                     >
                       <div
-                        className="absolute inset-0 rounded-md"
+                        className="absolute inset-0"
                         style={{
-                          background:
-                            "repeating-linear-gradient(90deg, rgba(59,130,246,0.18) 0 2px, transparent 2px 6px)",
-                          maskImage:
-                            "linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)",
-                          WebkitMaskImage:
-                            "linear-gradient(to right, transparent 0, black 12px, black calc(100% - 12px), transparent 100%)",
+                          background: "rgba(0, 255, 255, 0.65)",
+                          border: "1px solid rgba(0,0,0,0.9)",
+                          borderRadius: 2,
                         }}
                       />
                       <div
-                        className="absolute inset-0 rounded-md"
-                        style={{
-                          border: "1px dashed rgba(59,130,246,0.7)",
-                          animation: "ants 1.2s linear infinite",
-                          maskImage:
-                            "linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%)",
-                          WebkitMaskImage:
-                            "linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%)",
-                        }}
-                      />
-                      <div
-                        className="absolute -top-5 left-2 text-[11px] px-2 py-[2px] rounded-full bg-white/90 dark:bg-black/70 border border-blue-300/60 shadow-sm"
-                        style={{ backdropFilter: "blur(6px)" }}
+                        className="absolute top-1/2 -translate-y-1/2 font-semibold text-[12px] leading-none select-none"
+                        style={{ left: 8, whiteSpace: "nowrap" }}
                       >
-                        {format(dates[start], "MMM d")} →{" "}
-                        {format(addDays(dates[end], 1), "MMM d")}
-                        {" · "}
-                        {dragSel.roomTypeName} — Room {dragSel.roomNumber}
+                        {startLabel}
                       </div>
-                      <style jsx>{`
-                        @keyframes ants {
-                          to {
-                            stroke-dashoffset: -8;
-                          }
-                        }
-                      `}</style>
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 font-semibold text-[12px] leading-none select-none"
+                        style={{ right: 8, whiteSpace: "nowrap" }}
+                      >
+                        {endLabel}
+                      </div>
                     </div>
                   );
                 })()}
 
+              {/* Connection lines */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none z-[5]">
                 <defs>
                   <marker
@@ -1440,6 +1780,8 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                 </defs>
                 {connectionLines}
               </svg>
+
+              {/* Legend */}
 
               <div
                 className="flex flex-row flex-wrap 
@@ -1536,10 +1878,9 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                   <span
                     className="inline-block h-2.5 w-2.5 rounded-full"
                     style={{
-                      backgroundColor:
-                        hoveredBooking.booking.statusColor ||
-                        statusColors[hoveredBooking.booking.status] ||
-                        "#999",
+                      backgroundColor: getBookingBgColor(
+                        hoveredBooking.booking as Booking
+                      ),
                     }}
                   />
                   <span className="font-medium">
@@ -1548,6 +1889,7 @@ const GridLayout = forwardRef<HTMLDivElement, GridLayoutProps>(
                 </div>
               </div>
 
+              {/* Optional: reservation/source row if you have these */}
               {(hoveredBooking.booking as any).reservationNo && (
                 <div className="mt-2 text-muted-foreground">
                   Ref:{" "}

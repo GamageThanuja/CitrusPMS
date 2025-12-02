@@ -171,8 +171,8 @@ export default function BusinessBlockDrawer({
     extra: "",
     discount: "",
     discountType: "amount",
-    checkInDate: new Date(systemDate).toISOString().split("T")[0],
-    checkOutDate: addDays(new Date(systemDate), 1).toISOString().split("T")[0],
+    // checkInDate: new Date(systemDate),
+    // checkOutDate: addDays(new Date(systemDate), 1),
     firstName: "",
     address: "",
     country: "",
@@ -1882,8 +1882,8 @@ export default function BusinessBlockDrawer({
                         type="date"
                         className="pl-10"
                         min={
-                          systemDate ||
-                          new Date(systemDate).toISOString().split("T")[0]
+                          systemDate
+                          // new Date(systemDate).toISOString().split("T")[0]
                         }
                         value={
                           checkInDate
@@ -1934,7 +1934,8 @@ export default function BusinessBlockDrawer({
                         min={
                           checkInDate
                             ? checkInDate.toISOString().split("T")[0]
-                            : new Date(systemDate).toISOString().split("T")[0]
+                            // : new Date(systemDate).toISOString().split("T")[0]
+                            : systemDate || ""
                         }
                         value={
                           checkOutDate

@@ -59,7 +59,11 @@ import {
 } from "@/redux/slices/reservationRateDetailSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { RootState } from "@/redux/store";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import {
+  fetchFolioByDetailId,
+  selectFolioByDetailIdData,
+  selectFolioByDetailIdLoading,
+} from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchTransactions } from "@/redux/slices/transactionSlice";
 import { getFolioByReservationDetailId } from "@/controllers/folioController";
 // import { getRateDetailsByReservationDetailId } from "@/controllers/rateDetailsController";
@@ -148,7 +152,7 @@ import {
 interface BookingDetailsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bookingDetail: any; // Replace 'any' with the appropriate type if available
+  bookingDetailsData: any; // Initial booking data from props - will be enriched via API
   text: {
     bookingDetailsText: string;
     roomDetailsText: string;
@@ -169,6 +173,7 @@ interface BookingDetailsDrawerProps {
   onCancelBookingClick?: () => void;
   guestProfileData?: any;
   countryListFromWalkIn?: string[];
+  isBookingPageView?: boolean; // Added missing prop
 }
 interface AmendDrawerProps {
   booking: any;
@@ -182,7 +187,7 @@ interface AmendDrawerProps {
 export default function BookingDetailsDrawer({
   open,
   onOpenChange,
-  bookingDetail,
+  bookingDetailsData,
   text,
   onCancelBookingClick,
   guestProfileData,
@@ -191,22 +196,55 @@ export default function BookingDetailsDrawer({
 }: BookingDetailsDrawerProps) {
   // Ensure client-only logic is guarded
   const shouldRender = typeof window !== "undefined";
-  // State for attachment management
-
+  
+  // Extract reservationDetailID from initial props to fetch detailed data
+  const reservationDetailId = bookingDetailsData?.reservationDetailID;
+  const reservationPassportId = reservationDetailId; // Creative alias for reservation identifier
+  const reservationId = bookingDetailsData?.reservationID; // Extract reservationID from initial props
+  const dispatch = useAppDispatch();
+  
+  // Get the detailed booking data from fetchReservationDetail API response
+  const enrichedBookingDetails = useSelector((s: RootState) =>
+    selectReservationDetail(s)
+  );
+  const fetchingBookingDetails = useSelector((s: RootState) =>
+    selectReservationDetailLoading(s)
+  );
+  
+  // Use API response as the primary bookingDetail with creative aliases
+  const bookingDetail = enrichedBookingDetails;
+  const reservationMasterpiece = bookingDetail; // Creative alias for the complete booking data
+  const guestStayBlueprint = bookingDetail; // Another creative reference to the reservation details
+  
+  // Get reservationId from either initial props or API response
+  const currentReservationId = reservationId || bookingDetail?.reservationID || bookingDetailsData?.reservationID;
+  
   const [booking, setBooking] = useState<any>(bookingDetail);
 
-  console.log("booking detail drawer bookingDetail 000000: ", bookingDetail);
+  console.log("Initial booking data from props:", bookingDetailsData);
+  console.log("Enriched booking detail from API:", bookingDetail);
+  console.log("Reservation Detail ID for API call:", reservationDetailId);
+  console.log("Current booking state:", booking);
+  console.log("Current reservation ID:", currentReservationId);
 
-  const reservationDetailId = bookingDetail?.reservationDetailID;
-  console.log("reservationDetailId oiiiiiiii: ", reservationDetailId);
-
-  const reservationId = bookingDetail?.reservationID;
-
-  const [bookingData, setBookingData] = useState<any>(null);
-  console.log("Booking Data 🏀🏀🏀 :", bookingData);
+  // Using bookingDetail from API response instead of separate bookingData state
   const [guestRemark, setGuestRemark] = useState("");
   const [internalRemark, setInternalRemark] = useState("");
-  const dispatch = useAppDispatch();
+
+  // Fetch detailed reservation data when component mounts or reservationDetailId changes
+  useEffect(() => {
+    if (reservationDetailId && open) {
+      console.log("Fetching reservation details for ID:", reservationDetailId);
+      dispatch(
+        fetchReservationDetail({ reservationDetailId: reservationDetailId })
+      );
+    }
+    
+    // Clear when drawer closes
+    if (!open) {
+      dispatch(clearReservationDetail());
+    }
+  }, [dispatch, reservationDetailId, open]);
 
   const editLoading = useSelector((s: RootState) =>
     selectEditReservationMasLoading(s)
@@ -218,26 +256,15 @@ export default function BookingDetailsDrawer({
     selectEditReservationMasSuccess(s)
   );
 
-  const reservationDetailData = useSelector((s: RootState) =>
-    selectReservationDetail(s)
-  );
-  const [reservationDetailDataState, setReservationDetailDataState] =
-    useState<any>(reservationDetailData);
-
+  // Using bookingDetail directly from API response instead of separate state
   useEffect(() => {
-    setReservationDetailDataState(reservationDetailData);
-  }, [reservationDetailData]);
-
-  useEffect(() => {
-    if (reservationDetailData) {
-      setInternalRemark(reservationDetailData.remarks_Internal || "");
-      setGuestRemark(reservationDetailData.remarks_Guest || "");
+    if (bookingDetail) {
       // Update guestProfileId from API response
-      setGuestProfileId(reservationDetailData.guestProfileID ?? null);
+      setGuestProfileId(bookingDetail?.guestProfileID ?? null);
     }
-  }, [reservationDetailData]);
+  }, [bookingDetail]);
 
-  console.log("reservationDetailData : ", reservationDetailData);
+  console.log("Detailed booking data from API:", bookingDetail);
 
   const reservationRateDetails = useSelector(selectReservationRateDetails);
   const reservationRateDetailsLoading = useSelector(
@@ -248,19 +275,13 @@ export default function BookingDetailsDrawer({
   );
 
   useEffect(() => {
-    if (!reservationDetailId) return;
-    dispatch(
-      fetchReservationDetail({ reservationDetailId: reservationDetailId })
-    );
+    if (!reservationDetailId || !open) return;
+    
+    // Fetch rate details (keeping existing functionality)
     dispatch(
       fetchReservationRateDetails({ reservationDetailId: reservationDetailId })
     );
-
-    // optional: clear on unmount
-    return () => {
-      dispatch(clearReservationDetail());
-    };
-  }, [dispatch, reservationDetailId]);
+  }, [dispatch, reservationDetailId, open]);
   // drawers
   const [secondGuestOpen, setSecondGuestOpen] = useState(false);
 
@@ -268,32 +289,26 @@ export default function BookingDetailsDrawer({
 
   const [openReportDrawer, setOpenReportDrawer] = useState(false);
 
-  const { data: resDetail, loading: resLoading } = useSelector(
-    (s: RootState) => s.reservationDetail
-  );
-
   const [transferFolioOpen, setTransferFolioOpen] = useState(false);
   const [transferFolioBooking, setTransferFolioBooking] = useState<any>(null);
-
-  console.log("res detail : ", resDetail);
 
   const { showQR } = useQRModal();
   const openQR = useCallback(async () => {
     if (!bookingDetail?.reservationDetailID) return;
-    const gssKey = resDetail?.gssKey;
+    const gssKey = bookingDetail?.gssKey;
     const url = `https://gss.hotelmate.app/?key=${encodeURIComponent(gssKey)}`;
 
     await showQR(url, "Scan this QR code to access the Guest Self-Service");
-  }, [bookingDetail?.reservationDetailID, resDetail?.gssKey, showQR]);
+  }, [bookingDetail?.reservationDetailID, bookingDetail?.gssKey, showQR]);
 
-  const reservationData = useAppSelector(selectReservationDetail);
+  // Using bookingDetail directly from API response
 
   const handleSaveRemarks = async () => {
-    if (!reservationDetailData?.reservationID) return;
+    if (!bookingDetail?.reservationID) return;
 
     await dispatch(
       editReservationMas({
-        reservationId: Number(reservationDetailData?.reservationID),
+        reservationId: Number(bookingDetail?.reservationID),
         body: {
           remarks_Internal: internalRemark?.trim() || null,
           remarks_Guest: guestRemark?.trim() || null,
@@ -302,14 +317,12 @@ export default function BookingDetailsDrawer({
     );
 
     if (!editError) {
-      toast.success("Remarks saved");
+      toast.success("Remarks saved successfully");
       setEditNotes(false);
       // refresh detail to reflect changes
       dispatch(
         fetchReservationDetail({
-          reservationDetailId: Number(
-            reservationDetailData?.reservationDetailID
-          ),
+          reservationDetailId: Number(bookingDetail?.reservationDetailID),
         })
       );
     } else {
@@ -317,28 +330,7 @@ export default function BookingDetailsDrawer({
     }
   };
 
-  const fetchReservationDataById = async (reservationId: number) => {
-    try {
-      const reservation = fetchReservationDetailsById({ reservationId });
-      return reservation;
-    } catch (error) {
-      console.error("Failed to fetch full reservation:", error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    if (!reservationId) return;
-
-    const loadReservation = async () => {
-      const data = fetchReservationDetailsById({ reservationId });
-      if (data) {
-        setBookingData(data);
-      }
-    };
-
-    loadReservation();
-  }, [reservationId]);
+  // Using bookingDetail from fetchReservationDetail API response instead of separate data fetching
 
   const appDispatch = useAppDispatch();
 
@@ -346,7 +338,7 @@ export default function BookingDetailsDrawer({
     useSelector((state: RootState) => state.reservation);
 
   const { data: rateDetail } = useSelector(
-    (state: RootState) => state.rateDetails
+    (state: RootState) => state.rateDetails || {}
   );
 
   // useEffect(() => {
@@ -367,8 +359,11 @@ export default function BookingDetailsDrawer({
   useEffect(() => {
     if (bookingDetail) {
       setBooking(bookingDetail);
+      // Update remarks from the detailed API response
+      setInternalRemark(bookingDetail.remarks_Internal || "");
+      setGuestRemark(bookingDetail.remarks_Guest || "");
     }
-  }, [bookingDetail, dispatch]);
+  }, [bookingDetail]);
 
   useEffect(() => {
     if (!open) {
@@ -382,25 +377,26 @@ export default function BookingDetailsDrawer({
 
   // Fetch on mount
   useEffect(() => {
-    if (reservationId) {
+    if (currentReservationId && reservationDetailId) {
       dispatch(fetchRateDetailsById(reservationDetailId));
     }
-  }, [reservationDetailId, dispatch]);
+  }, [currentReservationId, reservationDetailId, dispatch]);
 
-  const { data: folioItem } = useSelector((state: RootState) => state.folio);
+  const folioItem = useSelector(selectFolioByDetailIdData);
+  const folioLoading = useSelector(selectFolioByDetailIdLoading);
 
   console.log("folioItem booking detail : ", folioItem);
 
   useEffect(() => {
-    if (reservationId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+    if (currentReservationId && reservationDetailId) {
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
-  }, [reservationId, dispatch]);
+  }, [currentReservationId, reservationDetailId, dispatch]);
 
   console.log("Folio Items 🧾🧾🧾:", folioItem);
 
   const { data: transactions } = useSelector(
-    (state: RootState) => state.transaction
+    (state: RootState) => state.transaction || {}
   );
 
   console.log("Transactions 💰💰💰:", transactions);
@@ -414,22 +410,22 @@ export default function BookingDetailsDrawer({
 
   console.log("fetchTransactions : ", {
     hotelCode,
-    reservationId,
+    reservationId: currentReservationId,
     reservationDetailId,
   });
 
   useEffect(() => {
-    if (hotelCode && reservationId && reservationDetailId) {
+    if (hotelCode && currentReservationId && reservationDetailId) {
       console.log("fetchTransactions inside : ", {
         hotelCode,
-        reservationId,
+        reservationId: currentReservationId,
         reservationDetailId,
       });
 
       dispatch(
         fetchTransactions({
           hotelCode,
-          reservationId,
+          reservationId: currentReservationId,
           reservationDetailId,
           // tranTypeId: 17,
         })
@@ -437,11 +433,11 @@ export default function BookingDetailsDrawer({
     } else {
       console.log("Skipping fetchTransactions due to missing params", {
         hotelCode,
-        reservationId,
+        reservationId: currentReservationId,
         reservationDetailId,
       });
     }
-  }, [dispatch, hotelCode, reservationId, reservationDetailId]);
+  }, [dispatch, hotelCode, currentReservationId, reservationDetailId]);
 
   useEffect(() => {
     const selectedProperty = JSON.parse(
@@ -527,7 +523,7 @@ export default function BookingDetailsDrawer({
 
       // Also refresh folio data as charges may have been added
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
@@ -551,7 +547,7 @@ export default function BookingDetailsDrawer({
 
       // Also refresh folio data as charges may have been updated
       if (reservationDetailId) {
-        dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+        dispatch(fetchFolioByDetailId(reservationDetailId));
       }
     }
   };
@@ -566,14 +562,17 @@ export default function BookingDetailsDrawer({
       // refresh folio + rate details for this detail
       if (reservationDetailId) {
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
       }
 
-      // refresh the "booking" you render status from
-      const fresh = await fetchReservationDataById(reservationId);
-      if (fresh) setBooking(fresh);
+      // Refresh detailed booking data from API
+      if (reservationDetailId) {
+        dispatch(
+          fetchReservationDetail({ reservationDetailId: reservationDetailId })
+        );
+      }
     }
 
     setCheckInOpen(false);
@@ -593,14 +592,14 @@ export default function BookingDetailsDrawer({
   const handlePostChargesComplete = () => {
     // Refresh folio data to show the new charges
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
     dispatch(
       fetchTransactions({
         hotelCode: hotelCode,
-        reservationId: reservationId,
+        reservationId: currentReservationId,
         reservationDetailId: reservationDetailId,
         tranTypeId: 17,
       })
@@ -613,14 +612,14 @@ export default function BookingDetailsDrawer({
   const handlePostCreditComplete = () => {
     // Refresh folio data to show the new credits
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
     dispatch(
       fetchTransactions({
         hotelCode: hotelCode,
-        reservationId: reservationId,
+        reservationId: currentReservationId,
         reservationDetailId: reservationDetailId,
         tranTypeId: 17,
       })
@@ -633,14 +632,14 @@ export default function BookingDetailsDrawer({
   const handleTakePaymentsComplete = () => {
     // Refresh folio data to show the new payment
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
     dispatch(
       fetchTransactions({
         hotelCode: hotelCode,
-        reservationId: reservationId,
+        reservationId: currentReservationId,
         reservationDetailId: reservationDetailId,
         tranTypeId: 17,
       })
@@ -653,14 +652,14 @@ export default function BookingDetailsDrawer({
   const handleCashPayoutComplete = () => {
     // Refresh folio data to show the payout
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
     }
 
     // Also refresh transactions
     dispatch(
       fetchTransactions({
         hotelCode: hotelCode,
-        reservationId: reservationId,
+        reservationId: currentReservationId,
         reservationDetailId: reservationDetailId,
         tranTypeId: 17,
       })
@@ -678,7 +677,7 @@ export default function BookingDetailsDrawer({
 
     // Also refresh folio and rate details
     if (reservationDetailId) {
-      dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+      dispatch(fetchFolioByDetailId(reservationDetailId));
       dispatch(fetchRateDetailsById(reservationDetailId));
     }
 
@@ -693,7 +692,7 @@ export default function BookingDetailsDrawer({
 const handleRoomChangeComplete = () => {
   if (reservationDetailId) {
     dispatch(fetchReservationRateDetails({ reservationDetailId }));
-    dispatch(fetchFolioByReservationDetailId(reservationDetailId));
+    dispatch(fetchFolioByDetailId(reservationDetailId));
     dispatch(fetchRateDetailsById(reservationDetailId));
   }
 
@@ -744,7 +743,7 @@ const handleRoomChangeComplete = () => {
         await dispatch(fetchReservationRateDetails({ reservationDetailId }));
 
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
@@ -801,7 +800,7 @@ const handleRoomChangeComplete = () => {
 
         // Refresh folio and rate details
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
 
@@ -874,7 +873,6 @@ const handleRoomChangeComplete = () => {
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  console.log("Reservation Rate Details 0000000: ", reservationRateDetails);
 
   // Log updated Redux rateDetails for debugging
   useEffect(() => {
@@ -882,7 +880,7 @@ const handleRoomChangeComplete = () => {
   }, [reservationRateDetails]);
   // Guest Profile ID state - prioritize API data over prop
   const [guestProfileId, setGuestProfileId] = useState<number | null>(
-    reservationDetailData?.guestProfileID ??
+    // reservationDetailData?.guestProfileID ??
       bookingDetail?.guestProfileId ??
       null
   );
@@ -922,7 +920,7 @@ const handleRoomChangeComplete = () => {
   const [roomGuestsLoading, setRoomGuestsLoading] = useState(false);
 
   const [selectedBooking, setSelectedBooking] = useState<
-    (typeof bookingData)[0] | null
+    bookingDetail
   >(null);
 
   const initial = (booking?.sourceOfBooking ?? "?")
@@ -1154,68 +1152,53 @@ const handleRoomChangeComplete = () => {
   }, [reservationDetailId]);
 
   // Fetch reservation details to get Guest Profile ID
-  useEffect(() => {
-    const fetchReservationDetails = async () => {
-      if (!reservationId) return;
+useEffect(() => {
+  if (!reservationId) return;
 
-      try {
-        const storedToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem("hotelmateTokens")
-            : null;
-        const token = storedToken ? JSON.parse(storedToken).accessToken : null;
+  const fetchReservationDetails = async () => {
+    try {
+      const res = await dispatch(
+        fetchReservationDetailsById({ reservationId })
+      ).unwrap();
 
-        const data = await getReservationById({
-          token,
-          reservationId: reservationId,
-        });
+      setGuestProfileId(res[0]?.guestProfileID ?? null);
+    } catch (error) {
+      console.error("Failed to fetch reservation details:", error);
+    }
+  };
 
-        setGuestProfileId(data?.guestProfileId ?? null);
-      } catch (error) {
-        console.error("Failed to fetch reservation details:", error);
-      }
-    };
-
-    fetchReservationDetails();
-  }, [reservationId]);
+  fetchReservationDetails();
+}, [reservationId, dispatch]);
 
   // Fetch Guest Profile details (title, address, etc.)
-  useEffect(() => {
-    const fetchGuestProfile = async () => {
-      setGuestProfile(null); // Reset profile to avoid stale data
-      if (!guestProfileId) {
-        console.log("No guestProfileId available for fetching guest profile");
-        return;
-      }
+useEffect(() => {
+  const fetchGuestProfile = async () => {
+    setGuestProfile(null);
 
+    if (!guestProfileId) {
+      console.log("No guestProfileId available for fetching guest profile");
+      return;
+    }
+
+    try {
       console.log("Fetching guest profile for guestProfileId:", guestProfileId);
 
-      try {
-        const storedToken =
-          typeof window !== "undefined"
-            ? localStorage.getItem("hotelmateTokens")
-            : null;
-        const token = storedToken ? JSON.parse(storedToken).accessToken : null;
+      // 🔄 Fetch from Redux using guestId
+      const res = await dispatch(
+        fetchGuestMas({ guestId: guestProfileId })
+      ).unwrap(); // returns an array
 
-        if (!token) {
-          console.error("No access token found for guest profile fetch");
-          return;
-        }
+      const guest = res[0] ?? null; // one guest always → index 0
 
-        const data = await getGuestProfileById({
-          token,
-          profileId: guestProfileId,
-        });
+      console.log("Guest profile data received:", guest);
+      setGuestProfile(guest);
+    } catch (error) {
+      console.error("Failed to fetch guest profile:", error);
+    }
+  };
 
-        console.log("Guest profile data received:", data);
-        setGuestProfile(data);
-      } catch (error) {
-        console.error("Failed to fetch guest profile:", error);
-      }
-    };
-
-    fetchGuestProfile();
-  }, [guestProfileId, reservationDetailId]);
+  fetchGuestProfile();
+}, [guestProfileId, reservationDetailId, dispatch]);
 
   // Handle file upload success
   useEffect(() => {
@@ -1285,7 +1268,19 @@ const handleRoomChangeComplete = () => {
   const primaryClass = "bg-primary text-secondary hover:bg-primary-800";
 
   // Filtered action options based on reservation status
-  const validStatus = bookingDetail?.status?.toLowerCase?.() || "";
+  const validStatus = (
+    bookingDetail?.reservationStatus ||
+    bookingDetail?.status ||
+    booking?.status ||
+    ""
+  ).toLowerCase?.() || "";
+
+  console.log("Valid status for actions:", validStatus);
+  console.log("BookingDetail status fields:", {
+    reservationStatus: bookingDetail?.reservationStatus,
+    status: bookingDetail?.status,
+    bookingStatus: booking?.status
+  });
 
   const actionOptions = [
     {
@@ -1311,10 +1306,10 @@ const handleRoomChangeComplete = () => {
       condition: () => {
         const today = new Date();
         const checkInDate = new Date(
-          bookingDetail?.resCheckIn || bookingDetail?.checkIn
+          bookingDetail?.checkIN || bookingDetail?.resCheckIn || bookingDetail?.checkIn || booking?.checkIn
         );
         // Only show if check-in date is on or before today
-        return checkInDate <= today;
+        return !isNaN(checkInDate.getTime()) && checkInDate <= today;
       },
     },
     {
@@ -1341,15 +1336,18 @@ const handleRoomChangeComplete = () => {
     )
     .map((option) => {
       const payload = {
-        ...booking,
-        reservationDetailID: reservationDetailId,
-        reservationNo: booking.reservationNo,
-        reservationID: booking.reservationID,
-        roomID: booking.roomID,
-        guest: booking.guest || booking.guestName,
-        roomNumber: booking.roomNumber,
-        checkOut: booking.resCheckOut || booking.checkOut,
-        mealPlan: booking.mealPlan,
+        // Use bookingDetail (API response) as primary data source with booking as fallback
+        ...bookingDetail,
+        ...booking, // booking state can override API data if needed
+        reservationDetailID: reservationDetailId || bookingDetail?.reservationDetailID,
+        reservationNo: bookingDetail?.reservationNo || booking?.reservationNo,
+        reservationID: currentReservationId || bookingDetail?.reservationID || booking?.reservationID,
+        roomID: bookingDetail?.roomID || booking?.roomID,
+        guest: bookingDetail?.guest1 || booking?.guest || booking?.guestName || bookingDetail?.bookerFullName,
+        roomNumber: bookingDetail?.roomNumber || booking?.roomNumber,
+        checkOut: bookingDetail?.checkOUT || booking?.resCheckOut || booking?.checkOut,
+        checkIn: bookingDetail?.checkIN || booking?.resCheckIn || booking?.checkIn,
+        mealPlan: bookingDetail?.basis || booking?.mealPlan,
       };
 
       const onClickActions = {
@@ -1422,9 +1420,11 @@ const handleRoomChangeComplete = () => {
 
       return {
         label: option.label,
-        onClick: onClickActions[option.label],
+        onClick: onClickActions[option.label as keyof typeof onClickActions],
       };
     });
+
+  console.log("Available action options:", actionOptions);
 
   // At the end of the component, in the return statement, use conditional rendering
   if (!shouldRender) {
@@ -1441,7 +1441,7 @@ const handleRoomChangeComplete = () => {
   //   return format(date, "yyyy-MM-dd HH:mm");
   // }
 
-  const matchedRoom = bookingData?.rooms?.find(
+  const matchedRoom = bookingDetail?.rooms?.find(
     (room: any) => room.reservationDetailID === reservationDetailId
   );
 
@@ -1501,7 +1501,7 @@ const handleRoomChangeComplete = () => {
     vals.find((v) => v !== null && v !== undefined && v !== "");
 
   const checkInRaw = coalesce(
-    bookingData?.resCheckIn,
+    bookingDetail?.checkIN,
     booking?.resCheckIn,
     booking?.checkIn
   );
@@ -1509,14 +1509,14 @@ const handleRoomChangeComplete = () => {
   const checkOutRaw = coalesce(
     shortenedCheckOut,
     extendedCheckOut,
-    bookingData?.resCheckOut,
+    bookingDetail?.checkOUT,
     booking?.resCheckOut,
     booking?.checkOut
   );
 
   const checkInDisplay = safeFormatDate(checkInRaw);
   const checkOutDisplay = safeFormatDate(checkOutRaw);
-  console.log("booking data in drawer : ", bookingData);
+  console.log("Detailed booking data from API:", bookingDetail);
 
   const handleRecallConfirm = () => {
     // Example: Assume status ID for "recalled" is 4
@@ -1540,22 +1540,22 @@ const handleRoomChangeComplete = () => {
     {
       key: "reservationNo",
       label: "Reservation No",
-      value: reservationDetailDataState?.reservationNo,
+      value: bookingDetail?.reservationNo,
     },
     {
       key: "reservationID",
       label: "Reservation ID",
-      value: reservationDetailDataState?.reservationID,
+      value: bookingDetail?.reservationID,
     },
     {
       key: "reservationDetailID",
       label: "Reservation Detail ID",
-      value: reservationDetailDataState?.reservationDetailID,
+      value: bookingDetail?.reservationDetailID,
     },
     {
       key: "nameID",
       label: "Name ID",
-      value: reservationDetailDataState?.nameID ?? guestProfile?.nameID,
+      value: bookingDetail?.nameID ?? guestProfile?.nameID,
     },
     {
       key: "guestProfileId",
@@ -1566,26 +1566,26 @@ const handleRoomChangeComplete = () => {
       key: "reservationStatusID",
       label: "Reservation Status ID",
       value:
-        reservationDetailDataState?.reservationStatusID ??
-        reservationDetailDataState?.reservationStatusId,
+        bookingDetail?.reservationStatusID ??
+        bookingDetail?.reservationStatusId,
     },
     {
       key: "roomNumber",
       label: "Room Number",
       value:
-        reservationDetailDataState?.roomNumber ??
-        reservationDetailDataState?.roomNumber,
+        bookingDetail?.roomNumber ??
+        bookingDetail?.roomNumber,
     },
     {
       key: "currencyCode",
       label: "Currency",
-      value: reservationDetailDataState?.currencyCode,
+      value: bookingDetail?.currencyCode,
     },
     {
       key: "createdOn",
       label: "Created On",
-      value: reservationDetailDataState?.createdOn
-        ? safeFormatDateTime(reservationDetailDataState.createdOn)
+      value: bookingDetail?.createdOn
+        ? safeFormatDateTime(bookingDetail.createdOn)
         : undefined,
     },
     { key: "checkIn", label: "Check-in", value: checkInDisplay },
@@ -1601,21 +1601,40 @@ const handleRoomChangeComplete = () => {
       }
       if (reservationDetailId) {
         await Promise.all([
-          dispatch(fetchFolioByReservationDetailId(reservationDetailId)),
+          dispatch(fetchFolioByDetailId(reservationDetailId)),
           dispatch(fetchRateDetailsById(reservationDetailId)),
         ]);
       }
-      // If you maintain local bookingData:
-      const fresh = reservationId
-        ? await fetchReservationDataById(reservationId)
-        : null;
-      if (fresh) setBookingData(fresh);
+      // Refresh detailed booking data from API after recall
+      if (reservationDetailId) {
+        dispatch(
+          fetchReservationDetail({ reservationDetailId: reservationDetailId })
+        );
+      }
     } finally {
       setRecallOpen(false);
     }
   };
 
-  console.log("booking booking detail drawer : ", booking);
+  console.log("Current booking state:", booking);
+  console.log("API booking detail:", bookingDetail);
+  console.log("Loading state:", fetchingBookingDetails);
+
+  // Show loading state if we're fetching booking details and don't have data yet
+  if (fetchingBookingDetails && !bookingDetail) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="z-[60] w-full sm:max-w-4xl overflow-y-auto rounded-l-2xl">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading booking details...</p>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <>
@@ -1729,8 +1748,14 @@ const handleRoomChangeComplete = () => {
                         const selected = actionOptions.find(
                           (a) => a.label === e.target.value
                         );
-                        if (selected && typeof selected.onClick === "function")
-                          selected.onClick();
+                        console.log("Action selected:", e.target.value, "Found option:", selected);
+                        if (selected && typeof selected.onClick === "function") {
+                          try {
+                            selected.onClick();
+                          } catch (error) {
+                            console.error("Error executing action:", error);
+                          }
+                        }
                         e.target.selectedIndex = 0; // Reset select
                       }}
                     >
@@ -1795,7 +1820,7 @@ const handleRoomChangeComplete = () => {
                             Reservation No
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.reservationNo || "—"}
+                            {bookingDetail?.reservationNo || "—"}
                           </p>
                         </div>
                         <div>
@@ -1803,7 +1828,7 @@ const handleRoomChangeComplete = () => {
                             Booking Ref
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.refNo || "—"}
+                            {bookingDetail?.refNo || "—"}
                           </p>
                         </div>
                       </div>
@@ -1813,7 +1838,7 @@ const handleRoomChangeComplete = () => {
                             Source
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.sourceOfBooking || "—"}
+                            {bookingDetail?.sourceOfBooking || "—"}
                           </p>
                         </div>
                         <div>
@@ -1821,7 +1846,7 @@ const handleRoomChangeComplete = () => {
                             Created By
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.createdBy || "—"}
+                            {bookingDetail?.createdBy || "—"}
                           </p>
                         </div>
                       </div>
@@ -1845,7 +1870,7 @@ const handleRoomChangeComplete = () => {
                           <div className="font-medium">Created On</div>
                           <div className="">
                             {safeFormatDateTime(
-                              reservationDetailData?.createdOn
+                              bookingDetail?.createdOn
                             )}
                           </div>
                         </div>
@@ -1855,7 +1880,7 @@ const handleRoomChangeComplete = () => {
                             Currency
                           </p>
                           <p className="font-medium">
-                            {reservationDetailData?.currencyCode || "—"}
+                            {bookingDetail?.currencyCode || "—"}
                           </p>
                         </div>
                       </div>
@@ -1885,7 +1910,7 @@ const handleRoomChangeComplete = () => {
                     <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Booker Details{" "}
-                      {reservationDetailDataState?.reservationDetailID}
+                      {bookingDetail?.reservationDetailID}
                     </h3>
                     <div className="space-y-3">
                       {/* Guest Profile ID */}
@@ -1900,20 +1925,13 @@ const handleRoomChangeComplete = () => {
                         <>
                           {/* Title & Name */}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                            {/* <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Title
-                              </p>
-                              <p className="font-medium">
-                                {bookingData.bookerFullName || "—"}
-                              </p>
-                            </div> */}
+                            {/* Removed old bookingData reference - now using bookingDetail from API */}
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">
                                 {text.nameText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.bookerFullName ||
+                                {bookingDetail?.bookerFullName ||
                                   "—"}
                               </p>
                             </div>
@@ -1922,7 +1940,7 @@ const handleRoomChangeComplete = () => {
                                 Country
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.country || "—"}
+                                {bookingDetail?.country || "—"}
                               </p>
                             </div>
                           </div>
@@ -1934,7 +1952,7 @@ const handleRoomChangeComplete = () => {
                                 Phone
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.phone || "—"}
+                                {bookingDetail?.phone || "—"}
                               </p>
                             </div>
                             <div>
@@ -1942,7 +1960,7 @@ const handleRoomChangeComplete = () => {
                                 Email
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.email || "—"}
+                                {bookingDetail?.email || "—"}
                               </p>
                             </div>
                           </div>
@@ -2009,7 +2027,7 @@ const handleRoomChangeComplete = () => {
                                 {text.nameText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailDataState?.bookerFullName}
+                                {bookingDetail?.bookerFullName}
                               </p>
                             </div>
                             <div>
@@ -2017,7 +2035,7 @@ const handleRoomChangeComplete = () => {
                                 {text.phoneText}
                               </p>
                               <p className="font-medium">
-                                {reservationDetailData?.phone}
+                                {bookingDetail?.phone}
                               </p>
                             </div>
                           </div>
@@ -2026,7 +2044,7 @@ const handleRoomChangeComplete = () => {
                               {text.emailText}
                             </p>
                             <p className="font-medium">
-                              {reservationDetailData?.email}
+                              {bookingDetail?.email}
                             </p>
                           </div>
                         </>
@@ -2088,7 +2106,7 @@ const handleRoomChangeComplete = () => {
                           />
                         ) : (
                           <div className="border rounded p-2 text-sm bg-muted/50">
-                            {reservationDetailData?.remarks_Internal ||
+                            {bookingDetail?.remarks_Internal ||
                               "No internal remarks"}
                           </div>
                         )}
@@ -2109,7 +2127,7 @@ const handleRoomChangeComplete = () => {
                         ) : (
                           <div className="border rounded p-2 text-sm bg-muted/50">
                             {guestRemark ||
-                              reservationDetailData?.remarks_Guest ||
+                              bookingDetail?.remarks_Guest ||
                               "No guest remarks"}
                           </div>
                         )}
@@ -2155,126 +2173,8 @@ const handleRoomChangeComplete = () => {
                           </Button>
                         </div>
                       ))}
-                      {/* Static Guest Profile ID display */}
-                      <div className="group flex items-center justify-between border rounded-md px-3 py-2 bg-muted/40 hover:bg-muted/60 transition">
-                        <div className="min-w-0">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            Guest Profile ID
-                          </p>
-                          <p className="font-mono text-xs truncate text-foreground">
-                            {reservationDetailData?.guestProfileId ?? "—"}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0"
-                          onClick={() =>
-                            handleCopy(
-                              "guestProfileId",
-                              reservationDetailData?.guestProfileId
-                            )
-                          }
-                          aria-label="Copy Guest Profile ID"
-                          title="Copy"
-                        >
-                          {copiedKey === "guestProfileId" ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
                     </div>
                   </div>
-
-                  {/* Expenses & Revisions */}
-                  {/* remove 2025-08-22 12-59 - Priyanga  */}
-                  {/* <Tabs defaultValue="expenses">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="expenses">
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {text.expensesText}
-                      </TabsTrigger>
-                      <TabsTrigger value="revisions">
-                        <History className="h-4 w-4 mr-2" />
-                        {text.revisionsText}
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="expenses" className="space-y-4 pt-4">
-                      <div className="border rounded-md divide-y">
-                        {expenses.length > 0 ? (
-                          expenses.map(
-                            (
-                              expense: { description: string; amount: string },
-                              index: number
-                            ) => (
-                              <div
-                                key={index}
-                                className="p-3 flex justify-between items-center"
-                              >
-                                <p>{expense.description}</p>
-                                <p className="font-medium">{expense.amount}</p>
-                              </div>
-                            )
-                          )
-                        ) : (
-                          <div className="p-3 text-sm text-muted-foreground">
-                            No expenses found.
-                          </div>
-                        )}
-                        {expenses.length > 0 && (
-                          <div className="p-3 flex justify-between items-center bg-muted/50">
-                            <p className="font-medium">{text.totalText}</p>
-                            <p className="font-medium">{amount}</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="revisions" className="space-y-4 pt-4">
-                      <div className="border rounded-md divide-y">
-                        {revisions.length > 0 ? (
-                          revisions.map(
-                            (
-                              revision: { description?: string; date?: string },
-                              index
-                            ) => (
-                              <div key={index} className="p-3">
-                                <div className="flex justify-between items-center">
-                                  <p className="font-medium">
-                                    {revision.description ||
-                                      `Revision #${index + 1}`}
-                                  </p>
-                                </div>
-                                {revision.date && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {format(
-                                      new Date(revision.date),
-                                      "MMM d, yyyy, hh:mm a"
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          )
-                        ) : (
-                          <div className="p-3 text-sm text-muted-foreground">
-                            No revisions found.
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs> */}
-
-                  {/* Message Guest
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" className="flex-1">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    {text.messageGuestText}
-                  </Button>
-                </div> */}
                 </TabsContent>
 
                 <TabsContent value="financials" className="pt-4">
@@ -3151,9 +3051,9 @@ const handleRoomChangeComplete = () => {
           <div className="p-4 space-y-4">
             <h3 className="text-lg font-semibold">Group Reservation List</h3>
 
-            {bookingData?.rooms?.length > 0 ? (
+            {bookingDetail?.rooms?.length > 0 ? (
               <div className="space-y-4">
-                {bookingData.rooms.map((room, idx) => (
+                {bookingDetail.rooms.map((room, idx) => (
                   <div
                     key={idx}
                     className="border rounded-lg p-4 shadow-sm hover:shadow-md transition bg-white dark:bg-gray-900"
@@ -3348,7 +3248,7 @@ const handleRoomChangeComplete = () => {
             bookingDetail={bookingDetail}
             onClose={handleCheckOutComplete}
             standalone={false}
-            reservationData={bookingData}
+            reservationData={bookingDetail}
           />
         </SheetContent>
       </Sheet>
@@ -3413,7 +3313,7 @@ const handleRoomChangeComplete = () => {
             onClose={handleAmendComplete}
             guestProfileId={guestProfileId}
             reservationStatusID={booking?.reservationStatusID || 0}
-            reservationData={bookingData}
+            reservationData={bookingDetail}
           />
         </SheetContent>
       </Sheet>
@@ -3479,8 +3379,8 @@ const handleRoomChangeComplete = () => {
       <ReportsDrawer
         isOpen={openReportDrawer}
         onClose={() => setOpenReportDrawer(false)}
-        bookingDetail={reservationDetailData}
-        reservationDetailID={reservationDetailData?.reservationDetailID || 0}
+        bookingDetail={bookingDetail}
+        reservationDetailID={bookingDetail?.reservationDetailID || 0}
       />
 
       {recallModalOpen && (
@@ -3538,7 +3438,7 @@ const handleRoomChangeComplete = () => {
               if (reservationDetailId) {
                 await Promise.all([
                   dispatch(
-                    fetchFolioByReservationDetailId(reservationDetailId)
+                    fetchFolioByDetailId(reservationDetailId)
                   ),
                   dispatch(fetchRateDetailsById(reservationDetailId)),
                 ]);
@@ -3579,6 +3479,33 @@ const handleRoomChangeComplete = () => {
   }
 }}
 
+              try {
+                await dispatch(
+                  updateReservationStatus({
+                    reservationDetailId: reservationDetailId!,
+                    statusId: CONFIRMED_STATUS_ID,
+                  })
+                );
+                toast.success("Booking rolled back");
+                // refresh views
+                if (reservationDetailId)
+                  await dispatch(
+                    fetchReservationRateDetails({ reservationDetailId })
+                  );
+                if (reservationDetailId) {
+                  await Promise.all([
+                    dispatch(
+                      fetchFolioByDetailId(reservationDetailId)
+                    ),
+                    dispatch(fetchRateDetailsById(reservationDetailId)),
+                  ]);
+                }
+                setRollbackOpen(false);
+              } catch (err) {
+                console.error(err);
+                toast.error("Failed to rollback booking");
+              }
+            }}
           />
         </SheetContent>
       </Sheet>

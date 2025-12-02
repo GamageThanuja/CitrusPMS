@@ -49,7 +49,7 @@ import {
   selectRateChecksLastParams,
 } from "@/redux/slices/nightAuditRateCheckerSlice";
 import { fetchReservationById } from "@/redux/slices/reservationByIdSlice";
-import { fetchFolioByReservationDetailId } from "@/redux/slices/folioSlice";
+import { fetchFolioByReservationDetailId } from "@/redux/slices/fetchFolioByDetailIdSlice";
 import { fetchRateDetailsById } from "@/redux/slices/rateDetailsSlice";
 import { toast } from "sonner";
 import { noShowReservation } from "@/redux/slices/noShowSlice";
@@ -58,7 +58,7 @@ import {
   fetchHotelTaxConfigs,
   selectHotelTaxConfigs,
 } from "@/redux/slices/hotelTaxConfigSlice";
-import { fetchHotelTaxByHotelId } from "@/redux/slices/hotelTaxByHotelIdSlice";
+import { fetchHotelTaxByHotelId } from "@/redux/slices/hotelTaxByHotelIDSlice";
 import {
   reverseExclusiveFromInclusive_API,
   computeInclusiveFromExclusive_API,

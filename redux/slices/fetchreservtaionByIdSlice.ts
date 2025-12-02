@@ -99,16 +99,21 @@ export const fetchReservationDetailsById = createAsyncThunk<
   ReservationDetailsItem[],
   FetchReservationDetailsByIdParams,
   { rejectValue: string }
->("reservationDetailsById/fetch", async (params, { rejectWithValue }) => {
+>("reservationDetailsById/fetch", async ({ reservationId }, { rejectWithValue }) => {
   try {
-    const qs = new URLSearchParams();
-    qs.append("reservationId", String(params.reservationId));
-    const url = `${API_BASE_URL}/api/ReservationDetailsByReservationID?${qs.toString()}`;
-    const res = await axios.get(url);
+    const res = await axios.get(
+      `${API_BASE_URL}/api/ReservationDetailsByReservationID`,
+      {
+        params: { reservationId }, 
+      }
+    );
+
     return normalizeArray(res.data);
   } catch (err: any) {
     const msg =
-      err?.response?.data?.message || err?.message || "Failed to fetch reservation details.";
+      err?.response?.data?.message ||
+      err?.message ||
+      "Failed to fetch reservation details.";
     return rejectWithValue(msg);
   }
 });
