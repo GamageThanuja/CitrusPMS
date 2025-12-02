@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Trash2,
+  UtensilsCrossed,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { DeliveryMethodDrawer } from "@/components/drawers/delivery-method-drawe
 import { TableManagementDrawer } from "@/components/drawers/table-management-drawer";
 import { PaymentMethodDrawer } from "@/components/drawers/payment-method-drawer";
 import { ItemManagementDrawer } from "@/components/drawers/item-management-drawer";
+import { TodaySalesDrawer } from "@/components/drawers/today-sales-drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,11 +82,11 @@ import { fetchCategories } from "@/redux/slices/fetchCategoriesSlice";
 import AddItemDrawer from "@/components/drawers/add-item-drawer";
 import { useAppSelector } from "@/redux/hooks";
 import {
-  fetchHotelPosCenters,
-  selectHotelPosCenters,
-  selectHotelPosCentersLoading,
-  selectHotelPosCentersError,
-} from "@/redux/slices/hotelPosCenterSlice";
+  fetchHotelPOSCenterMas,
+  selectHotelPOSCenterMasData,
+  selectHotelPOSCenterMasLoading,
+  selectHotelPOSCenterMasError,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
 import {
   fetchHotelPosCenterTaxConfig,
   type HotelPosCenterTaxConfig,
@@ -92,6 +94,7 @@ import {
 import VideoOverlay from "@/components/videoOverlay";
 import VideoButton from "@/components/videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
+import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 
 type Product = {
   id: string;
@@ -100,6 +103,7 @@ type Product = {
   category: string;
   description?: string;
   imageUrl?: string | null;
+  itemCode?: string;
 };
 
 type CartItem = Product & {
@@ -124,7 +128,20 @@ interface Table {
     items: number;
     startTime: string;
     total: number;
+    tranMasId?: number;
   };
+  items?: Array<{
+    id?: string | number;
+    name?: string;
+    qty?: number;
+    quantity?: number;
+    price?: number;
+    code?: string;
+    itemCode?: string;
+    itemDescription?: string;
+    itemId?: string | number;
+    itemID?: string | number;
+  }>;
 }
 
 type TaxBreakdown = {
@@ -143,9 +160,9 @@ type TaxBreakdown = {
 export default function POSPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: fetchedOutlets, loading: loadingOutlets } = useSelector(
-    (state: RootState) => state.hotelPosCenter
-  );
+  const fetchedOutlets = useSelector(selectHotelPOSCenterMasData);
+  const loadingOutlets = useSelector(selectHotelPOSCenterMasLoading);
+  const fetchedOutletsError = useSelector(selectHotelPOSCenterMasError); // optional, if you want it
   const [hotelId, setHotelId] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
   const SEARCH_TAB = "search";
@@ -170,8 +187,10 @@ export default function POSPage() {
   const [showDeliveryMethod, setShowDeliveryMethod] = useState(false);
   const [showTableManagement, setShowTableManagement] = useState(false);
   const [showPaymentMethod, setShowPaymentMethod] = useState(false);
+  const [fromTableManagement, setFromTableManagement] = useState(false);
   const [showItemManagement, setShowItemManagement] = useState(false);
   const [showOutletCenter, setShowOutletCenter] = useState(false);
+  const [showTodaySales, setShowTodaySales] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -195,6 +214,7 @@ export default function POSPage() {
   console.log("outlets : ", outlets);
 
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null);
+  const prevSelectedCenterIdRef = useRef<number | null>(null);
   const [mappedItems, setMappedItems] = useState<any[]>([]);
   const [allItems, setAllItems] = useState<any[]>([]);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
@@ -267,7 +287,7 @@ export default function POSPage() {
         imageFileName: `hotel-image-${Date.now()}.jpg`,
         description: "Item image",
         isMain: true,
-        finAct: true,
+        finAct: false,
         createdOn: new Date().toISOString(),
         createdBy: tokens.fullName || "admin",
         updatedOn: new Date().toISOString(),
@@ -297,7 +317,7 @@ export default function POSPage() {
       salesAccountID: 0,
       price: formData.price,
       imageURL: imageUrl,
-      finAct: true,
+      finAct: false,
       createdBy: tokens.fullName || "system",
       createdOn: new Date().toISOString(),
       updatedBy: tokens.fullName || "system",
@@ -392,7 +412,7 @@ export default function POSPage() {
           categoryID: 0,
           hotelID,
           categoryName: String(name).trim(),
-          finAct: true,
+          finAct: false,
         }));
 
         const categoryRes: any = await dispatch(
@@ -418,7 +438,7 @@ export default function POSPage() {
           price: parseFloat(row["Guest Price"]) || 0,
           imageURL:
             "https://hotelmate.s3.us-east-1.amazonaws.com/system/healthy.png",
-          finAct: true,
+          finAct: false,
           createdBy: fullName,
           createdOn: now,
           updatedBy: fullName,
@@ -473,9 +493,8 @@ export default function POSPage() {
 
   const currentOutletObj = useMemo(
     () =>
-      fetchedOutlets?.find(
-        (o: any) => o.hotelPosCenterId === selectedCenterId
-      ) ?? null,
+      fetchedOutlets?.find((o: any) => o.posCenterID === selectedCenterId) ??
+      null,
     [fetchedOutlets, selectedCenterId]
   );
 
@@ -498,16 +517,12 @@ export default function POSPage() {
   console.log("selectedOutlet ✅✅✅  :", selectedOutlet);
 
   const dispatch = useDispatch();
-  const posCenters = useAppSelector(selectHotelPosCenters);
-  const loading = useAppSelector(selectHotelPosCentersLoading);
+  const posCenters = useAppSelector(selectHotelPOSCenterMasData);
+  const loading = useAppSelector(selectHotelPOSCenterMasLoading);
 
   useEffect(() => {
-    if (addOpen) dispatch(fetchHotelPosCenters());
+    if (addOpen) dispatch(fetchHotelPOSCenterMas());
   }, [addOpen, dispatch]);
-
-  // const { categories: reduxCategories } = useSelector(
-  //   (state: RootState) => (state as any).categories
-  // );
 
   const categoriesState = useSelector(
     (state: RootState) => state.fetchCategories
@@ -569,10 +584,9 @@ export default function POSPage() {
   );
 
   const getPosCenterNameById = (id?: number | null) =>
-    fetchedOutlets.find((o: any) => o.hotelPosCenterId === id)?.posCenter ?? "";
+    fetchedOutlets.find((o: any) => o.posCenterID === id)?.posCenterName ?? "";
   const getPosCenterIdById = (id?: number | null) =>
-    fetchedOutlets.find((o: any) => o.hotelPosCenterId === id)
-      ?.hotelPosCenterId ?? null;
+    fetchedOutlets.find((o: any) => o.posCenterID === id)?.posCenterID ?? null;
 
   useEffect(() => {
     const saved = localStorage.getItem("hm_selected_pos_center_id");
@@ -591,6 +605,26 @@ export default function POSPage() {
       setOutletModalOpen(false);
     }
   }, [selectedCenterId]);
+
+  // ✅ Clear cart when outlet changes (but not on initial mount)
+  useEffect(() => {
+    // Skip on initial mount (when prevSelectedCenterIdRef.current is null and selectedCenterId is set from localStorage)
+    if (prevSelectedCenterIdRef.current !== null && selectedCenterId !== null) {
+      // Only clear if the outlet actually changed
+      if (prevSelectedCenterIdRef.current !== selectedCenterId) {
+        dispatch(clearCart());
+        setSelectedTableForOrder(null); // Also clear any selected table
+        console.log(
+          "✅ Cart cleared because outlet changed from",
+          prevSelectedCenterIdRef.current,
+          "to",
+          selectedCenterId
+        );
+      }
+    }
+    // Update the ref to the current outlet ID
+    prevSelectedCenterIdRef.current = selectedCenterId;
+  }, [selectedCenterId, dispatch]);
 
   // When taxes finish creating, allow the Select Outlet modal to open again
   useEffect(() => {
@@ -662,6 +696,8 @@ export default function POSPage() {
     console.log("Selected outlet ✅:", outlet);
   };
 
+  console.log("outlet modal open : ", currentSelectedOutlet);
+
   useEffect(() => {
     const canPromptForOutlet =
       !selectedCenterId &&
@@ -685,39 +721,6 @@ export default function POSPage() {
   console.log("outlets", outlets);
   console.log("allItems", allItems);
 
-  // useEffect(() => {
-  //   const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-  //   const property = JSON.parse(
-  //     localStorage.getItem("selectedProperty") || "{}"
-  //   );
-  //   const hotelID = property.id;
-  //   const accessToken = tokens.accessToken;
-
-  //   if (!accessToken || !hotelID) return;
-
-  //   // Fetch categories
-  //   getCategory({ token: accessToken, hotelID })
-  //     .then((data) => {
-  //       const transformed = data.map((cat: any) => ({
-  //         id: cat.categoryID.toString(),
-  //         name: cat.categoryName,
-  //       }));
-  //       setCategories(transformed);
-  //       const defaultCategory = transformed.find(
-  //         (c: { id: string; name: string }) => c.id === "1"
-  //       );
-  //       if (defaultCategory) {
-  //         setActiveTab(1);
-  //       } else if (transformed.length > 0) {
-  //         setActiveTab(Number(transformed[0].id)); // fallback
-  //       }
-  //     })
-  //     .catch((err) => {
-  //       console.error("Failed to load categories:", err);
-  //       setCategories([]); // fallback to empty array on error
-  //     });
-  // }, []);
-
   const itemState = useSelector((state: RootState) => state.items);
   const { items, status, error } = itemState;
 
@@ -733,8 +736,32 @@ export default function POSPage() {
   }, [dispatch]);
 
   useEffect(() => {
-    dispatch(fetchHotelPosCenters());
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+    // Dispatch with proper parameters
+    dispatch(fetchHotelPOSCenterMas({ hotelCode: property.hotelCode }));
   }, [dispatch]);
+
+  // Map fetchedOutlets to the expected format
+  useEffect(() => {
+    if (fetchedOutlets && Array.isArray(fetchedOutlets)) {
+      const mappedOutlets = fetchedOutlets.map((outlet: any) => ({
+        hotelPosCenterId: outlet.posCenterID,
+        posCenter: outlet.posCenterName,
+        outletCurrency: outlet.outletCurrency || "USD",
+        serviceCharge: outlet.sc || 0,
+        taxes: {
+          vat: outlet.vat || 0,
+          nbt: outlet.nbt || 0,
+          sc: outlet.sc || 0,
+          ct: outlet.ct || 0,
+        },
+      }));
+      setOutlets(mappedOutlets);
+      console.log("Mapped outlets:", mappedOutlets);
+    }
+  }, [fetchedOutlets]);
 
   useEffect(() => {
     const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
@@ -826,6 +853,7 @@ export default function POSPage() {
   const addItemsText = useTranslatedText("Add items to your cart");
   const manageItemsText = useTranslatedText("Action");
   const tableManagementText = useTranslatedText("Orders Management");
+  const { fullName } = useUserFromLocalStorage();
 
   console.log("categories", categories);
   console.log("active tab", activeTab);
@@ -869,41 +897,27 @@ export default function POSPage() {
     setShowPaymentMethod(true);
   };
 
-  const handlePaymentComplete = (backToDelivery = false) => {
+  const handlePaymentComplete = (
+    backToDelivery = false,
+    opts?: { silent?: boolean; fromTableManagement?: boolean }
+  ) => {
     if (backToDelivery && fullCheckoutData) {
       setShowPaymentMethod(false);
-      setShowDeliveryMethod(true);
+
+      if (opts?.fromTableManagement) {
+        // 🔁 Came from Orders Management → go back there
+        setShowTableManagement(true);
+      } else {
+        // 🔁 Normal flow → go back to delivery method
+        setShowDeliveryMethod(true);
+      }
     } else {
+      // ✅ Payment completed or closed normally
       setShowPaymentMethod(false);
       setFullCheckoutData(null);
       dispatch(clearCart());
     }
   };
-
-  // const fetchCategories = async () => {
-  //   try {
-  //     const transformed = reduxCategories.map((cat) => ({
-  //       id: cat.categoryID.toString(),
-  //       name: cat.categoryName,
-  //     }));
-
-  //     setCategories(transformed);
-
-  //     const defaultCategory = transformed.find((c) => c.id === "1");
-  //     if (defaultCategory) {
-  //       setActiveTab(1);
-  //     } else if (transformed.length > 0) {
-  //       setActiveTab(Number(transformed[0].id)); // fallback
-  //     }
-  //   } catch (err) {
-  //     console.error("Failed to load categories:", err);
-  //     setCategories([]); // fallback to empty array on error
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchCategories();
-  // }, []);
 
   const selectedOutletName = useMemo(() => {
     if (!selectedCenterId || !Array.isArray(fetchedOutlets)) return "";
@@ -995,6 +1009,214 @@ export default function POSPage() {
 
   const [modalQuantity, setModalQuantity] = useState(1);
 
+  // --- 80mm KOT print for table re-orders ---
+  // --- 80mm KOT print for table re-orders ---
+  const openKot80mm = (
+    orderResult: any,
+    payload: any,
+    cartSnapshot: CartItem[]
+  ) => {
+    if (typeof window === "undefined") return;
+
+    // Hotel info
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+
+    const hotelName =
+      property.hotelName ||
+      property.propertyName ||
+      property.hotel ||
+      property.name ||
+      payload.hotelCode ||
+      "Hotel";
+
+    const outletName = selectedOutletName || payload.posCenter || "Outlet";
+
+    // Order number from backend or fallback to docNo
+    const orderNo =
+      orderResult?.orderNo ||
+      orderResult?.docNo ||
+      orderResult?.tranMasId ||
+      payload?.docNo ||
+      "N/A";
+
+    const currency = selectedOutletCurrency || payload.currencyCode || "";
+    const tranDate = new Date(
+      payload.tranDate || payload.createdOn || Date.now()
+    ).toLocaleString();
+
+    const items = payload.items || [];
+
+    // # | Code | Item | Qty
+    const itemsHtml = items
+      .map((item: any, idx: number) => {
+        const qty = Number(item.quantity ?? item.qty ?? 0);
+
+        // 🔍 Try to resolve itemCode:
+        // 1) from payload (if backend ever sends it)
+        // 2) from cart snapshot (product.itemCode)
+        // 3) fallback to itemId
+        let code: string = item.itemCode ?? item.code ?? "";
+
+        if (!code) {
+          const matchedCart = cartSnapshot.find((c) => {
+            const lineId = Number(item.itemId ?? item.itemID);
+            return !Number.isNaN(lineId) && Number(c.id) === lineId;
+          });
+
+          if (matchedCart) {
+            code =
+              (matchedCart as any).itemCode || matchedCart.id?.toString() || "";
+          } else if (item.itemId != null || item.itemID != null) {
+            code = String(item.itemId ?? item.itemID);
+          }
+        }
+
+        const name =
+          item.itemDescription ??
+          item.itemName ??
+          (() => {
+            const matchedCart = cartSnapshot.find((c) => {
+              const lineId = Number(item.itemId ?? item.itemID);
+              return !Number.isNaN(lineId) && Number(c.id) === lineId;
+            });
+            return matchedCart?.name ?? "";
+          })();
+
+        return `
+          <tr>
+            <td class="col-idx">${idx + 1}</td>
+            <td class="col-code">${code}</td>
+            <td class="col-item">${name}</td>
+            <td class="col-qty">${qty}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const total = Number(payload.currAmount || payload.tranValue || 0);
+
+    const win = window.open("", "_blank", "width=400,height=600");
+    if (!win) {
+      console.warn("Popup blocked – allow popups to print KOT.");
+      return;
+    }
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>KOT - Order ${orderNo}</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              width: 80mm;
+              padding: 6px 8px;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              font-size: 10px;
+            }
+            .receipt { width: 100%; }
+            .center { text-align: center; }
+            .title {
+              font-weight: 700;
+              font-size: 14px;
+            }
+            .subtitle {
+              font-weight: 600;
+              font-size: 13px;
+              margin-top: 2px;
+            }
+            .meta {
+              font-size: 10px;
+              margin-top: 2px;
+            }
+            hr {
+              border: none;
+              border-top: 1px dashed #000;
+              margin: 4px 0;
+            }
+
+            table.items-table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+              margin-top: 4px;
+            }
+            table.items-table th,
+            table.items-table td {
+              padding: 2px 0;
+              font-size: 10px;
+              vertical-align: top;
+            }
+            table.items-table th {
+              border-bottom: 1px solid #000;
+              font-weight: 600;
+            }
+            .col-idx { width: 8%; }
+            .col-code { width: 18%; }
+            .col-item {
+              width: 54%;
+              padding-right: 4px;
+              word-wrap: break-word;
+              white-space: normal;
+            }
+            .col-qty {
+              width: 20%;
+              text-align: right;
+            }
+
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 4px;
+              padding-top: 4px;
+              border-top: 1px dashed #000;
+              font-weight: 600;
+            }
+          </style>
+        </head>
+        <body onload="window.print(); window.close();">
+          <div class="receipt">
+            <div class="center">
+              <div class="title">${hotelName}</div>
+              <div class="subtitle">KOT</div>
+              <div class="meta">${outletName}</div>
+            </div>
+            <hr />
+            <div class="meta">Order No: ${orderNo}</div>
+            <div class="meta">Table: ${payload.tableNo || "-"}</div>
+            <div class="meta">Date: ${tranDate}</div>
+            <hr />
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th class="col-idx">#</th>
+                  <th class="col-code">Code</th>
+                  <th class="col-item">Item</th>
+                  <th class="col-qty">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+            <div class="total-row">
+              <span>Total</span>
+              <span>${total.toFixed(2)} ${currency}</span>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    win.document.close();
+  };
+
   const handleStartHoldTransaction = async (table) => {
     const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
     const property = JSON.parse(
@@ -1008,9 +1230,11 @@ export default function POSPage() {
         "DefaultPOSCenter"
     );
 
-    const posCenterId = String(
-      outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
-        ?.hotelPosCenterId || "DefaultPOSCenter"
+    const posCenterId = Number(
+      selectedCenterId ||
+        outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
+          ?.hotelPosCenterId ||
+        0
     );
 
     const payload = {
@@ -1044,9 +1268,9 @@ export default function POSPage() {
       debit: 0,
       amount: cartTotal,
       comment: "Auto hold transaction from POS page",
-      createdBy: "System",
+      createdBy: fullName,
       currAmount: cartTotal,
-      currencyCode: "LKR",
+      currencyCode: currentSelectedOutlet?.outletCurrency,
       convRate: "1",
       credit: 0,
       paymentReceiptRef: "N/A",
@@ -1086,7 +1310,7 @@ export default function POSPage() {
         {
           method: "hold",
           amount: cartTotal,
-          currency: "LKR",
+          currency: currentSelectedOutlet?.outletCurrency,
           cardType: "",
           lastDigits: "",
           roomNo: "",
@@ -1099,6 +1323,10 @@ export default function POSPage() {
     try {
       const result = await dispatch(createPosOrder(payload)).unwrap();
       console.log("✅ Hold Transaction Created:", result);
+
+      // 🔹 Print KOT for this table re-order (use current cart to get itemCode)
+      openKot80mm(result, payload, cart);
+
       dispatch(clearCart());
     } catch (err) {
       console.error("❌ Failed to create hold transaction:", err);
@@ -1124,18 +1352,35 @@ export default function POSPage() {
 
   console.log("reduxCategories : ", reduxCategories);
 
-  function tableToCart(table: any) {
+  function tableToCart(table: Table): CartItem[] {
     console.log("table item table : ", table);
+
     const lines = Array.isArray(table.items) ? table.items : [];
-    return lines.map((line: any, idx: number) => ({
-      id: String(line.id),
-      name: String(line.item ?? "Item"),
-      price: Number(line.price ?? 0),
-      quantity: Number(line.qty ?? 0),
-      category: "POS",
-      description: "",
-      imageUrl: null,
-    }));
+
+    return lines.map((line: any) => {
+      const qty = Number(line.qty ?? line.quantity ?? 0) || 1;
+      const price = Number(line.price ?? 0);
+
+      return {
+        // try to keep a stable item id
+        id: String(
+          line.id ?? line.itemId ?? line.itemID ?? line.itemCode ?? ""
+        ),
+        // ✅ use the correct name field
+        name: String(line.name ?? line.itemDescription ?? line.item ?? "Item"),
+        price,
+        quantity: qty,
+        category: "POS",
+        description: "",
+        imageUrl: null,
+
+        // ✅ pass itemCode through so the payment / receipt can show it
+        itemCode: line.code ?? line.itemCode ?? undefined,
+
+        // optional: if you want to know which outlet this came from
+        outletId: selectedCenterId ?? null,
+      } as CartItem;
+    });
   }
 
   const taxCalc = useMemo(() => {
@@ -1191,14 +1436,14 @@ export default function POSPage() {
             <div className="py-6 text-muted-foreground">Loading outlets...</div>
           ) : outlets.length > 0 ? (
             <>
-              <div className="grid gap-3 mt-4">
+              <div className="grid gap-3 mt-4 ">
                 {fetchedOutlets.map((outlet) => (
                   <Button
-                    key={outlet.hotelPosCenterId}
+                    key={outlet.posCenterID}
                     className="w-full"
                     onClick={() => handleOutletSelect(outlet)}
                   >
-                    {outlet.posCenter}
+                    {outlet.posCenterName}
                   </Button>
                 ))}
               </div>
@@ -1317,6 +1562,9 @@ export default function POSPage() {
                   >
                     Attach Item to Outlet
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowTodaySales(true)}>
+                    Today's Sales
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1425,7 +1673,7 @@ export default function POSPage() {
                       {/* Show Add Item only for real category tabs */}
                       {activeTab !== SEARCH_TAB && (
                         <Card
-                          className="cursor-pointer flex flex-col items-center justify-center border-dashed border-2 border-white"
+                          className="cursor-pointer flex flex-col items-center justify-center border-dashed border-2 dark:border-white border-gray-500"
                           onClick={() => openAddForCategory(activeTab)}
                         >
                           <CardHeader className="p-4 flex flex-col items-center justify-center">
@@ -1489,13 +1737,35 @@ export default function POSPage() {
 
             <div>
               <Card className="h-full">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="h-5 w-5" />
                     {cartText}
                   </CardTitle>
+                  {cart.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => dispatch(clearCart())}
+                    >
+                      Clear Cart
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
+                  {/* Running Table Order Indicator */}
+                  {selectedTableForOrder && selectedTableForOrder.order && (
+                    <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                        <UtensilsCrossed className="h-4 w-4" />
+                        <span>
+                          Running Order - Table {selectedTableForOrder.number}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {cart.length > 0 ? (
                     <div className="flex flex-col gap-4">
                       {cart.map((item: CartItem) => (
@@ -1506,7 +1776,7 @@ export default function POSPage() {
                           <div className="flex-1">
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              ${item.price.toFixed(2)} x {item.quantity}
+                              {item.price.toFixed(2)} x {item.quantity}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1574,7 +1844,9 @@ export default function POSPage() {
                         <p className="text-sm text-muted-foreground">
                           Subtotal
                         </p>
-                        <p className="text-sm">${taxCalc.base.toFixed(2)}</p>
+                        <p className="text-sm">
+                          {selectedOutletCurrency} {taxCalc.base.toFixed(2)}
+                        </p>
                       </div>
 
                       {/* Only render a tax line if that tax exists or is > 0 */}
@@ -1583,7 +1855,9 @@ export default function POSPage() {
                           <p className="text-sm text-muted-foreground">
                             Service Charge ({taxCalc.scPct}%)
                           </p>
-                          <p className="text-sm">${taxCalc.sc.toFixed(2)}</p>
+                          <p className="text-sm">
+                            {selectedOutletCurrency} {taxCalc.sc.toFixed(2)}
+                          </p>
                         </div>
                       )}
                       {(taxCalc.tdlPct ?? 0) > 0 && (
@@ -1591,7 +1865,9 @@ export default function POSPage() {
                           <p className="text-sm text-muted-foreground">
                             TDL ({taxCalc.tdlPct}%)
                           </p>
-                          <p className="text-sm">${taxCalc.tdl.toFixed(2)}</p>
+                          <p className="text-sm">
+                            {selectedOutletCurrency} {taxCalc.tdl.toFixed(2)}
+                          </p>
                         </div>
                       )}
                       {(taxCalc.ssclPct ?? 0) > 0 && (
@@ -1599,7 +1875,9 @@ export default function POSPage() {
                           <p className="text-sm text-muted-foreground">
                             SSCL ({taxCalc.ssclPct}%)
                           </p>
-                          <p className="text-sm">${taxCalc.sscl.toFixed(2)}</p>
+                          <p className="text-sm">
+                            {selectedOutletCurrency} {taxCalc.sscl.toFixed(2)}
+                          </p>
                         </div>
                       )}
                       {(taxCalc.vatPct ?? 0) > 0 && (
@@ -1607,14 +1885,16 @@ export default function POSPage() {
                           <p className="text-sm text-muted-foreground">
                             VAT ({taxCalc.vatPct}%)
                           </p>
-                          <p className="text-sm">${taxCalc.vat.toFixed(2)}</p>
+                          <p className="text-sm">
+                            {selectedOutletCurrency} {taxCalc.vat.toFixed(2)}
+                          </p>
                         </div>
                       )}
 
                       <div className="flex w-full items-center justify-between border-t pt-3">
                         <p className="text-lg font-bold">Total</p>
                         <p className="text-lg font-bold">
-                          ${taxCalc.grand.toFixed(2)}
+                          {selectedOutletCurrency} {taxCalc.grand.toFixed(2)}
                         </p>
                       </div>
 
@@ -1721,11 +2001,13 @@ export default function POSPage() {
             }
             onClose={() => setShowDeliveryMethod(false)}
             onComplete={(data) => {
+              setFromTableManagement(false);
               setFullCheckoutData(data);
               setShowPaymentMethod(true);
             }}
             initialMethod={fullCheckoutData?.deliveryMethod} // ✅ Preserve selected method
             initialDetails={fullCheckoutData?.deliveryDetails} // ✅ Preserve input data like table/pax
+            selectedOutletCurrency={selectedOutletCurrency}
           />
         )}
 
@@ -1755,10 +2037,13 @@ export default function POSPage() {
             open={showTableManagement}
             onClose={() => setShowTableManagement(false)}
             onTableSelected={(table) => {
-              // your existing “start new/hold” flow
+              // Set the selected table for order tracking (just display indicator)
               setSelectedTableForOrder(table);
               setShowTableManagement(false);
             }}
+            // outletCurrency={selectOutletCurrency}
+            selectedPosCenterId={selectedCenterId}
+            posCenterName={selectedOutletName}
             onCollectPayment={(table) => {
               // ✅ directly open the PAYMENT drawer with table’s current bill
               const cartFromTable = tableToCart(table);
@@ -1774,7 +2059,7 @@ export default function POSPage() {
                 },
                 tranMasId: table?.order?.tranMasId,
               });
-
+              setFromTableManagement(true);
               setShowTableManagement(false);
               setShowPaymentMethod(true);
             }}
@@ -1798,6 +2083,7 @@ export default function POSPage() {
             }
             tranMasId={fullCheckoutData.tranMasId}
             tax={taxForDrawer}
+            fromTableManagement={fromTableManagement}
           />
         )}
 
@@ -1823,20 +2109,38 @@ export default function POSPage() {
             onClose={
               (/* no args */) => {
                 setShowOutletCenter(false);
-                dispatch(fetchHotelPosCenters());
+                dispatch(fetchHotelPOSCenterMas());
                 // do NOT open the Select Outlet modal here
               }
             }
             onCreated={(created) => {
               // optional: preselect the new outlet immediately
               if (created?.hotelPosCenterId) {
-                setSelectedCenterId(Number(created.hotelPosCenterId));
+                const newOutletId = Number(created.hotelPosCenterId);
+                setSelectedCenterId(newOutletId);
+                // ✅ Refresh tax config for the newly created outlet
+                // Note: If taxes haven't been saved yet, this will return empty, which is fine
+                // The tax config will be refreshed again when onTaxesSaved is called
+                dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
+                console.log(
+                  "✅ Tax config refresh triggered for newly created outlet:",
+                  newOutletId
+                );
               }
             }}
             onTaxesSaved={() => {
               // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
               setSuppressOutletModal(false);
               localStorage.removeItem(STORAGE_SUPPRESS_KEY);
+
+              // ✅ Refresh tax config if an outlet is currently selected
+              if (selectedCenterId) {
+                dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
+                console.log(
+                  "✅ Tax config refreshed after taxes saved for outlet:",
+                  selectedCenterId
+                );
+              }
             }}
           />
         )}
@@ -1854,6 +2158,15 @@ export default function POSPage() {
             open={showEditOutlet}
             onClose={() => setShowEditOutlet(false)}
             outlet={currentOutletObj}
+          />
+        )}
+
+        {showTodaySales && (
+          <TodaySalesDrawer
+            open={showTodaySales}
+            onClose={() => setShowTodaySales(false)}
+            selectedPosCenterId={selectedCenterId}
+            outletCurrency={selectedOutletCurrency}
           />
         )}
 
