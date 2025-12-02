@@ -1,145 +1,100 @@
+// redux/slices/takeReservationPaymentSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
-/** ---------- Types ---------- */
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export interface ReservationPaymentRow {
-  accountID: number; // ledger account ID (e.g., Cash, Card, Bank)
-  hotelCode: string; // e.g. "HM-001"
-  finAct: boolean; // financial active (true)
-  tranTypeId: number; // your internal transaction type id
-  tranDate: string; // ISO
-  effectiveDate: string; // ISO
-  docNo: string; // receipt/doc reference
-  createdOn: string; // ISO
-  tranValue: number; // often equals 'amount' (depends on backend)
-  nameID: number; // guest name id if applicable
+/** ---- Request item (aligns with /api/take-payment body) ---- */
+export interface TakeReservationPaymentItem {
+  accountID: number;
+  hotelCode: string;
+  finAct: boolean;
+  tranTypeId: number;
+  tranDate: string;
+  effectiveDate: string;
+  docNo: string;
+  createdOn: string;
+  tranValue: number;
+  nameID: number;
   chequeNo: string;
-  paymentMethod: string; // "CASH" | "CARD" | "BANK TRAN" | etc.
-  chequeDate: string; // ISO
+  paymentMethod: string;
+  chequeDate: string;
   reservationDetailId: number;
-  isGuestLedger: boolean; // true if GL, false if City Ledger, etc.
+  isGuestLedger: boolean;
   reservationId: number;
-  exchangeRate: number; // 1 for native currency
-  debit: number; // 0 for payments (credit)
-  amount: number; // amount in base currency
+  exchangeRate: number;
+  debit: number;
+  amount: number;
   comment: string;
-  createdBy: string; // username
-  currAmount: number; // amount in foreign currency (if any)
-  currencyCode: string; // "LKR" | "USD" | ...
-  convRate: string; // textual conversion if you keep it so
-  credit: number; // = amount for payments
-  paymentReceiptRef: string; // returned receipt id/reference if any
+  createdBy: string;
+  currAmount: number;
+  currencyCode: string;
+  convRate: string;
+  credit: number;
+  paymentReceiptRef: string;
+  [k: string]: any; // allow extra fields if API adds more
 }
 
-export type ReservationPaymentResponse = ReservationPaymentRow; // Swagger mirrors request
+/** ---- Response item (we only *need* these fields) ---- */
+export interface TakeReservationPaymentResponseItem {
+  paymentReceiptRef?: string;
+  docNo?: string;
+  [k: string]: any;
+}
 
-export interface TakePaymentState {
-  data: ReservationPaymentResponse[] | null;
+/** ---- State ---- */
+export interface TakeReservationPaymentState {
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;
+  data: TakeReservationPaymentResponseItem[];
+  lastPaidAt: string | null;
 }
 
-/** ---------- Helpers ---------- */
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
-/**
- * Build a sane payment row (CREDIT).
- * You can override any field afterwards.
- */
-export const buildPaymentRow = (
-  p: Partial<ReservationPaymentRow>
-): ReservationPaymentRow => {
-  const now = new Date().toISOString();
-  const amount = Number(p.amount ?? 0) || 0;
-  return {
-    accountID: p.accountID ?? 0,
-    hotelCode: p.hotelCode ?? "HM-001",
-    finAct: p.finAct ?? true,
-    tranTypeId: p.tranTypeId ?? 0,
-    tranDate: p.tranDate ?? now,
-    effectiveDate: p.effectiveDate ?? now,
-    docNo: p.docNo ?? "",
-    createdOn: p.createdOn ?? now,
-    tranValue: p.tranValue ?? amount,
-    nameID: p.nameID ?? 0,
-    chequeNo: p.chequeNo ?? "",
-    paymentMethod: p.paymentMethod ?? "CASH",
-    chequeDate: p.chequeDate ?? now,
-    reservationDetailId: p.reservationDetailId ?? 0,
-    isGuestLedger: p.isGuestLedger ?? true,
-    reservationId: p.reservationId ?? 0,
-    exchangeRate: p.exchangeRate ?? 1,
-    debit: p.debit ?? 0, // payment -> no debit
-    amount,
-    comment: p.comment ?? "",
-    createdBy: p.createdBy ?? "System",
-    currAmount: p.currAmount ?? amount,
-    currencyCode: p.currencyCode ?? "LKR",
-    convRate: p.convRate ?? "1",
-    credit: p.credit ?? amount, // payment -> credit equals amount
-    paymentReceiptRef: p.paymentReceiptRef ?? "",
-  };
+const initialState: TakeReservationPaymentState = {
+  status: "idle",
+  error: null,
+  data: [],
+  lastPaidAt: null,
 };
 
-/** ---------- Thunk ---------- */
+function normalizeArray(res: any): TakeReservationPaymentResponseItem[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res as TakeReservationPaymentResponseItem[];
+  if (typeof res === "object") return [res as TakeReservationPaymentResponseItem];
+  return [];
+}
 
+/** ---- Thunk: POST /api/take-payment ----
+ *  Expects an array body: TakeReservationPaymentItem[]
+ */
 export const takeReservationPayment = createAsyncThunk<
-  ReservationPaymentResponse[], // return type
-  ReservationPaymentRow[], // arg type
+  TakeReservationPaymentResponseItem[],
+  TakeReservationPaymentItem[],
   { rejectValue: string }
->("reservation/takePayment", async (rows, thunkAPI) => {
+>("takeReservationPayment/create", async (payload, { rejectWithValue }) => {
   try {
-    // Pull tokens and property/hotel info like you asked
-    const storedToken = localStorage.getItem("hotelmateTokens");
-    const parsedToken = storedToken ? JSON.parse(storedToken) : null;
-    const accessToken = parsedToken?.accessToken as string | undefined;
-
-    const selectedProperty = localStorage.getItem("selectedProperty");
-    const property = selectedProperty ? JSON.parse(selectedProperty) : {};
-    const hotelId = property?.id as number | undefined;
-
-    // (Optional) if your backend needs hotelId in header or you log it:
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    if (hotelId) headers["X-Hotel-Id"] = String(hotelId); // remove if not used by backend
-
-    const url = `${API_BASE}/api/Reservation/take-payment`;
-
-    const { data } = await axios.post<ReservationPaymentResponse[]>(url, rows, {
-      headers,
-    });
-
-    return data;
-  } catch (err) {
-    const ax = err as AxiosError<any>;
+    const url = `${API_BASE_URL}/api/take-payment`;
+    const res = await axios.post(url, payload);
+    return normalizeArray(res.data);
+  } catch (err: any) {
     const msg =
-      ax.response?.data?.detail ||
-      ax.response?.data?.title ||
-      ax.message ||
-      "Payment failed";
-    return thunkAPI.rejectWithValue(msg);
+      err?.response?.data?.message ||
+      err?.message ||
+      "Failed to take reservation payment.";
+    return rejectWithValue(msg);
   }
 });
 
-/** ---------- Slice ---------- */
-
-const initialState: TakePaymentState = {
-  data: null,
-  status: "idle",
-  error: null,
-};
-
+/** ---- Slice ---- */
 const takeReservationPaymentSlice = createSlice({
   name: "takeReservationPayment",
   initialState,
   reducers: {
-    resetTakePayment(state) {
-      state.data = null;
+    clearTakeReservationPayment(state) {
       state.status = "idle";
       state.error = null;
+      state.data = [];
+      state.lastPaidAt = null;
     },
   },
   extraReducers: (builder) => {
@@ -150,28 +105,42 @@ const takeReservationPaymentSlice = createSlice({
       })
       .addCase(
         takeReservationPayment.fulfilled,
-        (state, action: PayloadAction<ReservationPaymentResponse[]>) => {
+        (
+          state,
+          action: PayloadAction<TakeReservationPaymentResponseItem[]>
+        ) => {
           state.status = "succeeded";
-          state.data = action.payload || null;
+          state.data = action.payload ?? [];
+          state.lastPaidAt = new Date().toISOString();
         }
       )
       .addCase(takeReservationPayment.rejected, (state, action) => {
         state.status = "failed";
-        state.error = (action.payload as string) || "Payment failed";
+        state.error =
+          (action.payload as string) ||
+          "Failed to take reservation payment.";
       });
   },
 });
 
-export const { resetTakePayment } = takeReservationPaymentSlice.actions;
+export const { clearTakeReservationPayment } =
+  takeReservationPaymentSlice.actions;
 export default takeReservationPaymentSlice.reducer;
 
-/** ---------- Selectors ---------- */
-
+/** ---- Selectors (match usage in TakePaymentsDrawer) ---- */
 export const selectTakePaymentStatus = (s: any) =>
-  (s.takeReservationPayment as TakePaymentState).status;
+  (s.takeReservationPayment?.status as
+    | "idle"
+    | "loading"
+    | "succeeded"
+    | "failed") ?? "idle";
 
 export const selectTakePaymentError = (s: any) =>
-  (s.takeReservationPayment as TakePaymentState).error;
+  (s.takeReservationPayment?.error as string | null) ?? null;
 
 export const selectTakePaymentData = (s: any) =>
-  (s.takeReservationPayment as TakePaymentState).data;
+  (s.takeReservationPayment?.data as TakeReservationPaymentResponseItem[]) ??
+  [];
+
+export const selectTakePaymentLastPaidAt = (s: any) =>
+  (s.takeReservationPayment?.lastPaidAt as string | null) ?? null;

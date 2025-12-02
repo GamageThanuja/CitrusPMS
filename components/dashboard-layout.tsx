@@ -1052,6 +1052,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           name: matched.hotelName ?? matched.name ?? "Hotel",
           guid: matched.guid ?? matched.hotelGUID ?? null,
           hotelCode: String(matched.hotelCode ?? hotelCode),
+          homeCurrencyCode: matched.homeCurrencyCode ?? "USD",
         };
 
         // Persist a single-item hotels list and always select 1097
@@ -1063,6 +1064,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           name: normalized.name,
           guid: normalized.guid,
           hotelCode: normalized.hotelCode,
+           homeCurrencyCode: normalized.homeCurrencyCode,
         };
         localStorage.setItem("selectedProperty", JSON.stringify(selected));
         // Also persist the hotelCode key if not present
@@ -1681,6 +1683,7 @@ function SidebarHeaderContent({
     name: string;
     guid: string | null;
     hotelCode?: string;
+    homeCurrencyCode?: string;
   }[];
   setActiveHotel: (name: string) => void;
   isDropdownOpen: boolean;
@@ -1816,6 +1819,8 @@ function SidebarHeaderContent({
                         name: hotel.name,
                         guid: hotel.guid,
                         hotelCode,
+                        homeCurrencyCode: hotel.homeCurrencyCode || "USD",
+                        
                       };
                       localStorage.setItem("hotelCode", hotelCode);
                       localStorage.setItem(

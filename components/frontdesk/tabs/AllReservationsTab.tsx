@@ -4,6 +4,8 @@ import { TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function AllReservationsTab({ bookings, viewType, renderBookingCard, renderBookingListItem, label, description, CardContainer }: any) {
+
+  console.log("Bookings in AllReservationsTab:", bookings);
   return (
     <TabsContent value="all" className="mt-4">
       <Card><br></br>

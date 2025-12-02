@@ -19,11 +19,23 @@ import {
 } from "@/components/ui/select";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchTransactionCodes } from "@/redux/slices/transactionCodeSlice";
-import { fetchGlAccounts } from "@/redux/slices/glAccountSlice";
+import {
+  fetchGLAccount,
+  selectGLAccountData,
+  selectGLAccountLoading,
+} from "@/redux/slices/fetchGLAccountSlices";
+import {
+  fetchGLAccountType,
+  selectGLAccountTypeData,
+} from "@/redux/slices/fetchGLAccountTypeSlice";
 import React, { useEffect, useMemo, useState } from "react";
 import { BookingDetails } from "@/types/booking";
 import { toast } from "sonner";
-import { createReservationCashPayout } from "@/controllers/reservationController";
+import {
+  createCashPayout,
+  selectCashPayoutLoading,
+  clearCashPayout,
+} from "@/redux/slices/cashPayoutSlice";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useStoredCurrencyCode } from "@/hooks/useStoredCurrencyCode";
@@ -48,9 +60,11 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
   booking,
 }) => {
   const dispatch = useAppDispatch();
-  const { list: glAccounts, listLoading } = useAppSelector(
-    (state) => state.glAccount
-  );
+const glAccounts = useAppSelector(selectGLAccountData);
+const listLoading = useAppSelector(selectGLAccountLoading);
+const glAccountTypes = useAppSelector(selectGLAccountTypeData);
+
+  const posting = useAppSelector(selectCashPayoutLoading);
 
   console.log("glAccounts", glAccounts);
   const { send, context } = useSendHotelEmail();
@@ -87,25 +101,22 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
   const hotelID = selectedProperty.id;
 
   // Filter only AccountTypeId = 1 and hotelId = current property
-  const filteredAccounts = useMemo(() => {
-    return glAccounts.filter(
-      (acc) =>
-        acc.accountTypeID === 1 &&
-        (String(acc.hotelID).trim() === String(hotelID) ||
-          String(acc.hotelID).trim() === "0")
-    );
-  }, [glAccounts, hotelID]);
+const filteredAccounts = useMemo(() => {
+  return glAccounts.filter((acc) => acc.accountTypeID === 1);
+}, [glAccounts]);
 
   // Load GL accounts & transaction codes
-  useEffect(() => {
-    if (open) {
-      setSelectedAccountID(null);
-      setAmount("0");
-      setFeedbackMessage(null);
-      dispatch(fetchTransactionCodes());
-      dispatch(fetchGlAccounts());
-    }
-  }, [open, dispatch]);
+useEffect(() => {
+  if (open) {
+    setSelectedAccountID(null);
+    setAmount("0");
+    setFeedbackMessage(null);
+    dispatch(clearCashPayout());
+    dispatch(fetchTransactionCodes());
+    dispatch(fetchGLAccount(undefined));   // GL accounts
+    dispatch(fetchGLAccountType());        // ✅ GL account types (new)
+  }
+}, [open, dispatch]);
 
   // Set default selection (cash/bank if found)
   useEffect(() => {
@@ -142,11 +153,6 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
     setFeedbackMessage(null);
 
     try {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const accessToken = tokens.accessToken;
-
       const payload = {
         reservationDetailId: booking.reservationDetailID || 0,
         reservationMasterId: booking.reservationMasterID || 0,
@@ -155,7 +161,7 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
         accountId: Number(selectedAccountID),
         amount: parseFloat(amount),
         tranDate: systemDate,
-        currencyCode: booking.currencyCode || "USD",
+        currencyCode: booking.currencyCode ,
         conversionRate: 1,
         remarks: "Cash payout",
         tranTypeId: 40,
@@ -164,13 +170,9 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
         cashAccountId: Number(selectedAccountID),
       };
 
-      // 👇 Add this
       console.log("CashPayout Payload:", JSON.stringify(payload, null, 2));
 
-      await createReservationCashPayout({
-        token: accessToken,
-        payload,
-      });
+      await dispatch(createCashPayout(payload)).unwrap();
 
       const toEmail =
         (booking as any)?.email?.trim?.() ||
@@ -201,19 +203,6 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
         console.warn("CashPayout: no guest email; skipping receipt send");
       }
 
-      // toast.custom(
-      //   () => (
-      //     <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-      //       <CircleCheckBig className="h-6 w-6 text-green-500" />
-      //       <div>
-      //         <h3 className="font-medium">
-      //           Cash payout processed successfully!
-      //         </h3>
-      //       </div>
-      //     </div>
-      //   ),
-      //   { duration: 2500 }
-      // );
       show({
         variant: "success",
         title: "Recorded successfully!",
@@ -221,15 +210,20 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
       });
 
       onClose();
-    } catch (error) {
-      console.error("Payout error:", error);
-      setFeedbackMessage({
-        type: "error",
-        message: "Failed to process cash payout",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+ } catch (error: any) {
+  console.error("Payout error:", error);
+
+  show({
+    variant: "error",
+    title: "Cash payout error",
+    description:
+      error?.message ||
+      error?.toString?.() ||
+      "Something went wrong while processing the payout.",
+  });
+} finally {
+  setIsSubmitting(false);
+}
   };
 
   return (
@@ -313,9 +307,9 @@ export const CashPayoutDrawer: React.FC<CashPayoutDrawerProps> = ({
           <Button
             className="w-full"
             onClick={handlePayout}
-            disabled={isSubmitting}
+            disabled={isSubmitting || posting} // ✅ use both
           >
-            {isSubmitting ? "PROCESSING..." : "PROCESS PAYOUT"}
+            {isSubmitting || posting ? "PROCESSING..." : "PROCESS PAYOUT"}
           </Button>
         </div>
       </SheetContent>

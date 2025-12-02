@@ -10,7 +10,7 @@ import { AppDispatch, RootState } from "@/redux/store";
 import {
   fetchHotelTaxByHotelId,
   resetHotelTaxByHotelIdState,
-} from "@/redux/slices/hotelTaxByHotelIdSlice";
+} from "@/redux/slices/hotelTaxByHotelIDSlice";
 import {
   updateHotelTax,
   resetUpdateHotelTaxState,
