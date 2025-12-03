@@ -16,13 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Info, Save } from "lucide-react";
-
 import {
-  updateHotelPosCenter,
-  resetUpdateHotelPosCenterState,
-  type HotelPosCenterResponse,
-} from "@/redux/slices/updateHotelPosCenterSlice";
-import { updatePosCenterTaxConfig } from "@/redux/slices/updatePosCenterTaxConfigSlice";
+  updateHotelPOSCenterMas,
+  resetUpdateHotelPOSCenterMasState,
+  type UpdateHotelPOSCenterMasPayload,
+} from "@/redux/slices/updateHotelPOSCenterMasSlice";
 import VideoOverlay from "../videoOverlay";
 import VideoButton from "../videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -45,7 +43,8 @@ export interface PosCenterTaxRow {
 interface EditOutletDrawerProps {
   open: boolean;
   onClose: () => void;
-  outlet: HotelPosCenterResponse | null;
+  outlet: any | null;
+  onUpdated?: () => void; // 👈 new
 }
 
 export default function EditOutletDrawer({
@@ -63,13 +62,6 @@ export default function EditOutletDrawer({
   const [botPrinter, setBotPrinter] = useState("");
   const [billCopies, setBillCopies] = useState<string>("0");
   const [isShowOnGSS, setIsShowOnGSS] = useState<boolean>(true);
-
-  const [taxRows, setTaxRows] = useState<PosCenterTaxRow[]>([]);
-  const [loadingTaxes, setLoadingTaxes] = useState(false);
-  const [savingAllTaxes, setSavingAllTaxes] = useState(false);
-  const [saveAllError, setSaveAllError] = useState<string | null>(null);
-  const [saveAllOk, setSaveAllOk] = useState(false);
-
   const [showRawOverlay, setShowRawOverlay] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const { tutorial, status: tutStatus } = useTutorial("onBoarding", "taxes");
@@ -84,108 +76,110 @@ export default function EditOutletDrawer({
   }, [tutorial]);
 
   const updOutletState = useSelector(
-    (s: RootState) => (s as any).updateHotelPosCenter
-  ) as { loading: boolean; success: boolean; error: string | null };
-
-  const updTaxState = useSelector(
-    (s: RootState) => (s as any).updatePosCenterTaxConfig
+    (s: RootState) => (s as any).updateHotelPOSCenterMas
   ) as { loading: boolean; success: boolean; error: string | null };
 
   useEffect(() => {
     if (!outlet) return;
-    setPosCenter(outlet.posCenter ?? "");
-    setServiceCharge(String(outlet.serviceCharge ?? 0));
-    setTaxes(String(outlet.taxes ?? 0));
-    setKotPrinter(outlet.kotPrinter ?? "");
-    setBillPrinter(outlet.billPrinter ?? "");
-    setBotPrinter(outlet.botPrinter ?? "");
-    setBillCopies(String(outlet.billCopies ?? 0));
-    setIsShowOnGSS(Boolean(outlet.isShowOnGSS ?? true));
+
+    const o = outlet as any;
+
+    // Name
+    setPosCenter(o.posCenter ?? o.posCenterName ?? "");
+
+    // Service charge
+    setServiceCharge(String(o.serviceCharge ?? o.sc ?? 0));
+
+    // Other taxes – you can adjust this if you want some other logic
+    const taxSum =
+      o.taxes ?? (o.vat ?? 0) + (o.nbt ?? 0) + (o.sc ?? 0) + (o.ct ?? 0);
+
+    setTaxes(String(taxSum || 0));
+
+    // Printers
+    setKotPrinter(o.kotPrinter ?? o.kotPrinterName ?? "");
+    setBillPrinter(o.billPrinter ?? o.billPrinterName ?? "");
+    setBotPrinter(o.botPrinter ?? o.botPrinterName ?? "");
+
+    // Bill copies
+    setBillCopies(String(o.billCopies ?? o.noOfBillCopies ?? 0));
+
+    // Show on GSS / show flag
+    setIsShowOnGSS(Boolean(o.isShowOnGSS ?? o.showOnGSS ?? o.show ?? true));
   }, [outlet, open]);
 
-  useEffect(() => {
-    if (!open || !outlet?.hotelPosCenterId) return;
-    fetchTaxRows(outlet.hotelPosCenterId);
-  }, [open, outlet?.hotelPosCenterId]);
-
-  const fetchTaxRows = async (hotelPosCenterId: number) => {
-    setLoadingTaxes(true);
-    try {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const accessToken = tokens?.accessToken;
-      const url = `${BASE_URL}/api/HotelPOSCenterTaxConfig/pos-center/${hotelPosCenterId}`;
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: PosCenterTaxRow[] = await res.json();
-      setTaxRows(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Failed to load POS-center tax configs:", e);
-      setTaxRows([]);
-    } finally {
-      setLoadingTaxes(false);
-    }
-  };
-
   const handleSaveOutlet = async () => {
-    if (!outlet?.hotelPosCenterId) return;
-    const payload = {
-      hotelPosCenterId: Number(outlet.hotelPosCenterId),
-      posCenter: posCenter.trim(),
-      serviceCharge: Number(serviceCharge) || 0,
-      taxes: Number(taxes) || 0,
-      kotPrinter: kotPrinter || null,
-      billPrinter: billPrinter || null,
-      botPrinter: botPrinter || null,
-      billCopies: Number(billCopies) || 0,
-      isShowOnGSS,
-    };
-    await dispatch(updateHotelPosCenter(payload)).unwrap().catch(console.error);
-  };
-
-  const handleTaxRowChange = (idx: number, patch: Partial<PosCenterTaxRow>) => {
-    setTaxRows((rows) =>
-      rows.map((r, i) => (i === idx ? { ...r, ...patch } : r))
+    if (!outlet) return;
+    // ID for URL segment
+    const posCenterId = Number(
+      (outlet as any).posCenterID ?? (outlet as any).hotelPosCenterId
     );
-  };
+    if (!posCenterId) return;
 
-  const handleSaveAllTaxes = async () => {
-    if (!outlet?.hotelPosCenterId) return;
-    setSavingAllTaxes(true);
-    setSaveAllError(null);
-    setSaveAllOk(false);
+    // Build full payload based on existing outlet, overriding edited fields
+    const data: UpdateHotelPOSCenterMasPayload = {
+      posCenterID: posCenterId,
+      posCenterCode: (outlet as any).posCenterCode ?? "",
+      posCenterName: posCenter.trim(),
+      nextBillNo: (outlet as any).nextBillNo ?? "",
+      hotelCode: (outlet as any).hotelCode ?? "",
+      createdBy: (outlet as any).createdBy ?? "system",
+      createdOn: (outlet as any).createdOn ?? new Date().toISOString(),
+      finAct: (outlet as any).finAct ?? true,
+
+      // 👇 use edited printer names / bill copies
+      kotPrinterName: kotPrinter || (outlet as any).kotPrinterName || "",
+      botPrinterName: botPrinter || (outlet as any).botPrinterName || "",
+      billPrinterName: billPrinter || (outlet as any).billPrinterName || "",
+      nextOrderNo: (outlet as any).nextOrderNo ?? "",
+      locationID: (outlet as any).locationID ?? 0,
+      show: (outlet as any).show ?? true,
+
+      isTaxInclusivePrices: (outlet as any).isTaxInclusivePrices ?? false,
+      isAskRoomNo: (outlet as any).isAskRoomNo ?? false,
+      isAskTableNo: (outlet as any).isAskTableNo ?? false,
+      isAskDeliveryMtd: (outlet as any).isAskDeliveryMtd ?? false,
+      isAskPOSCenter: (outlet as any).isAskPOSCenter ?? false,
+      isAskNoOfPax: (outlet as any).isAskNoOfPax ?? false,
+      isChargeSeperateSC: (outlet as any).isChargeSeperateSC ?? false,
+
+      // 👇 keep existing tax breakdown, but update SC from the edited field
+      vat: (outlet as any).vat ?? 0,
+      nbt: (outlet as any).nbt ?? 0,
+      sc: Number(serviceCharge) || (outlet as any).sc || 0,
+      ct: (outlet as any).ct ?? 0,
+
+      gotoLogin: (outlet as any).gotoLogin ?? false,
+      isNBTPlusVat: (outlet as any).isNBTPlusVat ?? false,
+      printBillOnLQ: (outlet as any).printBillOnLQ ?? false,
+      usdBilling: (outlet as any).usdBilling ?? false,
+      noOfBillCopies: Number(billCopies) || (outlet as any).noOfBillCopies || 0,
+      isPossibleToPostToFOCashier:
+        (outlet as any).isPossibleToPostToFOCashier ?? false,
+      isTakeAway: (outlet as any).isTakeAway ?? false,
+      outletGroup: (outlet as any).outletGroup ?? "",
+      isProfitCenter: (outlet as any).isProfitCenter ?? false,
+      roomServiceSC: (outlet as any).roomServiceSC ?? 0,
+      takeAwaySC: (outlet as any).takeAwaySC ?? 0,
+      deliverySC: (outlet as any).deliverySC ?? 0,
+      allowDirectBill: (outlet as any).allowDirectBill ?? false,
+      printKOTCopyAtBILLPrinter:
+        (outlet as any).printKOTCopyAtBILLPrinter ?? false,
+      costPercentage: (outlet as any).costPercentage ?? 0,
+      isBar: (outlet as any).isBar ?? false,
+      isMergeTableWhenPrintSt: (outlet as any).isMergeTableWhenPrintSt ?? false,
+      koT_paperwidth: (outlet as any).koT_paperwidth ?? 80,
+      boT_paperwidth: (outlet as any).boT_paperwidth ?? 80,
+      bilL_paperwidth: (outlet as any).bilL_paperwidth ?? 80,
+
+      // 👇 edited bool from UI
+      showOnGSS: isShowOnGSS,
+    };
+
     try {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const updatedBy = tokens?.fullName || tokens?.email || "System";
-      const ops = taxRows.map((row) =>
-        dispatch(
-          updatePosCenterTaxConfig({
-            recordId: row.recordId,
-            hotelPOSCenterId: row.hotelPOSCenterId,
-            taxName: row.taxName,
-            percentage: Number(row.percentage) || 0,
-            calcBasedOn: row.calcBasedOn,
-            updatedBy,
-          })
-        ).unwrap()
-      );
-      const results = await Promise.allSettled(ops);
-      const failed = results.filter((r) => r.status === "rejected");
-      if (failed.length)
-        setSaveAllError(`${failed.length} row(s) failed to update`);
-      else setSaveAllOk(true);
-    } catch (e: any) {
-      setSaveAllError(e?.message ?? "Save failed");
-    } finally {
-      setSavingAllTaxes(false);
+      await dispatch(updateHotelPOSCenterMas({ posCenterId, data })).unwrap();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -243,16 +237,6 @@ export default function EditOutletDrawer({
                     onChange={(e) => setTaxes(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center gap-2 pt-6">
-                  <input
-                    id="isShowOnGSS"
-                    type="checkbox"
-                    className="h-4 w-4 accent-black"
-                    checked={isShowOnGSS}
-                    onChange={(e) => setIsShowOnGSS(e.target.checked)}
-                  />
-                  <Label htmlFor="isShowOnGSS">Show on GSS</Label>
-                </div>
                 <div>
                   <Label>KOT Printer</Label>
                   <Input
@@ -283,6 +267,16 @@ export default function EditOutletDrawer({
                   />
                 </div>
               </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  id="isShowOnGSS"
+                  type="checkbox"
+                  className="h-4 w-4 accent-black"
+                  checked={isShowOnGSS}
+                  onChange={(e) => setIsShowOnGSS(e.target.checked)}
+                />
+                <Label htmlFor="isShowOnGSS">Show on GSS</Label>
+              </div>
 
               <div className="flex gap-2">
                 <Button
@@ -297,15 +291,27 @@ export default function EditOutletDrawer({
                   variant="secondary"
                   onClick={() => {
                     if (!outlet) return;
-                    setPosCenter(outlet.posCenter ?? "");
-                    setServiceCharge(String(outlet.serviceCharge ?? 0));
-                    setTaxes(String(outlet.taxes ?? 0));
-                    setKotPrinter(outlet.kotPrinter ?? "");
-                    setBillPrinter(outlet.billPrinter ?? "");
-                    setBotPrinter(outlet.botPrinter ?? "");
-                    setBillCopies(String(outlet.billCopies ?? 0));
-                    setIsShowOnGSS(Boolean(outlet.isShowOnGSS ?? true));
-                    dispatch(resetUpdateHotelPosCenterState());
+                    const o = outlet as any;
+
+                    setPosCenter(o.posCenter ?? o.posCenterName ?? "");
+                    setServiceCharge(String(o.serviceCharge ?? o.sc ?? 0));
+
+                    const taxSum =
+                      o.taxes ??
+                      (o.vat ?? 0) + (o.nbt ?? 0) + (o.sc ?? 0) + (o.ct ?? 0);
+
+                    setTaxes(String(taxSum || 0));
+                    setKotPrinter(o.kotPrinter ?? o.kotPrinterName ?? "");
+                    setBillPrinter(o.billPrinter ?? o.billPrinterName ?? "");
+                    setBotPrinter(o.botPrinter ?? o.botPrinterName ?? "");
+                    setBillCopies(
+                      String(o.billCopies ?? o.noOfBillCopies ?? 0)
+                    );
+                    setIsShowOnGSS(
+                      Boolean(o.isShowOnGSS ?? o.showOnGSS ?? o.show ?? true)
+                    );
+
+                    dispatch(resetUpdateHotelPOSCenterMasState());
                   }}
                   className="w-40"
                 >
@@ -318,88 +324,6 @@ export default function EditOutletDrawer({
             </section>
 
             <Separator />
-
-            {/* TAX ROWS — 2-column grid, label = tax name, input with % suffix */}
-            <section className="space-y-4">
-              <div className="flex items-center gap-2 text-sm">
-                <h3 className="font-semibold">Outlet Taxes</h3>
-                <Info className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">
-                  Edit percentages; Save All to persist.
-                </span>
-              </div>
-
-              {loadingTaxes ? (
-                <div className="text-sm text-muted-foreground">
-                  Loading tax rows…
-                </div>
-              ) : taxRows.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  No tax rows found for this outlet.
-                </div>
-              ) : (
-                <>
-                  {/* 2-column grid of inputs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {taxRows.map((row, idx) => (
-                      <Card key={row.recordId} className="p-4">
-                        <Label className="text-xs text-slate-500">
-                          {row.taxName}
-                        </Label>
-                        <div className="relative mt-2">
-                          <Input
-                            inputMode="decimal"
-                            value={String(row.percentage)}
-                            onChange={(e) =>
-                              handleTaxRowChange(idx, {
-                                percentage: Number(e.target.value) || 0,
-                              })
-                            }
-                            placeholder="0"
-                            className="pr-8"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                            %
-                          </span>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-
-                  <div className="pt-3">
-                    <Button
-                      onClick={handleSaveAllTaxes}
-                      disabled={savingAllTaxes}
-                      className="w-full"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {savingAllTaxes ? "Saving All…" : "Save All Taxes"}
-                    </Button>
-                    {saveAllError && (
-                      <p className="mt-2 text-xs text-red-600">
-                        {saveAllError}
-                      </p>
-                    )}
-                    {saveAllOk && !saveAllError && (
-                      <p className="mt-2 text-xs text-emerald-600">
-                        Taxes updated successfully.
-                      </p>
-                    )}
-                    {updTaxState.error && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {String(updTaxState.error)}
-                      </p>
-                    )}
-                  </div>
-                </>
-              )}
-            </section>
-
-            <div className="pt-4">
-              <Button onClick={onClose} variant="outline" className="w-full">
-                Close
-              </Button>
-            </div>
           </div>
         )}
         <VideoOverlay

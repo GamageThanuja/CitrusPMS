@@ -78,8 +78,7 @@ import { Item } from "@/components/itemForm";
 import AddItemModal from "@/components/modals/add-item-modal";
 import * as XLSX from "xlsx";
 import { createHotelImage } from "@/controllers/hotelImageController";
-import { createItemMaster } from "@/controllers/itemMasterController";
-import { createItemByPosCenter } from "@/controllers/itemByPosCenterController";
+import { createItemMas } from "@/redux/slices/createItemMasSlice";
 import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
 import { postCategoryList } from "@/redux/slices/categoryMasterSlice";
 import {
@@ -248,52 +247,48 @@ export default function POSPage() {
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens.accessToken;
+    // const accessToken = tokens.accessToken;
     const hotelID = property.id;
 
-    if (!accessToken || !hotelID) {
-      console.error("Missing accessToken or hotelID");
-      return;
-    }
 
-    let imageUrl = formData.imageUrl || "";
+    // let imageUrl = formData.imageUrl || "";
 
-    // upload image first (optional)
-    if (imageFile) {
-      const reader = new FileReader();
-      const base64Image: string = await new Promise((resolve, reject) => {
-        reader.onloadend = () => {
-          resolve((reader.result as string).split(",")[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
+    // // upload image first (optional)
+    // if (imageFile) {
+    //   const reader = new FileReader();
+    //   const base64Image: string = await new Promise((resolve, reject) => {
+    //     reader.onloadend = () => {
+    //       resolve((reader.result as string).split(",")[1]);
+    //     };
+    //     reader.onerror = reject;
+    //     reader.readAsDataURL(imageFile);
+    //   });
 
-      const imagePayload = {
-        imageID: 0,
-        hotelID,
-        imageFileName: `hotel-image-${Date.now()}.jpg`,
-        description: "Item image",
-        isMain: true,
-        finAct: false,
-        createdOn: new Date().toISOString(),
-        createdBy: tokens.fullName || "admin",
-        updatedOn: new Date().toISOString(),
-        updatedBy: tokens.fullName || "admin",
-        base64Image,
-      };
+    //   const imagePayload = {
+    //     imageID: 0,
+    //     hotelID,
+    //     imageFileName: `hotel-image-${Date.now()}.jpg`,
+    //     description: "Item image",
+    //     isMain: true,
+    //     finAct: false,
+    //     createdOn: new Date().toISOString(),
+    //     createdBy: tokens.fullName || "admin",
+    //     updatedOn: new Date().toISOString(),
+    //     updatedBy: tokens.fullName || "admin",
+    //     base64Image,
+    //   };
 
-      try {
-        const uploadResult = await createHotelImage({
-          token: accessToken,
-          payload: imagePayload,
-        });
-        const cleanImageUrl = (uploadResult.imageFileName || "").split("?")[0];
-        imageUrl = cleanImageUrl;
-      } catch (err) {
-        console.error("Image upload failed", err);
-      }
-    }
+    //   try {
+    //     const uploadResult = await createHotelImage({
+    //       token: accessToken,
+    //       payload: imagePayload,
+    //     });
+    //     const cleanImageUrl = (uploadResult.imageFileName || "").split("?")[0];
+    //     imageUrl = cleanImageUrl;
+    //   } catch (err) {
+    //     console.error("Image upload failed", err);
+    //   }
+    // }
 
     const payload = {
       itemID: 0,
@@ -304,7 +299,7 @@ export default function POSPage() {
       description: formData.description || "",
       salesAccountID: 0,
       price: formData.price,
-      imageURL: imageUrl,
+      imageURL: null, //imageUrl,
       finAct: false,
       createdBy: tokens.fullName || "system",
       createdOn: new Date().toISOString(),
@@ -312,45 +307,17 @@ export default function POSPage() {
       updatedOn: new Date().toISOString(),
     };
 
-    try {
-      // create the item
-      // await createItemMaster({ token: accessToken, payload });
+   try {
+   
+    await dispatch(createItemMas(payload as any)).unwrap();
 
-      // refresh list in redux
-      // refresh ItemMas list in redux
-      await dispatch(fetchItemMas({}));
+    await dispatch(fetchItemMas({}));
 
-      // fetch again to get created itemID to map POS centers
-      // const itemsAfterCreate = await getItemMaster({
-      //   token: accessToken,
-      //   hotelId: hotelID,
-      // });
-      // const createdItem = itemsAfterCreate[itemsAfterCreate.length - 1];
-      // const itemID = createdItem?.itemID;
-
-      // if (itemID && Array.isArray(selectedCenters)) {
-      //   for (const posCenterId of selectedCenters) {
-      //     const posPayload = {
-      //       hotelId: hotelID,
-      //       itemId: itemID,
-      //       hotelPosCenterId: posCenterId,
-      //     };
-      //     await createItemByPosCenter({
-      //       token: accessToken,
-      //       payload: posPayload,
-      //     });
-      //   }
-      // }
-
-      // await dispatch(fetchItemMas(undefined));
-
-      // If the new item belongs to the currently selected outlet and active category,
-      // it will now pass the filter and appear without refresh.
-      setAddOpen(false);
-    } catch (error) {
-      console.error("Failed to save item or link to POS centers:", error);
-      setAddOpen(false);
-    }
+    setAddOpen(false);
+  } catch (error) {
+    console.error("Failed to save item or link to POS centers:", error);
+    setAddOpen(false);
+  }
   };
 
   // bulk-import from Excel in the AddItemModal
@@ -917,7 +884,6 @@ const productsForTab =
   const [modalQuantity, setModalQuantity] = useState(1);
 
   // --- 80mm KOT print for table re-orders ---
-  // --- 80mm KOT print for table re-orders ---
   const openKot80mm = (
     orderResult: any,
     payload: any,
@@ -1311,6 +1277,7 @@ const productsForTab =
   // }, [fullCheckoutData, posTaxStatus, posTaxRows, taxCalc]);
 
   console.log("selected outlet : ", selectedOutletName);
+  
 
   return (
     <>
