@@ -59,26 +59,33 @@ import {
   removeFromCart,
   removeItemCompletely,
 } from "@/redux/slices/cartSlice";
-import { RootState } from "@/redux/store";
-import { fetchItems } from "@/redux/slices/itemSlice";
-import { getCategory } from "@/controllers/categoryController";
+import { RootState, AppDispatch } from "@/redux/store";
+import {
+  fetchItemMas,
+  selectItemMasItems,
+} from "@/redux/slices/fetchItemMasSlice";
+// import { getCategory } from "@/controllers/categoryController";
 import { getPosCenter } from "@/controllers/posCenterController";
-import { getItemsByPosCenter } from "@/controllers/itemByPosCenterController";
-import { getItemMaster } from "@/controllers/itemMasterController";
+import {
+  fetchItemsByPOSCenter,
+  selectItemsByPOSCenterData,
+} from "@/redux/slices/fetchItemsByPOSCenterSlice";
 import { createPosOrder } from "@/redux/slices/posOrderSlice";
 import { set } from "lodash";
 import { AttachItemToOutletDrawer } from "@/components/drawers/attachItemToOutletDrawer";
-// import { fetchCategories as fetchCategoriesThunk } from "@/redux/slices/categorySlice";
 import EditOutletDrawer from "@/components/drawers/edit-outlet-drawer";
 import { Item } from "@/components/itemForm";
 import AddItemModal from "@/components/modals/add-item-modal";
 import * as XLSX from "xlsx";
 import { createHotelImage } from "@/controllers/hotelImageController";
-import { createItemMaster } from "@/controllers/itemMasterController"; // you already import getItemMaster; keep both
+import { createItemMaster } from "@/controllers/itemMasterController";
 import { createItemByPosCenter } from "@/controllers/itemByPosCenterController";
 import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
 import { postCategoryList } from "@/redux/slices/categoryMasterSlice";
-import { fetchCategories } from "@/redux/slices/fetchCategoriesSlice";
+import {
+  fetchCategoryMas,
+  selectCategoryMasItems,
+} from "@/redux/slices/fetchCategoryMasSlice";
 import AddItemDrawer from "@/components/drawers/add-item-drawer";
 import { useAppSelector } from "@/redux/hooks";
 import {
@@ -87,10 +94,10 @@ import {
   selectHotelPOSCenterMasLoading,
   selectHotelPOSCenterMasError,
 } from "@/redux/slices/fetchHotelPOSCenterMasSlice";
-import {
-  fetchHotelPosCenterTaxConfig,
-  type HotelPosCenterTaxConfig,
-} from "@/redux/slices/fetchHotelPosCenterTaxConfigSlice";
+// import {
+//   fetchHotelPosCenterTaxConfig,
+//   type HotelPosCenterTaxConfig,
+// } from "@/redux/slices/fetchHotelPosCenterTaxConfigSlice";
 import VideoOverlay from "@/components/videoOverlay";
 import VideoButton from "@/components/videoButton";
 import { useTutorial } from "@/hooks/useTutorial";
@@ -163,23 +170,7 @@ export default function POSPage() {
   const fetchedOutlets = useSelector(selectHotelPOSCenterMasData);
   const loadingOutlets = useSelector(selectHotelPOSCenterMasLoading);
   const fetchedOutletsError = useSelector(selectHotelPOSCenterMasError); // optional, if you want it
-  const [hotelId, setHotelId] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
   const SEARCH_TAB = "search";
-
-  // Fetch localStorage values only on the client side
-  useEffect(() => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-
-    const accessToken = tokens.accessToken;
-    const hotelID = property.id;
-
-    setHotelId(hotelID);
-    setAccessToken(accessToken);
-  }, []);
 
   const LS_OUTLET_ID = "hm_selected_pos_center_id";
   const LS_OUTLET_OBJ = "hm_selected_pos_center";
@@ -193,7 +184,6 @@ export default function POSPage() {
   const [showTodaySales, setShowTodaySales] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [outlets, setOutlets] = useState<
     { hotelPosCenterId: number; posCenter: string }[]
   >([]);
@@ -215,8 +205,6 @@ export default function POSPage() {
 
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null);
   const prevSelectedCenterIdRef = useRef<number | null>(null);
-  const [mappedItems, setMappedItems] = useState<any[]>([]);
-  const [allItems, setAllItems] = useState<any[]>([]);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(
     []
@@ -232,11 +220,11 @@ export default function POSPage() {
 
   const [addOpen, setAddOpen] = useState(false);
 
-  const {
-    data: posTaxRows,
-    status: posTaxStatus,
-    error: posTaxError,
-  } = useSelector((s: RootState) => s.fetchHotelPosCenterTaxConfig);
+  // const {
+  //   data: posTaxRows,
+  //   status: posTaxStatus,
+  //   error: posTaxError,
+  // } = useSelector((s: RootState) => s.fetchHotelPosCenterTaxConfig);
 
   const openAddForCategory = (catId: string | number) => {
     setEditing({
@@ -326,48 +314,35 @@ export default function POSPage() {
 
     try {
       // create the item
-      await createItemMaster({ token: accessToken, payload });
+      // await createItemMaster({ token: accessToken, payload });
 
       // refresh list in redux
-      await dispatch(fetchItems(hotelID));
+      // refresh ItemMas list in redux
+      await dispatch(fetchItemMas({}));
 
       // fetch again to get created itemID to map POS centers
-      const itemsAfterCreate = await getItemMaster({
-        token: accessToken,
-        hotelId: hotelID,
-      });
-      const createdItem = itemsAfterCreate[itemsAfterCreate.length - 1];
-      const itemID = createdItem?.itemID;
+      // const itemsAfterCreate = await getItemMaster({
+      //   token: accessToken,
+      //   hotelId: hotelID,
+      // });
+      // const createdItem = itemsAfterCreate[itemsAfterCreate.length - 1];
+      // const itemID = createdItem?.itemID;
 
-      if (itemID && Array.isArray(selectedCenters)) {
-        for (const posCenterId of selectedCenters) {
-          const posPayload = {
-            hotelId: hotelID,
-            itemId: itemID,
-            hotelPosCenterId: posCenterId,
-          };
-          await createItemByPosCenter({
-            token: accessToken,
-            payload: posPayload,
-          });
-        }
-      }
+      // if (itemID && Array.isArray(selectedCenters)) {
+      //   for (const posCenterId of selectedCenters) {
+      //     const posPayload = {
+      //       hotelId: hotelID,
+      //       itemId: itemID,
+      //       hotelPosCenterId: posCenterId,
+      //     };
+      //     await createItemByPosCenter({
+      //       token: accessToken,
+      //       payload: posPayload,
+      //     });
+      //   }
+      // }
 
-      // ...in handleSaveItem, after you've determined `itemID` and finished linking:
-
-      if (itemID && Array.isArray(selectedCenters)) {
-        // Optimistically add to local mapping so the UI shows it immediately
-        setMappedItems((prev) => [
-          ...prev,
-          ...selectedCenters.map((cid) => ({
-            hotelPosCenterId: cid,
-            itemId: Number(itemID),
-          })),
-        ]);
-      }
-
-      // Make sure Redux store has the new item (await so UI updates right after)
-      await dispatch(fetchItems(hotelID));
+      // await dispatch(fetchItemMas(undefined));
 
       // If the new item belongs to the currently selected outlet and active category,
       // it will now pass the filter and appear without refresh.
@@ -448,7 +423,7 @@ export default function POSPage() {
         await dispatch(postItemMasterList(itemPayloads)).unwrap();
 
         // optional: refresh UI
-        await dispatch(fetchItems(hotelID));
+        await dispatch(fetchItemMas({}));
 
         alert("✅ Categories and Items imported successfully");
       } catch (error) {
@@ -516,7 +491,7 @@ export default function POSPage() {
 
   console.log("selectedOutlet ✅✅✅  :", selectedOutlet);
 
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const posCenters = useAppSelector(selectHotelPOSCenterMasData);
   const loading = useAppSelector(selectHotelPOSCenterMasLoading);
 
@@ -524,47 +499,43 @@ export default function POSPage() {
     if (addOpen) dispatch(fetchHotelPOSCenterMas());
   }, [addOpen, dispatch]);
 
-  const categoriesState = useSelector(
-    (state: RootState) => state.fetchCategories
-  );
-  const reduxCategories = categoriesState?.data ?? [];
+  const reduxCategories = useSelector(selectCategoryMasItems);
 
-  useEffect(() => {
-    if (selectedCenterId) {
-      dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId));
-    }
-  }, [dispatch, selectedCenterId]);
+  // useEffect(() => {
+  //   if (selectedCenterId) {
+  //     dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId));
+  //   }
+  // }, [dispatch, selectedCenterId]);
 
   const canon = (s: string) => (s || "").toLowerCase().replace(/\s+|_/g, "");
   const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-  function calcTaxes(total: number, rows: HotelPosCenterTaxConfig[]) {
-    // map by canonical tax name (e.g., "servicecharge", "tdl", "sscl", "vat")
-    const by = new Map<string, HotelPosCenterTaxConfig>();
-    rows.forEach((r) => by.set(canon(r.taxName), r));
+  // function calcTaxes(total: number, rows: HotelPosCenterTaxConfig[]) {
+  //   // map by canonical tax name (e.g., "servicecharge", "tdl", "sscl", "vat")
+  //   const by = new Map<string, HotelPosCenterTaxConfig>();
+  //   rows.forEach((r) => by.set(canon(r.taxName), r));
 
-    const base = total;
+  //   const base = total;
 
-    const scPct = by.get("servicecharge")?.percentage ?? 0; // Base
-    const tdlPct = by.get("tdl")?.percentage ?? 0; // Base
-    const ssclPct = by.get("sscl")?.percentage ?? 0; // Subtotal1
-    const vatPct = by.get("vat")?.percentage ?? 0; // Subtotal2
+  //   const scPct = by.get("servicecharge")?.percentage ?? 0; // Base
+  //   const tdlPct = by.get("tdl")?.percentage ?? 0; // Base
+  //   const ssclPct = by.get("sscl")?.percentage ?? 0; // Subtotal1
+  //   const vatPct = by.get("vat")?.percentage ?? 0; // Subtotal2
 
-    const sc = r2((base * scPct) / 100);
-    const tdl = r2((base * tdlPct) / 100);
-    const st1 = r2(base + sc + tdl);
+  //   const sc = r2((base * scPct) / 100);
+  //   const tdl = r2((base * tdlPct) / 100);
+  //   const st1 = r2(base + sc + tdl);
 
-    const sscl = r2((st1 * ssclPct) / 100);
-    const st2 = r2(st1 + sscl);
+  //   const sscl = r2((st1 * ssclPct) / 100);
+  //   const st2 = r2(st1 + sscl);
 
-    const vat = r2((st2 * vatPct) / 100);
-    const grand = r2(st2 + vat);
+  //   const vat = r2((st2 * vatPct) / 100);
+  //   const grand = r2(st2 + vat);
 
-    return { scPct, tdlPct, ssclPct, vatPct, sc, tdl, sscl, vat, base, grand };
-  }
-
+  //   return { scPct, tdlPct, ssclPct, vatPct, sc, tdl, sscl, vat, base, grand };
+  // }
   useEffect(() => {
-    dispatch(fetchCategories());
+    dispatch(fetchCategoryMas());
   }, [dispatch]);
 
   const STORAGE_SUPPRESS_KEY = "hm_block_outlet_modal_until_tax";
@@ -573,7 +544,7 @@ export default function POSPage() {
   // OPTIONAL: read tax-creation status from your tax slice
   // Adjust selector to your slice names
   const taxesStatus = useSelector(
-    (s: RootState) => s.hotelTaxes?.status ?? "idle" // "idle" | "loading" | "succeeded" | "failed"
+    (s: RootState) => s.createHotelTax?.loading ? "loading" : "idle" // simplified status check
   );
 
   // Blocker flag (persisted)
@@ -628,7 +599,7 @@ export default function POSPage() {
 
   // When taxes finish creating, allow the Select Outlet modal to open again
   useEffect(() => {
-    if (taxesStatus === "succeeded") {
+    if (taxesStatus === "idle") {
       setSuppressOutletModal(false);
       localStorage.removeItem(STORAGE_SUPPRESS_KEY);
     }
@@ -651,11 +622,9 @@ export default function POSPage() {
   const currentSelectedOutlet = useMemo(() => {
     if (!selectedCenterId) return null;
     return (
-      fetchedOutlets?.find(
-        (o: any) => o.hotelPosCenterId === selectedCenterId
-      ) ?? null
+      outlets.find((o: any) => o.hotelPosCenterId === selectedCenterId) ?? null
     );
-  }, [fetchedOutlets, selectedCenterId]);
+  }, [outlets, selectedCenterId]);
 
   useEffect(() => {
     // Try full object first
@@ -679,24 +648,42 @@ export default function POSPage() {
   }, []);
 
   useEffect(() => {
-    setSelectOutletCurrency(currentSelectedOutlet?.outletCurrency ?? "");
+    // setSelectOutletCurrency(currentSelectedOutlet?.outletCurrency ?? "");
   }, [currentSelectedOutlet]);
 
-  const handleOutletSelect = (outlet: any) => {
+  // ❗ put this near the top of POSPage component
+  const normalizeOutlet = (rawOutlet: any) => {
+    return {
+      hotelPosCenterId: rawOutlet.hotelPosCenterId ?? rawOutlet.posCenterID,
+      posCenter: rawOutlet.posCenter ?? rawOutlet.posCenterName,
+      outletCurrency: rawOutlet.outletCurrency ?? "",
+      serviceCharge: rawOutlet.serviceCharge ?? rawOutlet.sc ?? 0,
+      taxes: rawOutlet.taxes ?? {
+        vat: rawOutlet.vat ?? 0,
+        nbt: rawOutlet.nbt ?? 0,
+        sc: rawOutlet.sc ?? 0,
+        ct: rawOutlet.ct ?? 0,
+      },
+    };
+  };
+
+  const handleOutletSelect = (rawOutlet: any) => {
+    const outlet = normalizeOutlet(rawOutlet);
+
+    if (!outlet.hotelPosCenterId) {
+      console.warn("handleOutletSelect: outlet has no id", rawOutlet);
+      return;
+    }
+
     setSelectedCenterId(outlet.hotelPosCenterId);
     setOutletModalOpen(false);
-    setSelectedOutlet(outlet);
+    setSelectedOutlet([outlet]);
 
-    // ✅ currency
     setSelectOutletCurrency(outlet.outletCurrency ?? "");
-
-    // ✅ persist full object
     saveSelectedOutletToLS(outlet);
 
     console.log("Selected outlet ✅:", outlet);
   };
-
-  console.log("outlet modal open : ", currentSelectedOutlet);
 
   useEffect(() => {
     const canPromptForOutlet =
@@ -719,21 +706,30 @@ export default function POSPage() {
   console.log("cart:", cart);
 
   console.log("outlets", outlets);
-  console.log("allItems", allItems);
 
-  const itemState = useSelector((state: RootState) => state.items);
-  const { items, status, error } = itemState;
+  const itemsFromMas = useSelector(selectItemMasItems);
 
-  console.log("item : ", items);
+  console.log("item : ", itemsFromMas);
 
-  useEffect(() => {
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    if (property.id) {
-      dispatch(fetchItems(property.id));
+ // Load ItemMas filtered by selected category
+useEffect(() => {
+  const property = JSON.parse(
+    localStorage.getItem("selectedProperty") || "{}"
+  );
+
+  if (!property.id) return;
+
+  // If we have an active tab that's not the search tab, fetch items for that category
+  if (activeTab && activeTab !== SEARCH_TAB) {
+    const categoryId = parseInt(activeTab);
+    if (!isNaN(categoryId)) {
+      dispatch(fetchItemMas({ categoryId }));
     }
-  }, [dispatch]);
+  } else {
+    // If no specific category is selected or it's search tab, fetch all items
+    dispatch(fetchItemMas({}));
+  }
+}, [dispatch, activeTab]);
 
   useEffect(() => {
     const property = JSON.parse(
@@ -763,80 +759,6 @@ export default function POSPage() {
     }
   }, [fetchedOutlets]);
 
-  useEffect(() => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    const hotelId = property?.id;
-    const accessToken = tokens.accessToken;
-
-    if (!hotelId || !accessToken) return;
-
-    // Fetch mapping data
-
-    getItemsByPosCenter({ token: accessToken, hotelId })
-      .then(setMappedItems)
-      .catch((err) => {
-        console.error("Failed to fetch mapped items:", err);
-      });
-
-    getItemMaster({ token: accessToken, hotelId })
-      .then(setAllItems)
-      .catch((err) => {
-        console.error("Failed to fetch item master:", err);
-      });
-  }, []);
-
-  useEffect(() => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    const accessToken = tokens.accessToken;
-    const hotelId = property.id;
-
-    if (!accessToken || !hotelId) return;
-
-    getItemMaster({ token: accessToken, hotelId })
-      .then((res) => res)
-      .then((data) => {
-        const loaded = data.map((item: any) => ({
-          id: item.itemCode,
-          name: item.itemName,
-          price: item.price,
-          category: item.categoryID?.toString() || "uncategorized",
-          description: item.description,
-          imageUrl: item.imageURL || null,
-        }));
-
-        setProducts(loaded);
-      })
-      .catch((err) => console.error("Failed to fetch products:", err));
-
-    getPosCenter({ token: accessToken, hotelId })
-      .then((res) => {
-        return res;
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const formatted = data.map((outlet: any) => ({
-            hotelPosCenterId: outlet.hotelPosCenterId,
-            posCenter: outlet.posCenter,
-            serviceCharge: outlet.serviceCharge,
-            taxes: outlet.taxes,
-            outletCurrency: outlet.outletCurrency,
-          }));
-          setOutlets(formatted);
-        } else {
-          setOutlets([]);
-        }
-      })
-
-      .catch((err) => {
-        console.error("Failed to fetch outlets:", err);
-      });
-  }, []);
 
   const pos = useTranslatedText("Point of Sale");
   const search = useTranslatedText("Search");
@@ -868,7 +790,7 @@ export default function POSPage() {
   };
 
   const cartTotal = cart.reduce(
-    (sum: number, item: CartItem) => sum + item.price * item.quantity,
+    (sum: number, item: any) => sum + item.price * item.quantity,
     0
   );
 
@@ -920,74 +842,59 @@ export default function POSPage() {
   };
 
   const selectedOutletName = useMemo(() => {
-    if (!selectedCenterId || !Array.isArray(fetchedOutlets)) return "";
-    const found = fetchedOutlets.find(
+    if (!selectedCenterId || !Array.isArray(outlets)) return "";
+    const found = outlets.find(
       (o: any) => o.hotelPosCenterId === selectedCenterId
     );
     return found?.posCenter ?? "";
-  }, [fetchedOutlets, selectedCenterId]);
+  }, [outlets, selectedCenterId]);
 
   const selectedOutletCurrency = useMemo(() => {
-    if (!selectedCenterId || !Array.isArray(fetchedOutlets)) return "";
+    if (!selectedCenterId || !Array.isArray(fetchedOutlets)) return "USD";
     const found = fetchedOutlets.find(
-      (o: any) => o.hotelPosCenterId === selectedCenterId
+      (o: any) => o.posCenterID === selectedCenterId
     );
-    return found?.outletCurrency ?? "";
+    // Use USD billing if enabled, otherwise default to USD
+    return found?.usdBilling ? "USD" : "USD";
   }, [fetchedOutlets, selectedCenterId]);
 
   console.log("fetchedOutlets : ", selectedOutletCurrency);
 
-  console.log("item", items);
-
   console.log("selectedCenterId aaaaaaa :", selectedCenterId);
 
-  // Normalize Redux items to a consistent shape
-  const normalizedItems: Product[] = (items ?? []).map((it: any) => ({
-    id: String(it.id ?? it.itemID ?? it.itemCode), // <- normalize ID
-    name: it.name ?? it.itemName ?? "",
-    price: Number(it.price ?? 0),
-    category: String(it.category ?? it.categoryID ?? "uncategorized"),
-    description: it.description ?? "",
-    imageUrl: it.imageUrl ?? it.imageURL ?? null,
-    itemCode: it.itemCode,
-    salesAccountID: it.salesAccountID,
+  // Normalize ItemMas records into Product shape
+  const normalizedItems: Product[] = (itemsFromMas ?? []).map((it: any) => ({
+    id: String(it.itemID ?? it.itemNumber),
+    // choose a sensible display name
+    name:
+      it.nameOnBill ||
+      it.description ||
+      it.extDescription ||
+      it.itemNumber ||
+      "",
+    price: Number(it.price ?? it.guestPrice ?? 0),
+    category: String(it.categoryID ?? "uncategorized"),
+    description: it.extDescription || it.description || "",
+    imageUrl: it.imageURL || null,
+    itemCode: it.itemNumber, // treat ItemMas.itemNumber as the "code"
   }));
 
-  console.log("mappedItems : ", mappedItems);
-
-  const isMappedToCurrentCenter = (prod: Product) =>
-    !selectedCenterId ||
-    mappedItems.some(
-      (map: any) =>
-        String(map.itemId) === String(prod.id) &&
-        map.hotelPosCenterId === selectedCenterId
-    );
-
   const matchesText = (name: string) =>
-    (name || "").toLowerCase().includes(searchQuery.toLowerCase());
+  (name || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Results for Search tab: center + text (across all categories)
-  const searchResults: Product[] = normalizedItems.filter(
-    (p) => isMappedToCurrentCenter(p) && matchesText(p.name)
-  );
+// Search tab → text search across all items
+const searchResults: Product[] = normalizedItems.filter((p) =>
+  matchesText(p.name)
+);
 
-  // Results for normal category tabs: center + category
-  const categoryResults: Product[] = normalizedItems.filter((p) => {
-    const inCenter = isMappedToCurrentCenter(p);
-    const inCategory = String(p.category) === String(activeTab);
-    return inCenter && inCategory;
-  });
+// Category tabs → items for that category
+const categoryResults: Product[] = normalizedItems.filter(
+  (p) => String(p.category) === String(activeTab)
+);
 
-  // Final list depending on tab
-  const productsForTab =
-    activeTab === SEARCH_TAB ? searchResults : categoryResults;
-
-  const filteredItems = allItems.filter((item) =>
-    mappedItems.some(
-      (map) =>
-        map.hotelPosCenterId === selectedCenterId && map.itemId === item.itemID
-    )
-  );
+// Final list depending on tab
+const productsForTab =
+  activeTab === SEARCH_TAB ? searchResults : categoryResults;
 
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1217,7 +1124,7 @@ export default function POSPage() {
     win.document.close();
   };
 
-  const handleStartHoldTransaction = async (table) => {
+  const handleStartHoldTransaction = async (table: any) => {
     const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
@@ -1270,7 +1177,7 @@ export default function POSPage() {
       comment: "Auto hold transaction from POS page",
       createdBy: fullName,
       currAmount: cartTotal,
-      currencyCode: currentSelectedOutlet?.outletCurrency,
+      currencyCode: selectedOutletCurrency,
       convRate: "1",
       credit: 0,
       paymentReceiptRef: "N/A",
@@ -1310,7 +1217,7 @@ export default function POSPage() {
         {
           method: "hold",
           amount: cartTotal,
-          currency: currentSelectedOutlet?.outletCurrency,
+          currency: selectedOutletCurrency,
           cardType: "",
           lastDigits: "",
           roomNo: "",
@@ -1325,7 +1232,7 @@ export default function POSPage() {
       console.log("✅ Hold Transaction Created:", result);
 
       // 🔹 Print KOT for this table re-order (use current cart to get itemCode)
-      openKot80mm(result, payload, cart);
+      openKot80mm(result, payload, cart as any);
 
       dispatch(clearCart());
     } catch (err) {
@@ -1335,16 +1242,8 @@ export default function POSPage() {
 
   // add this helper in POSPage component
   const refreshMappedItems = async () => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    const accessToken = tokens.accessToken;
-    const hotelId = property?.id;
-    if (!hotelId || !accessToken) return;
     try {
-      const data = await getItemsByPosCenter({ token: accessToken, hotelId });
-      setMappedItems(data); // 👈 this is what your filtering uses
+      await dispatch(fetchItemsByPOSCenter());
     } catch (e) {
       console.error("Failed to refresh mapped items:", e);
     }
@@ -1383,32 +1282,33 @@ export default function POSPage() {
     });
   }
 
-  const taxCalc = useMemo(() => {
-    if (!cart.length || posTaxStatus !== "succeeded") {
-      return {
-        base: cartTotal,
-        scPct: 0,
-        tdlPct: 0,
-        ssclPct: 0,
-        vatPct: 0,
-        sc: 0,
-        tdl: 0,
-        sscl: 0,
-        vat: 0,
-        grand: cartTotal,
-      };
-    }
-    return calcTaxes(cartTotal, posTaxRows || []);
-  }, [cart.length, cartTotal, posTaxRows, posTaxStatus]);
+  // Simple tax calc stub (all taxes 0 for now)
+  const taxCalc: TaxBreakdown = useMemo(
+    () => ({
+      base: Number(cartTotal),
+      scPct: 0,
+      tdlPct: 0,
+      ssclPct: 0,
+      vatPct: 0,
+      sc: 0,
+      tdl: 0,
+      sscl: 0,
+      vat: 0,
+      grand: Number(cartTotal),
+    }),
+    [cartTotal]
+  );
 
-  const taxForDrawer: TaxBreakdown = useMemo(() => {
-    // when collecting from a table, recompute from that total,
-    // otherwise use current cart calculation
-    if (fullCheckoutData && posTaxStatus === "succeeded") {
-      return calcTaxes(fullCheckoutData.total, posTaxRows || []);
-    }
-    return taxCalc as TaxBreakdown;
-  }, [fullCheckoutData, posTaxStatus, posTaxRows, taxCalc]);
+  const taxForDrawer: TaxBreakdown = taxCalc;
+
+  // const taxForDrawer: TaxBreakdown = useMemo(() => {
+  //   // when collecting from a table, recompute from that total,
+  //   // otherwise use current cart calculation
+  //   if (fullCheckoutData && posTaxStatus === "succeeded") {
+  //     return calcTaxes(fullCheckoutData.total, posTaxRows || []);
+  //   }
+  //   return taxCalc as TaxBreakdown;
+  // }, [fullCheckoutData, posTaxStatus, posTaxRows, taxCalc]);
 
   console.log("selected outlet : ", selectedOutletName);
 
@@ -1437,13 +1337,13 @@ export default function POSPage() {
           ) : outlets.length > 0 ? (
             <>
               <div className="grid gap-3 mt-4 ">
-                {fetchedOutlets.map((outlet) => (
+                {outlets.map((outlet) => (
                   <Button
-                    key={outlet.posCenterID}
+                    key={outlet.hotelPosCenterId}
                     className="w-full"
                     onClick={() => handleOutletSelect(outlet)}
                   >
-                    {outlet.posCenterName}
+                    {outlet.posCenter}
                   </Button>
                 ))}
               </div>
@@ -1495,15 +1395,15 @@ export default function POSPage() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="gap-2 px-4 py-2">
                       {selectedCenterId
-                        ? fetchedOutlets?.find(
+                        ? outlets.find(
                             (o: any) => o.hotelPosCenterId === selectedCenterId
                           )?.posCenter ?? "Select Outlet"
                         : "Select Outlet"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-48">
-                    {(fetchedOutlets?.length ?? 0) > 0 ? (
-                      fetchedOutlets!.map((outlet: any) => (
+                    {outlets.length > 0 ? (
+                      outlets.map((outlet: any) => (
                         <DropdownMenuItem
                           key={outlet.hotelPosCenterId}
                           onClick={() => handleOutletSelect(outlet)}
@@ -1617,7 +1517,7 @@ export default function POSPage() {
                       {/* Scrollable Tabs */}
                       <div
                         ref={scrollRef}
-                        className="flex-1 overflow-x-auto scrollbar-none pr-[96px]" // Reserve space for buttons on the right
+                        className="flex-1 overflow-x-auto scrollbar-none pr-[96px]"
                       >
                         <TabsList className="flex w-max gap-2 whitespace-nowrap px-2 py-6">
                           {searchQuery && (
@@ -1768,7 +1668,7 @@ export default function POSPage() {
 
                   {cart.length > 0 ? (
                     <div className="flex flex-col gap-4">
-                      {cart.map((item: CartItem) => (
+                      {cart.map((item: any) => (
                         <div
                           key={item.id}
                           className="flex items-center justify-between"
@@ -1832,11 +1732,11 @@ export default function POSPage() {
                   )}
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                  {posTaxStatus === "failed" && (
+                  {/* {posTaxStatus === "failed" && (
                     <p className="text-xs text-red-600">
                       {String(posTaxError)}
                     </p>
-                  )}
+                  )} */}
 
                   {cart.length > 0 && (
                     <>
@@ -1991,23 +1891,23 @@ export default function POSPage() {
             open={showDeliveryMethod}
             cart={cart}
             total={cartTotal}
-            selectedPosCenterId={
+            selectedPosCenterId={String(
               outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
                 ?.hotelPosCenterId || ""
-            }
+            )}
             selectedPosCenterName={
               outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
                 ?.posCenter || ""
             }
             onClose={() => setShowDeliveryMethod(false)}
-            onComplete={(data) => {
+            onComplete={(data: any) => {
               setFromTableManagement(false);
               setFullCheckoutData(data);
               setShowPaymentMethod(true);
             }}
             initialMethod={fullCheckoutData?.deliveryMethod} // ✅ Preserve selected method
             initialDetails={fullCheckoutData?.deliveryDetails} // ✅ Preserve input data like table/pax
-            selectedOutletCurrency={selectedOutletCurrency}
+            // selectedOutletCurrency={selectedOutletCurrency}
           />
         )}
 
@@ -2028,7 +1928,10 @@ export default function POSPage() {
           categories={categories}
           onSaveManual={handleSaveItem}
           onImportExcel={handleExcelUpload}
-          posCenters={posCenters}
+          posCenters={posCenters.map((pc: any) => ({
+            hotelPosCenterId: pc.posCenterID,
+            posCenter: pc.posCenterName
+          }))}
           onCreateCategoryClick={() => setShowCreateCategory(true)}
         />
 
@@ -2042,22 +1945,22 @@ export default function POSPage() {
               setShowTableManagement(false);
             }}
             // outletCurrency={selectOutletCurrency}
-            selectedPosCenterId={selectedCenterId}
-            posCenterName={selectedOutletName}
+            // selectedPosCenterId={selectedCenterId}
+            // posCenterName={selectedOutletName}
             onCollectPayment={(table) => {
               // ✅ directly open the PAYMENT drawer with table’s current bill
               const cartFromTable = tableToCart(table);
               const totalFromTable = Number(table?.order?.total ?? 0);
 
               setFullCheckoutData({
-                cart: cartFromTable,
+                cart: cartFromTable as any,
                 total: totalFromTable,
                 deliveryMethod: "Table",
                 deliveryDetails: {
                   tableNo: String(table.number),
                   noOfPax: String(table.seats ?? 0),
                 },
-                tranMasId: table?.order?.tranMasId,
+                // tranMasId: table?.order?.tranMasId,
               });
               setFromTableManagement(true);
               setShowTableManagement(false);
@@ -2073,17 +1976,17 @@ export default function POSPage() {
             deliveryMethod={fullCheckoutData.deliveryMethod}
             deliveryDetails={fullCheckoutData.deliveryDetails}
             onClose={handlePaymentComplete}
-            posCenter={
+            posCenter={String(
               outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
                 ?.hotelPosCenterId || ""
-            }
+            )}
             posCenterName={
               outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
                 ?.posCenter || ""
             }
             tranMasId={fullCheckoutData.tranMasId}
-            tax={taxForDrawer}
-            fromTableManagement={fromTableManagement}
+            // tax={taxForDrawer}
+            // fromTableManagement={fromTableManagement}
           />
         )}
 
@@ -2097,7 +2000,7 @@ export default function POSPage() {
         {showAddItemToOutletDrawer && (
           <AttachItemToOutletDrawer
             open={showAddItemToOutletDrawer}
-            categories={categories}
+            // categories={categories}
             onClose={() => setShowAddItemToOutletDrawer(false)}
             onMappingChanged={refreshMappedItems}
           />
@@ -2113,35 +2016,34 @@ export default function POSPage() {
                 // do NOT open the Select Outlet modal here
               }
             }
-            onCreated={(created) => {
-              // optional: preselect the new outlet immediately
-              if (created?.hotelPosCenterId) {
-                const newOutletId = Number(created.hotelPosCenterId);
-                setSelectedCenterId(newOutletId);
-                // ✅ Refresh tax config for the newly created outlet
-                // Note: If taxes haven't been saved yet, this will return empty, which is fine
-                // The tax config will be refreshed again when onTaxesSaved is called
-                dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
-                console.log(
-                  "✅ Tax config refresh triggered for newly created outlet:",
-                  newOutletId
-                );
-              }
-            }}
-            onTaxesSaved={() => {
-              // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
-              setSuppressOutletModal(false);
-              localStorage.removeItem(STORAGE_SUPPRESS_KEY);
+            // onCreated={(created) => {
+            //   if (created?.hotelPosCenterId) {
+            //     const newOutletId = Number(created.hotelPosCenterId);
+            //     setSelectedCenterId(newOutletId);
+            //     // ✅ Refresh tax config for the newly created outlet
+            //     // Note: If taxes haven't been saved yet, this will return empty, which is fine
+            //     // The tax config will be refreshed again when onTaxesSaved is called
+            //     dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
+            //     console.log(
+            //       "✅ Tax config refresh triggered for newly created outlet:",
+            //       newOutletId
+            //     );
+            //   }
+            // }}
+            // onTaxesSaved={() => {
+            //   // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
+            //   setSuppressOutletModal(false);
+            //   localStorage.removeItem(STORAGE_SUPPRESS_KEY);
 
-              // ✅ Refresh tax config if an outlet is currently selected
-              if (selectedCenterId) {
-                dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
-                console.log(
-                  "✅ Tax config refreshed after taxes saved for outlet:",
-                  selectedCenterId
-                );
-              }
-            }}
+            //   // ✅ Refresh tax config if an outlet is currently selected
+            //   if (selectedCenterId) {
+            //     dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
+            //     console.log(
+            //       "✅ Tax config refreshed after taxes saved for outlet:",
+            //       selectedCenterId
+            //     );
+            //   }
+            // }}
           />
         )}
         {showCreateCategory && (
@@ -2149,7 +2051,7 @@ export default function POSPage() {
             open={showCreateCategory}
             onClose={() => {
               setShowCreateCategory(false);
-              dispatch(fetchCategories());
+              dispatch(fetchCategoryMas());
             }}
           />
         )}
@@ -2157,7 +2059,7 @@ export default function POSPage() {
           <EditOutletDrawer
             open={showEditOutlet}
             onClose={() => setShowEditOutlet(false)}
-            outlet={currentOutletObj}
+            outlet={currentOutletObj as any}
           />
         )}
 
