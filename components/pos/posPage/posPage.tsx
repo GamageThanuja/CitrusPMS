@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "sonner";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -79,7 +79,10 @@ import AddItemModal from "@/components/modals/add-item-modal";
 import * as XLSX from "xlsx";
 import { createHotelImage } from "@/controllers/hotelImageController";
 import { createItemMas } from "@/redux/slices/createItemMasSlice";
-import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
+import {
+  createItemMasList,
+  type ItemMasListItem,
+} from "@/redux/slices/createItemMasListSlice";
 import { postCategoryList } from "@/redux/slices/categoryMasterSlice";
 import {
   fetchCategoryMas,
@@ -243,13 +246,12 @@ export default function POSPage() {
     selectedCenters: number[],
     imageFile?: File
   ) => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
+    const userID = JSON.parse(localStorage.getItem("userID") || "{}");
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
     // const accessToken = tokens.accessToken;
     const hotelID = property.id;
-
 
     // let imageUrl = formData.imageUrl || "";
 
@@ -301,25 +303,25 @@ export default function POSPage() {
       price: formData.price,
       imageURL: null, //imageUrl,
       finAct: false,
-      createdBy: tokens.fullName || "system",
+      createdBy: userID,
       createdOn: new Date().toISOString(),
-      updatedBy: tokens.fullName || "system",
+      updatedBy: userID,
       updatedOn: new Date().toISOString(),
     };
 
-   try {
-   
-    await dispatch(createItemMas(payload as any)).unwrap();
+    try {
+      await dispatch(createItemMas(payload as any)).unwrap();
 
-    await dispatch(fetchItemMas({}));
+      await dispatch(fetchItemMas({}));
 
-    setAddOpen(false);
-  } catch (error) {
-    console.error("Failed to save item or link to POS centers:", error);
-    setAddOpen(false);
-  }
+      setAddOpen(false);
+    } catch (error) {
+      console.error("Failed to save item or link to POS centers:", error);
+      setAddOpen(false);
+    }
   };
 
+  // bulk-import from Excel in the AddItemModal
   // bulk-import from Excel in the AddItemModal
   const handleExcelUpload = async (file: File) => {
     const reader = new FileReader();
@@ -331,16 +333,37 @@ export default function POSPage() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
 
-        const tokens = JSON.parse(
-          localStorage.getItem("hotelmateTokens") || "{}"
-        );
         const property = JSON.parse(
           localStorage.getItem("selectedProperty") || "{}"
         );
 
         const hotelID = property.id || 0;
-        const fullName = tokens.fullName || "system";
+        const userID = localStorage.getItem("userID") || "system";
         const now = new Date().toISOString();
+
+        // 🔹 Step 0: fetch latest items via Redux (NO access token)
+        let existingItemCodes = new Set<string>();
+        try {
+          const result: any = await dispatch(fetchItemMas({})).unwrap();
+          const latestItems: any[] = Array.isArray(result)
+            ? result
+            : Array.isArray(result?.items)
+            ? result.items
+            : [];
+
+          latestItems.forEach((item: any) => {
+            const code = item?.itemCode ?? item?.itemNumber;
+            if (code) {
+              const normalized = String(code).trim().toLowerCase();
+              if (normalized) existingItemCodes.add(normalized);
+            }
+          });
+        } catch (error) {
+          console.warn(
+            "Failed to fetch latest items for duplicate check:",
+            error
+          );
+        }
 
         // 1) unique categories from Excel
         const uniqueCategoryNames = [
@@ -367,35 +390,90 @@ export default function POSPage() {
           categoryMap.set(String(cat.categoryName).trim(), cat.categoryID);
         });
 
-        // 4) build items with mapped category IDs
-        const itemPayloads = (rows as any[]).map((row) => ({
-          categoryID:
-            categoryMap.get(String(row["Item Category"] || "").trim()) || 0,
-          itemID: 0,
-          hotelID,
-          itemCode: String(row["Item Code"] || ""),
-          itemName: String(row["Item Name"] || "").trim(),
-          description: String(row["Description"] || "").trim(),
-          salesAccountID: 0,
-          price: parseFloat(row["Guest Price"]) || 0,
-          imageURL:
-            "https://hotelmate.s3.us-east-1.amazonaws.com/system/healthy.png",
-          finAct: false,
-          createdBy: fullName,
-          createdOn: now,
-          updatedBy: fullName,
-          updatedOn: now,
-        }));
+        // 4) Filter out items with duplicate item codes before building payloads
+        const processedItemCodes = new Set<string>();
+        const rawPayloads: (ItemMasListItem | null)[] = (rows as any[]).map(
+          (row): ItemMasListItem | null => {
+            const itemCode = String(row["Item Code"] || "").trim();
+            const normalizedCode = itemCode.toLowerCase();
 
-        await dispatch(postItemMasterList(itemPayloads)).unwrap();
+            // already in DB?
+            if (existingItemCodes.has(normalizedCode)) {
+              console.warn(
+                `Skipping duplicate item code: "${itemCode}" (already exists in system)`
+              );
+              return null;
+            }
 
-        // optional: refresh UI
+            // duplicated in this Excel import?
+            if (processedItemCodes.has(normalizedCode)) {
+              console.warn(
+                `Skipping duplicate item code: "${itemCode}" (duplicated in Excel file)`
+              );
+              return null;
+            }
+
+            processedItemCodes.add(normalizedCode);
+            existingItemCodes.add(normalizedCode);
+
+            return {
+              categoryID:
+                categoryMap.get(String(row["Item Category"] || "").trim()) || 0,
+              itemID: 0,
+              hotelID,
+              itemCode,
+              itemName: String(row["Item Name"] || "").trim(),
+              description: String(row["Description"] || "").trim(),
+              salesAccountID: 0,
+              price: parseFloat(row["Guest Price"]) || 0,
+              imageURL:
+                "https://hotelmate.s3.us-east-1.amazonaws.com/system/healthy.png",
+              finAct: false,
+              createdBy: userID, // string | number is OK for ItemMasListItem
+              createdOn: now,
+              updatedBy: userID,
+              updatedOn: now,
+            };
+          }
+        );
+
+        const itemPayloads: ItemMasListItem[] = rawPayloads.filter(
+          (item): item is ItemMasListItem => item !== null
+        );
+        if (itemPayloads.length === 0) {
+          toast("No items to import", {
+            description: "All items have duplicate item codes or are invalid.",
+          });
+          return;
+        }
+
+        const skippedCount = (rows as any[]).length - itemPayloads.length;
+        if (skippedCount > 0) {
+          console.warn(
+            `⚠️ Skipped ${skippedCount} item(s) due to duplicate item codes`
+          );
+        }
+
+        await dispatch(createItemMasList(itemPayloads)).unwrap();
+
+        // 🔹 refresh UI with Redux API (no tokens)
         await dispatch(fetchItemMas({}));
 
-        alert("✅ Categories and Items imported successfully");
+        if (skippedCount > 0) {
+          toast("Import completed", {
+            description: `Successfully imported ${itemPayloads.length} item(s). ${skippedCount} item(s) skipped due to duplicate item codes.`,
+          });
+        } else {
+          toast("Import successful", {
+            description: "Categories and items imported successfully.",
+          });
+        }
       } catch (error) {
         console.error("❌ Error during import:", error);
-        alert("❌ Import failed. Check console for details.");
+        toast("Import failed", {
+          description:
+            "An error occurred during import. Check console for details.",
+        });
       }
     };
 
@@ -511,7 +589,7 @@ export default function POSPage() {
   // OPTIONAL: read tax-creation status from your tax slice
   // Adjust selector to your slice names
   const taxesStatus = useSelector(
-    (s: RootState) => s.createHotelTax?.loading ? "loading" : "idle" // simplified status check
+    (s: RootState) => (s.createHotelTax?.loading ? "loading" : "idle") // simplified status check
   );
 
   // Blocker flag (persisted)
@@ -678,25 +756,25 @@ export default function POSPage() {
 
   console.log("item : ", itemsFromMas);
 
- // Load ItemMas filtered by selected category
-useEffect(() => {
-  const property = JSON.parse(
-    localStorage.getItem("selectedProperty") || "{}"
-  );
+  // Load ItemMas filtered by selected category
+  useEffect(() => {
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
 
-  if (!property.id) return;
+    if (!property.id) return;
 
-  // If we have an active tab that's not the search tab, fetch items for that category
-  if (activeTab && activeTab !== SEARCH_TAB) {
-    const categoryId = parseInt(activeTab);
-    if (!isNaN(categoryId)) {
-      dispatch(fetchItemMas({ categoryId }));
+    // If we have an active tab that's not the search tab, fetch items for that category
+    if (activeTab && activeTab !== SEARCH_TAB) {
+      const categoryId = parseInt(activeTab);
+      if (!isNaN(categoryId)) {
+        dispatch(fetchItemMas({ categoryId }));
+      }
+    } else {
+      // If no specific category is selected or it's search tab, fetch all items
+      dispatch(fetchItemMas({}));
     }
-  } else {
-    // If no specific category is selected or it's search tab, fetch all items
-    dispatch(fetchItemMas({}));
-  }
-}, [dispatch, activeTab]);
+  }, [dispatch, activeTab]);
 
   useEffect(() => {
     const property = JSON.parse(
@@ -725,7 +803,6 @@ useEffect(() => {
       console.log("Mapped outlets:", mappedOutlets);
     }
   }, [fetchedOutlets]);
-
 
   const pos = useTranslatedText("Point of Sale");
   const search = useTranslatedText("Search");
@@ -847,21 +924,21 @@ useEffect(() => {
   }));
 
   const matchesText = (name: string) =>
-  (name || "").toLowerCase().includes(searchQuery.toLowerCase());
+    (name || "").toLowerCase().includes(searchQuery.toLowerCase());
 
-// Search tab → text search across all items
-const searchResults: Product[] = normalizedItems.filter((p) =>
-  matchesText(p.name)
-);
+  // Search tab → text search across all items
+  const searchResults: Product[] = normalizedItems.filter((p) =>
+    matchesText(p.name)
+  );
 
-// Category tabs → items for that category
-const categoryResults: Product[] = normalizedItems.filter(
-  (p) => String(p.category) === String(activeTab)
-);
+  // Category tabs → items for that category
+  const categoryResults: Product[] = normalizedItems.filter(
+    (p) => String(p.category) === String(activeTab)
+  );
 
-// Final list depending on tab
-const productsForTab =
-  activeTab === SEARCH_TAB ? searchResults : categoryResults;
+  // Final list depending on tab
+  const productsForTab =
+    activeTab === SEARCH_TAB ? searchResults : categoryResults;
 
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1277,7 +1354,6 @@ const productsForTab =
   // }, [fullCheckoutData, posTaxStatus, posTaxRows, taxCalc]);
 
   console.log("selected outlet : ", selectedOutletName);
-  
 
   return (
     <>
@@ -1877,8 +1953,8 @@ const productsForTab =
             // selectedOutletCurrency={selectedOutletCurrency}
           />
         )}
-
-        {/* <AddItemModal
+{/* 
+        <AddItemModal
           open={addOpen}
           onOpenChange={setAddOpen}
           item={editing}
@@ -1886,7 +1962,7 @@ const productsForTab =
           onSaveManual={handleSaveItem}
           onImportExcel={handleExcelUpload}
           posCenters={posCentersForModal} // optional
-          onCreateCategoryClick={() => setShowCreateCategory(true)} // optional
+          onCreateCategoryClick={() => setShowCreateCategory(true)} 
         /> */}
         <AddItemDrawer
           open={addOpen}
@@ -1897,7 +1973,7 @@ const productsForTab =
           onImportExcel={handleExcelUpload}
           posCenters={posCenters.map((pc: any) => ({
             hotelPosCenterId: pc.posCenterID,
-            posCenter: pc.posCenterName
+            posCenter: pc.posCenterName,
           }))}
           onCreateCategoryClick={() => setShowCreateCategory(true)}
         />

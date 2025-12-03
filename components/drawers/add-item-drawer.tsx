@@ -125,16 +125,13 @@ export default function AddItemDrawer({
           isOpen={showRawOverlay}
           onClose={() => setShowRawOverlay(false)}
         />
-
-        <div className="top-10 right-10 absolute">
+        {/* Title + Video button inline */}
+        <SheetHeader className="flex flex-row items-center justify-between">
+          <SheetTitle>{title}</SheetTitle>
           <VideoButton
             onClick={() => setShowRawOverlay(true)}
             label="Watch Video"
           />
-        </div>
-
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
 
         <Tabs defaultValue="manual" className="mt-4">
@@ -320,45 +317,51 @@ function ManualItemForm({
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <Command>
+            <PopoverContent className="w-full p-0 max-h-80">
+              <Command className="flex flex-col w-full">
                 <CommandInput placeholder="Search category..." />
                 <CommandEmpty>No category found.</CommandEmpty>
-                <CommandGroup>
-                  {categories.map((cat) => (
-                    <CommandItem
-                      key={cat.id}
-                      onSelect={() => {
-                        setSelectedCategory(cat.id as number);
-                        setOpenPopover(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedCategory === (cat.id as any)
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {cat.name}
-                    </CommandItem>
-                  ))}
-                  <div className="flex items-center justify-between p-2 border-t">
-                    <span className="text-sm text-muted-foreground">
-                      Can&apos;t find?
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-sm"
-                      type="button"
-                      onClick={onCreateCategoryClick}
-                    >
-                      <Plus className="w-4 h-4" /> New
-                    </Button>
-                  </div>
-                </CommandGroup>
+
+                {/* 👇 Scrollable list area */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <CommandGroup>
+                    {categories.map((cat) => (
+                      <CommandItem
+                        key={cat.id}
+                        onSelect={() => {
+                          setSelectedCategory(cat.id as number);
+                          setOpenPopover(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedCategory === (cat.id as any)
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {cat.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </div>
+
+                {/* 👇 Fixed footer (stays visible, list scrolls behind it) */}
+                <div className="flex items-center justify-between p-2 border-t">
+                  <span className="text-sm text-muted-foreground">
+                    Can&apos;t find?
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-sm"
+                    type="button"
+                    onClick={onCreateCategoryClick}
+                  >
+                    <Plus className="w-4 h-4" /> New
+                  </Button>
+                </div>
               </Command>
             </PopoverContent>
           </Popover>
