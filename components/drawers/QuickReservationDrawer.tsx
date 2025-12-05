@@ -109,6 +109,16 @@ import {
   type HotelRatePlanItem,
 } from "@/redux/slices/fetchHotelRatePlanSlice";
 
+// Import the new email slice
+import {
+  sendEmail,
+  selectSendEmailLoading,
+  selectSendEmailError,
+  selectSendEmailSuccess,
+  selectSendEmailResponse,
+  type SendEmailPayload,
+} from "@/redux/slices/sendEmailSlice"; // Updated import
+
 // import { RateCode } from "@/types/rateCode";
 // import { HotelRatePlan } from "@/types/hotelRatePlan";
 // import { HotelRoomNumber } from "@/types/hotelRoomNumber";
@@ -147,7 +157,6 @@ import {
   selectCalculatedRateError,
 } from "@/redux/slices/calculateRateSlice";
 import { nanoid } from "nanoid";
-import { sendCustomEmail } from "@/redux/slices/emailSendSlice";
 import { AddRateDrawer } from "./add-rate-drawer";
 import { useCreateReservationLog } from "@/hooks/useCreateReservationLog";
 import { unstable_batchedUpdates } from "react-dom";
@@ -172,7 +181,7 @@ export default function QuickReservationDrawer({
   initialRange,
 }: QuickReservationDrawerProps) {
   // Initial walk-in form state for reset
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { createLog } = useCreateReservationLog();
   const { fullName } = useUserFromLocalStorage();
   const systemDate = useAppSelector(
@@ -298,7 +307,7 @@ export default function QuickReservationDrawer({
           status ? `HTTP ${status}` : "",
           data ? JSON.stringify(data, null, 2) : e?.message || e
         );
-        // Don’t throw—keep it non-blocking for UX
+        // Don't throw—keep it non-blocking for UX
         return null;
       }
     },
@@ -1416,7 +1425,7 @@ export default function QuickReservationDrawer({
                     );
                   }
 
-                  // Fallback to plan’s configured per-child rate for that date (if available)
+                  // Fallback to plan's configured per-child rate for that date (if available)
                   const plan = findPlanForRow(
                     hotelRatePlans,
                     rateCode,
@@ -1582,7 +1591,7 @@ export default function QuickReservationDrawer({
               notes,
             };
 
-            // Send guest email
+            // Send guest email using the new sendEmail slice
             if (guestTo) {
               const guestHtml = buildEmailHtml({
                 ...commonEmailArgs,
@@ -1593,19 +1602,19 @@ export default function QuickReservationDrawer({
                 },
               });
 
-              await dispatch(
-                sendCustomEmail({
-                  toEmail: guestTo,
-                  subject: `Your Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
-                  body: guestHtml,
-                  isHtml: true,
-                  priority: 0,
-                  senderName: "Reservations",
-                })
-              );
+              const guestEmailPayload: SendEmailPayload = {
+                toEmail: guestTo,
+                subject: `Your Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
+                body: guestHtml,
+                isHtml: true,
+                priority: 0,
+                senderName: "Reservations",
+              };
+
+              await dispatch(sendEmail(guestEmailPayload));
             }
 
-            // Send hotel email
+            // Send hotel email using the new sendEmail slice
             if (hotelTo) {
               const hotelHtml = buildEmailHtml({
                 ...commonEmailArgs,
@@ -1616,16 +1625,16 @@ export default function QuickReservationDrawer({
                 },
               });
 
-              await dispatch(
-                sendCustomEmail({
-                  toEmail: hotelTo,
-                  subject: `New Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
-                  body: hotelHtml,
-                  isHtml: true,
-                  priority: 0,
-                  senderName: "Reservations",
-                })
-              );
+              const hotelEmailPayload: SendEmailPayload = {
+                toEmail: hotelTo,
+                subject: `New Booking – ${bkNo} (${selectedTravelAgent || "Direct"})`,
+                body: hotelHtml,
+                isHtml: true,
+                priority: 0,
+                senderName: "Reservations",
+              };
+
+              await dispatch(sendEmail(hotelEmailPayload));
             }
           }
         } catch (e) {
@@ -1754,7 +1763,7 @@ export default function QuickReservationDrawer({
       ratePlanId: plan?.hotelRatePlanID
         ? String(plan.hotelRatePlanID)
         : row.ratePlanId,
-      rateMissing: false, // 👈 clear; we’ll re-evaluate after fetch
+      rateMissing: false, // 👈 clear; we'll re-evaluate after fetch
     };
 
     if (row.is_foc) next.rate = 0; // keep your FOC rule
@@ -2078,67 +2087,39 @@ export default function QuickReservationDrawer({
 
   const buildEmailHtml = ({
     hotelName,
-
     otaName,
-
     reservationNo,
-
     payCollect,
-
     checkIn,
-
     checkOut,
-
     nights,
-
     rooms,
-
     currency,
-
     total,
-
     guest,
-
     notes,
   }: {
     hotelName: string;
-
     otaName: string;
-
     reservationNo: string | number;
-
     payCollect: string;
-
     checkIn: string;
-
     checkOut: string;
-
     nights: number;
-
     rooms: Array<{
       name: string;
-
       meal: string;
-
       adults: number;
-
       children: number;
-
       total: number;
-
       avg: number;
     }>;
-
     currency: string;
-
     total: number;
-
     guest: { name?: string; email?: string; country?: string };
-
     notes?: string;
   }) => {
     const rows = rooms
-
       .map(
         (r) => `
 
@@ -2162,7 +2143,6 @@ export default function QuickReservationDrawer({
 
           <div style="color:#666;">${money(
             r.avg,
-
             currency
           )} × ${nights} nights</div>
 
@@ -2170,7 +2150,6 @@ export default function QuickReservationDrawer({
 
       </tr>`
       )
-
       .join("");
 
     return `<!doctype html><html><body style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f7f7f8;margin:0;">
