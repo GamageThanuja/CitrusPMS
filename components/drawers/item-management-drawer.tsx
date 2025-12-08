@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/sheet";
 import { ItemManagement } from "@/components/pos/item-management";
 import { useDispatch } from "react-redux";
-import { fetchItems } from "@/redux/slices/itemSlice";
+// ✅ ADD this:
+import {
+  fetchItemMas,
+  selectItemMasItems,
+  selectItemMasLoading,
+  selectItemMasError,
+} from "@/redux/slices/fetchItemMasSlice";
+
 import VideoOverlay from "../videoOverlay";
 import VideoButton from "../videoButton";
 import { useEffect, useState } from "react";
@@ -34,7 +41,6 @@ export function ItemManagementDrawer({
 
   console.log("videoUrl : ", videoUrl);
 
-  // If your tutorial has a videoURL, use it for the overlay/button automatically
   useEffect(() => {
     if (tutorial?.videoURL) {
       setVideoUrl(tutorial.videoURL);
@@ -47,9 +53,11 @@ export function ItemManagementDrawer({
     );
     const hotelID = property?.id;
 
-    if (hotelID) {
-      dispatch(fetchItems(hotelID));
-    }
+      // ❌ old:
+      // dispatch(fetchItems(hotelID));
+      // ✅ new: same idea, but via ItemMas API
+      dispatch(fetchItemMas());
+    
 
     onClose(); // call parent's close logic
   };
@@ -64,7 +72,9 @@ export function ItemManagementDrawer({
           <SheetTitle>Manage Items</SheetTitle>
           <SheetDescription>Add, edit or remove menu items</SheetDescription>
         </SheetHeader>
+
         <ItemManagement categories={categories} onClose={handleClose} />
+
         <VideoOverlay
           videoUrl={videoUrl}
           isOpen={showRawOverlay}

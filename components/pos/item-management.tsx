@@ -36,7 +36,12 @@ import { cn } from "@/lib/utils";
 import { CreateCategoryDrawer } from "../drawers/add-category-drawer";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
-import { fetchCategories } from "@/redux/slices/categorySlice";
+import {
+  fetchItemMas,
+  selectItemMasItems,
+  selectItemMasLoading,
+  selectItemMasError,
+} from "@/redux/slices/fetchItemMasSlice";
 import { addItem, fetchItems } from "@/redux/slices/itemSlice";
 import { createHotelImage } from "@/controllers/hotelImageController";
 import {
@@ -94,34 +99,43 @@ interface ItemManagementProps {
   onClose: () => void;
 }
 
-export function ItemManagement({ onClose }: ItemManagementProps) {
+export function ItemManagement({ categories, onClose }: ItemManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddEditDialog, setShowAddEditDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const dispatch = useDispatch();
-  const { categories, status } = useSelector(
-    (state: RootState) => state.categories
-  );
+  const dispatch = useDispatch<AppDispatch>();
 
-  useEffect(() => {
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    if (property?.id) {
-      dispatch(fetchCategories(property.id));
-    }
-  }, [dispatch]);
+// get raw items from ItemMas slice
+const itemMasItems = useSelector(selectItemMasItems);
+const itemMasLoading = useSelector(selectItemMasLoading);
+const itemMasError = useSelector(selectItemMasError);
 
-  const formattedCategories = categories;
+// fetch them when drawer mounts
+useEffect(() => {
+  dispatch(fetchItemMas());
+}, [dispatch]);
 
-  console.log("categories", categories);
+// map API shape -> UI Item shape
+const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
+  id: String(it.itemID),
+  itemID: it.itemID,
+  // API sometimes has itemName null, but description filled
+  name: it.itemName || it.description || "",
+  // API uses itemNumber / itemCode
+  itemCode: it.itemNumber || it.itemCode || "",
+  price: it.price ?? 0,
+  // keep as string for filtering
+  category: String(it.categoryID ?? ""),
+  description: it.description || "",
+  imageUrl: it.imageURL || undefined,
+}));
 
-  const { items } = useSelector((state: RootState) => state.items);
+  // 🔽 NEW: category filter state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
 
-
-  console.log("items : ", items);
-  
+  console.log("categories passed into ItemManagement", categories);
 
   const search = useTranslatedText("Search");
   const addNewItem = useTranslatedText("Add New Item");
@@ -146,34 +160,43 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
   const delError = useSelector(selectDeleteError);
 
   const handleEditItem = (item: Item) => {
-    // item must have itemID for PUT
     setCurrentItem(item);
     setEditOpen(true);
   };
 
   // open
   const openAdd = () => {
+    const defaultCategory =
+      selectedCategoryId || categories?.[0]?.id || "";
+
     setEditing({
       id: "",
       itemCode: "",
       name: "",
       price: 0,
-      category: formattedCategories?.[0]?.id ?? "",
+      category: defaultCategory,
       description: "",
       imageUrl: "",
     });
     setDialogOpen(true);
   };
 
-  const filteredItems = items.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 🔽 UPDATED: filter by search + selected category
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.name
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
 
-  console.log("filteredItems", filteredItems);
+    const matchesCategory =
+      !selectedCategoryId ||
+      String(item.category) === String(selectedCategoryId);
+
+    return matchesSearch && matchesCategory;
+  });
 
   const handleAddItem = () => {
     const defaultCategory =
-      formattedCategories.length > 0 ? formattedCategories[0].id : "";
+      selectedCategoryId || (categories.length > 0 ? categories[0].id : "");
 
     setCurrentItem({
       id: "",
@@ -187,6 +210,8 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
 
     setShowAddEditDialog(true);
   };
+
+  // ... rest of your code (postItemWithImage, handleSaveItem, etc.) stays the same
 
   const handleDeleteItem = (item: Item) => {
     setCurrentItem(item);
@@ -482,15 +507,76 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
 
   return (
     <div className="flex flex-col gap-6 py-6 h-full">
-      <div className="flex justify-between items-center">
-        <div className="relative flex-1">
-          <Input
-            type="search"
-            placeholder={`${search}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-2">
+          <div className="relative flex-1">
+            <Input
+              type="search"
+              placeholder={`${search}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <Popover open={categoryFilterOpen} onOpenChange={setCategoryFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={categoryFilterOpen}
+                className="w-[200px] justify-between"
+              >
+                {selectedCategoryId
+                  ? categories.find((c) => c.id === selectedCategoryId)?.name
+                  : "All Categories"}
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+              <Command>
+                <CommandInput placeholder="Search category..." />
+                <CommandEmpty>No category found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => {
+                      setSelectedCategoryId("");
+                      setCategoryFilterOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        !selectedCategoryId ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    All Categories
+                  </CommandItem>
+
+                  {categories.map((cat) => (
+                    <CommandItem
+                      key={cat.id}
+                      onSelect={() => {
+                        setSelectedCategoryId(cat.id);
+                        setCategoryFilterOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCategoryId === cat.id
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {cat.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
+
         <Button className="ml-2" onClick={openAdd}>
           <Plus className="h-4 w-4 mr-2" />
           {addNewItem}
@@ -507,10 +593,7 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
                   Code: {item.itemCode || "-"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {
-                    formattedCategories.find((c) => c.id === item.category)
-                      ?.name
-                  }
+                  {categories.find((c) => c.id === item.category)?.name}
                 </p>
                 {item.description && (
                   <p className="text-sm mt-1">{item.description}</p>
@@ -549,11 +632,9 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         item={editing}
-        categories={formattedCategories as Category[]}
+        categories={categories}
         onSaveManual={handleSaveItem}
         onImportExcel={handleExcelUpload}
-        // posCenters={preloadedPosCenters} // optional
-        // onCreateCategoryClick={() => setDrawerOpen(true)} // optional
       />
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -589,7 +670,7 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
         open={editOpen}
         onOpenChange={setEditOpen}
         item={currentItem}
-        categories={formattedCategories as any}
+        categories={categories as any}
         relinkPosCenters={true}
       />
     </div>
