@@ -248,6 +248,10 @@ import fetchHotelTaxByHotelIdReducer from "./slices/fetchHotelTaxByHotelIdSlice"
 import cashPayoutReducer from "./slices/cashPayoutSlice";
 
 import updateReservationStatusReducer from "./slices/updateReservationStatusSlice";
+import sendEmailReducer from "./slices/sendEmailSlice";
+import sendBulkEmailReducer from "./slices/sendBulkEmailSlice";
+import sendSimpleEmailReducer from "./slices/sendSimpleEmailSlice";
+import emailServiceInfoReducer from "./slices/emailServiceInfoSlice";
 
 
 const store = configureStore({
@@ -500,6 +504,10 @@ const store = configureStore({
       fetchHotelTaxByHotelId: fetchHotelTaxByHotelIdReducer,
       cashPayout: cashPayoutReducer,
     updateReservationStatus: updateReservationStatusReducer,
+    sendEmail: sendEmailReducer, 
+    sendBulkEmail: sendBulkEmailReducer, 
+    sendSimpleEmail: sendSimpleEmailReducer, 
+    emailServiceInfo: emailServiceInfoReducer,
   },
 });
 

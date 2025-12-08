@@ -70,7 +70,7 @@ export const sendCustomEmail = createAsyncThunk<
 
       // Some backends require hotel context; if yours needs it, we pass it as a query param.
       // If not required, you can remove the `?hotelId=` part safely.
-      const url = `${API_BASE_URL}/api/Email/send${
+      const url = `${API_BASE_URL}send${
         hotelId ? `?hotelId=${encodeURIComponent(hotelId)}` : ""
       }`;
 

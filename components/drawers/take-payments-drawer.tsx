@@ -66,8 +66,13 @@ import {
   selectTakePaymentError,
 } from "@/redux/slices/takeReservationPaymentSlice";
 import { useHotelLogo } from "@/hooks/useHotelLogo";
-import { sendCustomEmail } from "@/redux/slices/emailSendSlice";
 import { fetchGuestProfileByReservationDetailId } from "@/redux/slices/guestProfileByReservationSlice";
+
+// Import the new email slice
+import {
+  sendEmail,
+  type SendEmailPayload,
+} from "@/redux/slices/sendEmailSlice"; // Updated import
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -444,7 +449,7 @@ console.log("currencies from CurrencyMas:", currencies);
 </body></html>`;
   }
 
-  // ⬇️ REPLACE your current emailReceipt with this
+  // ⬇️ UPDATED: emailReceipt function using the new sendEmail slice
   async function emailReceipt({
     dispatch,
     toEmail,
@@ -465,15 +470,16 @@ console.log("currencies from CurrencyMas:", currencies);
     }
     try {
       console.log("emailReceipt → sending to:", toEmail);
-      await dispatch(
-        sendCustomEmail({
-          // ⚠️ match your slice payload keys
-          toEmail, // if your slice expects "to", rename to: to: toEmail
-          subject,
-          body: html, // if your API expects "htmlBody", rename to: htmlBody: html
-          isHtml: true,
-        })
-      ).unwrap();
+      
+      const emailPayload: SendEmailPayload = {
+        toEmail,
+        subject,
+        body: html,
+        isHtml: true,
+        senderName: "Reservations",
+      };
+
+      await dispatch(sendEmail(emailPayload)).unwrap();
       console.log("emailReceipt → sent OK:", toEmail);
     } catch (e) {
       console.error("emailReceipt → send failed:", e);
@@ -703,7 +709,7 @@ useEffect(() => {
       amount: entered,
       credit: entered,
 
-      // --- “payer currency” fields still reflect the selected currency
+      // --- "payer currency" fields still reflect the selected currency
       currAmount: entered,
       currencyCode: String(baseCurrency || "LKR"),
 
@@ -856,7 +862,7 @@ useEffect(() => {
     return reservationById.rooms.some((r: any) => {
       const rdid = r?.reservationDetailID;
       const amt = Number(perRoomAmounts[rdid] || 0);
-      if (!(amt > 0)) return false; // only care about rooms we’re charging
+      if (!(amt > 0)) return false; // only care about rooms we're charging
       const base = perRoomCurrency[rdid] || hotelCurrency;
       if (!base || base === hotelCurrency) return false; // no rate needed
       const exch = perRoomRate[rdid];
@@ -1516,11 +1522,11 @@ useEffect(() => {
                   <strong>
                     {reservationById?.bookerFullName || bookingDetail?.guest}
                   </strong>
-                  ’s booking (per room).
+                  's booking (per room).
                 </>
               ) : (
                 <>
-                  Process payment for <strong>{booking.guest}</strong>’s
+                  Process payment for <strong>{booking.guest}</strong>'s
                   booking.
                 </>
               )}
