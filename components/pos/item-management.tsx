@@ -44,12 +44,14 @@ import {
 } from "@/redux/slices/fetchItemMasSlice";
 import { addItem, fetchItems } from "@/redux/slices/itemSlice";
 import { createHotelImage } from "@/controllers/hotelImageController";
+// ✅ add
+import type { ItemMasData } from "@/redux/slices/createItemMasSlice";
+import { createItemMas } from "@/redux/slices/createItemMasSlice";
+import { createItemByPOSCenter } from "@/redux/slices/createItemsByPOSCenterSlice";
 import {
-  createItemMaster,
-  getItemMaster,
-} from "@/controllers/itemMasterController";
-import { createItemByPosCenter } from "@/controllers/itemByPosCenterController";
-import { getPosCenter } from "@/controllers/posCenterController";
+  fetchHotelPOSCenterMas,
+  selectHotelPOSCenterMasData,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
@@ -106,30 +108,30 @@ export function ItemManagement({ categories, onClose }: ItemManagementProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
 
-// get raw items from ItemMas slice
-const itemMasItems = useSelector(selectItemMasItems);
-const itemMasLoading = useSelector(selectItemMasLoading);
-const itemMasError = useSelector(selectItemMasError);
+  // get raw items from ItemMas slice
+  const itemMasItems = useSelector(selectItemMasItems);
+  const itemMasLoading = useSelector(selectItemMasLoading);
+  const itemMasError = useSelector(selectItemMasError);
 
-// fetch them when drawer mounts
-useEffect(() => {
-  dispatch(fetchItemMas());
-}, [dispatch]);
+  // fetch them when drawer mounts
+  useEffect(() => {
+    dispatch(fetchItemMas());
+  }, [dispatch]);
 
-// map API shape -> UI Item shape
-const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
-  id: String(it.itemID),
-  itemID: it.itemID,
-  // API sometimes has itemName null, but description filled
-  name: it.itemName || it.description || "",
-  // API uses itemNumber / itemCode
-  itemCode: it.itemNumber || it.itemCode || "",
-  price: it.price ?? 0,
-  // keep as string for filtering
-  category: String(it.categoryID ?? ""),
-  description: it.description || "",
-  imageUrl: it.imageURL || undefined,
-}));
+  // map API shape -> UI Item shape
+  const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
+    id: String(it.itemID),
+    itemID: it.itemID,
+    // API sometimes has itemName null, but description filled
+    name: it.itemName || it.description || "",
+    // API uses itemNumber / itemCode
+    itemCode: it.itemNumber || it.itemCode || "",
+    price: it.price ?? 0,
+    // keep as string for filtering
+    category: String(it.categoryID ?? ""),
+    description: it.description || "",
+    imageUrl: it.imageURL || undefined,
+  }));
 
   // 🔽 NEW: category filter state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
@@ -166,8 +168,7 @@ const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
 
   // open
   const openAdd = () => {
-    const defaultCategory =
-      selectedCategoryId || categories?.[0]?.id || "";
+    const defaultCategory = selectedCategoryId || categories?.[0]?.id || "";
 
     setEditing({
       id: "",
@@ -219,44 +220,152 @@ const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
   };
 
   const postItemWithImage = (formData: Item) => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens.accessToken;
-    const hotelID = property.id;
 
-    const payload = {
-      itemID: 0,
-      hotelID,
-      itemCode: formData.id,
-      itemName: formData.name,
-      description: formData.description || "",
-      salesAccountID: 0,
-      price: formData.price,
-      imageURL: formData.imageUrl || "",
-      finAct: true,
-      createdBy: tokens.fullName || "system",
-      createdOn: new Date().toISOString(),
-      updatedBy: tokens.fullName || "system",
-      updatedOn: new Date().toISOString(),
-    };
+    const imageUrl = formData.imageUrl || "";
+    const itemMasPayload = buildItemMasPayload(formData, imageUrl);
 
-    createItemMaster({
-      token: accessToken,
-      payload,
-    })
+    dispatch(createItemMas(itemMasPayload))
+      .unwrap()
       .then(() => {
+        // keep local slice in sync if needed
         dispatch(addItem(formData));
+        // refresh ItemMas list used by this screen
+        dispatch(fetchItemMas());
         setShowAddEditDialog(false);
       })
-      .catch((error) => {
-        console.error(
-          "Failed to create item:",
-          (error as Error).message || error
-        );
+      .catch((error: any) => {
+        console.error("Failed to create item:", error);
       });
   };
+
+  // build ItemMasData payload from our form + image URL
+const buildItemMasPayload = (
+  formData: Item,
+  imageUrl: string
+): ItemMasData => {
+  const now = new Date().toISOString();
+  return {
+    finAct: true,
+    itemID: 0, // backend will assign
+    itemNumber: formData.itemCode,
+    description: formData.name || formData.description || "",
+    extDescription: formData.description || "",
+    uomid: 0,
+    itemTypeID: 0,
+    categoryID: Number(formData.category) || 0,
+    salesTaxID: 0,
+    price: formData.price,
+    cost: 0,
+    binLocation: "",
+    notes: "",
+    reorderPoint: 0,
+    restockLevel: 0,
+    picturePath: imageUrl || "",
+    notDiscountable: false,
+    cannotPurchase: false,
+    cannotInvoDecimal: false,
+    waighMustEnter: false,
+    itemMessage: "",
+    createdBy: 0,
+    createdOn: now,
+    lastModBy: 0,
+    lastModOn: now,
+    cogsAccountID: 0,
+    salesAccountID: 0,
+    inventoryAssetsAccID: 0,
+    lowestSellingPrice: 0,
+    packagingSize: "",
+    messageClient: "",
+    cannotInvoInsufQty: false,
+    subCompanyID: 0,
+    serialNo: "",
+    costCenterID: 0,
+    custodianID: 0,
+    supplierID: 0,
+    acqDate: null,
+    lifeTimeYears: 0,
+    lifeTimeMonths: 0,
+    serviceProvider: "",
+    warranty: "",
+    nextServiceDate: null,
+    serviceContractNo: "",
+    commercialDepreMethodID: 0,
+    fiscalDepreMethodID: 0,
+    profitMargin: 0,
+    vat: false,
+    nbt: false,
+    sinhalaDes: "",
+    brandID: 0,
+    kitItem: false,
+    buid: 0,
+    serialNumbered: false,
+    preferedSupplierID: 0,
+    backColour: "",
+    limitWholesaleQtyAtCHK: false,
+    limitWholesaleQtyAt: 0,
+    maxWholesaleQtyCHK: false,
+    maxWholesaleQty: 0,
+    discountRTNarration: "",
+    discountWSNarration: "",
+    limitRetailQtyAtCHK: false,
+    limitRetailQtyAt: 0,
+    maxRetialQtyCHK: false,
+    maxRetailQty: 0,
+    isPick: false,
+    rtPrice: 0,
+    wsPrice: 0,
+    itemMessage_Client: "",
+    showOnPOS: true,
+    isKOT: false,
+    isBOT: false,
+    posCenter: "",
+    rackNo: "",
+    isTrading: true,
+    isTaxIncluded: false,
+    isSCIncluded: false,
+    baseItemCatID: 0,
+    oldItemCode: "",
+    small: false,
+    regular: false,
+    large: false,
+    guestPrice: formData.price,
+    childPrice: 0,
+    guidePrice: 0,
+    driverPrice: 0,
+    isRecipe: false,
+    isAIEntitled: false,
+    sku: "",
+    useBatchPriceOnSale: false,
+    discountPercentage: 0,
+    discountID: 0,
+    isFastCheckOut: false,
+    changePriceOnGRN: false,
+    partNo: "",
+    oldPrice: 0,
+    oldPriceAsAt: null,
+    lastPriceUpdateBy: "",
+    colour: "",
+    askQtyOnSale: false,
+    isAskSKU: false,
+    skuid: 0,
+    isShotItem: false,
+    shotItemID: 0,
+    shotItemCode: "",
+    subItemOf: "",
+    imageURL: imageUrl || "",
+    lastDepreciatedDate: null,
+    depreciationExpenseAccountID: 0,
+    bookValue: 0,
+    bookValueAsAt: null,
+    guardian: "",
+    barCode: "",
+    nameOnBill: formData.name,
+  };
+};
+  
 
   const handleSaveItem = async (
     formData: Item,
@@ -335,66 +444,33 @@ const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
       }
     }
 
-    const payload = {
-      itemID: 0,
-      hotelID,
-      categoryID: formData.category,
-      itemCode: formData.itemCode,
-      itemName: formData.name,
-      description: formData.description || "",
-      salesAccountID: 0,
-      price: formData.price,
-      imageURL: imageUrl,
-      finAct: true,
-      createdBy: tokens.fullName || "system",
-      createdOn: new Date().toISOString(),
-      updatedBy: tokens.fullName || "system",
-      updatedOn: new Date().toISOString(),
-    };
-    console.log("Payload being sent to ItemMaster:", payload);
+    // Build ItemMas payload
+    const itemMasPayload = buildItemMasPayload(formData, imageUrl);
+    console.log("Payload being sent to ItemMas:", itemMasPayload);
 
     try {
-      // Create the item
-      await createItemMaster({
-        token: accessToken,
-        payload,
-      });
+      // Create the item in ItemMas
+      const created = await dispatch(createItemMas(itemMasPayload)).unwrap();
+      const itemID = created.itemID;
 
-      // Optionally, re-fetch the item list to get the new item
-      await dispatch(fetchItems(property.id));
+      // Refresh ItemMas list used for this screen
+      await dispatch(fetchItemMas()).unwrap();
 
-      // If you need to know the new item's ID immediately, you *must* refetch or adjust your helper to return the created item
-      // Example: refetch items and get last one
-      const items = await getItemMaster({
-        token: accessToken,
-        hotelId: hotelID,
-      });
-
-      const createdItem = items[items.length - 1];
-      const itemID = createdItem.itemID;
-
-      // Loop over selected POS centers and create mappings
+      // ✅ Loop over selected POS centers and create mappings via Redux thunk
       for (const posCenterId of selectedCenters) {
-        const posPayload = {
-          hotelId: hotelID,
-          itemId: itemID,
-          hotelPosCenterId: posCenterId,
-        };
-
-        await createItemByPosCenter({
-          token: accessToken,
-          payload: posPayload,
-        });
+        await dispatch(
+          createItemByPOSCenter({
+            id: 0,
+            posCenterID: posCenterId,
+            itemID,
+            price: formData.price,
+            guidePrice: 0,
+            driverPrice: 0,
+            kidsPrice: 0,
+            price2: 0,
+          })
+        ).unwrap();
       }
-
-      // // Update Redux store with the new item
-      // dispatch(
-      //   addItem({
-      //     ...formData,
-      //     id: createdItem.itemCode,
-      //     imageUrl,
-      //   })
-      // );
 
       setShowAddEditDialog(false);
     } catch (error) {
@@ -518,7 +594,10 @@ const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
             />
           </div>
 
-          <Popover open={categoryFilterOpen} onOpenChange={setCategoryFilterOpen}>
+          <Popover
+            open={categoryFilterOpen}
+            onOpenChange={setCategoryFilterOpen}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -702,11 +781,15 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
   const uploadImage = useTranslatedText("Upload Image");
   const save = useTranslatedText("Save");
   const cancel = useTranslatedText("Cancel");
+
+  const dispatch = useDispatch<AppDispatch>();
+
+  // 🔽 get POS centers from Redux slice
+  const hotelPosCenters = useSelector(selectHotelPOSCenterMasData);
+
   const [posCenters, setPosCenters] = useState<PosCenter[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
-  const [selectedImageFile, setSelectedImageFile] = useState<
-    File | undefined
-  >();
+  const [selectedImageFile, setSelectedImageFile] = useState<File | undefined>();
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -731,32 +814,37 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
     }
   }, [selectedCategory]);
 
-  useEffect(() => {
-    const fetchPosCenters = async () => {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const accessToken = tokens.accessToken;
-      const property = JSON.parse(
-        localStorage.getItem("selectedProperty") || "{}"
-      );
-      const hotelID = property.id;
+// 🔹 Fetch POS centers via Redux thunk
+useEffect(() => {
+  const property = JSON.parse(
+    localStorage.getItem("selectedProperty") || "{}"
+  );
 
-      if (!accessToken || !hotelID) return;
+  // Use whatever your property shape has – adjust if needed
+  const hotelCode =
+    property.hotelCode ||
+    property.code ||
+    (property.id ? String(property.id) : undefined);
 
-      try {
-        const data = await getPosCenter({
-          token: accessToken,
-          hotelId: hotelID,
-        });
-        setPosCenters(data || []);
-      } catch (err) {
-        console.error("Failed to fetch POS centers:", err);
-      }
-    };
+  // Dispatch with or without params depending on hotelCode
+  if (hotelCode) {
+    dispatch(fetchHotelPOSCenterMas({ hotelCode }));
+  } else {
+    dispatch(fetchHotelPOSCenterMas());
+  }
+}, [dispatch]);
 
-    fetchPosCenters();
-  }, []);
+// 🔹 Map Redux data -> local PosCenter[]
+useEffect(() => {
+  if (!hotelPosCenters) return;
+
+  const mapped: PosCenter[] = hotelPosCenters.map((c) => ({
+    hotelPosCenterId: c.posCenterID,
+    posCenter: c.posCenterName,
+  }));
+
+  setPosCenters(mapped);
+}, [hotelPosCenters]);
 
   const handleChange = (field: keyof Item, value: string | number) => {
     setFormData({ ...formData, [field]: value });

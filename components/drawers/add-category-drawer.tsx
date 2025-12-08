@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { useAppDispatch } from "@/redux/hooks";
-import { fetchCategories } from "@/redux/slices/categorySlice";
+import { fetchCategoryMas } from "@/redux/slices/fetchCategoryMasSlice";
 import { createCategoryMas } from "@/redux/slices/createCategoryMasSlice";
 
 interface CreateCategoryDrawerProps {
@@ -54,7 +54,7 @@ export function CreateCategoryDrawer({
       ).unwrap();
 
       // refresh normal category list
-      dispatch(fetchCategories());
+      dispatch(fetchCategoryMas());
 
       // reset form & close
       setCategoryName("");
