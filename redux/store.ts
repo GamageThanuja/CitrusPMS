@@ -503,6 +503,11 @@ const store = configureStore({
       fetchHotelTaxByHotelId: fetchHotelTaxByHotelIdReducer,
       cashPayout: cashPayoutReducer,
     updateReservationStatus: updateReservationStatusReducer,
+    sendEmail: sendEmailReducer, 
+    sendBulkEmail: sendBulkEmailReducer, 
+    sendSimpleEmail: sendSimpleEmailReducer, 
+    emailServiceInfo: emailServiceInfoReducer,
+    createItemMasList: createItemMasListReducer,
   },
 });
 
