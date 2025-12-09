@@ -14,7 +14,10 @@ import { AppDispatch, RootState } from "@/redux/store";
 import { toast } from "@/components/ui/use-toast";
 import { createItemByPOSCenter } from "@/redux/slices/createItemsByPOSCenterSlice";
 import { fetchItemsByPOSCenter } from "@/redux/slices/fetchItemsByPOSCenterSlice";
-import { fetchItemMas, selectItemMasItems } from "@/redux/slices/fetchItemMasSlice";
+import {
+  fetchItemMas,
+  selectItemMasItems,
+} from "@/redux/slices/fetchItemMasSlice";
 import {
   fetchHotelPOSCenterMas,
   type HotelPOSCenterMas,
@@ -78,7 +81,6 @@ export function AttachItemToOutletDrawer({
         // Fetch items (fetchItemMas fetches all items, no hotelId filter)
         dispatch(fetchItemMas());
 
-
         const [centersRes, assignedData] = await Promise.all([
           dispatch(
             fetchHotelPOSCenterMas(hotelCode ? { hotelCode } : undefined)
@@ -109,7 +111,7 @@ export function AttachItemToOutletDrawer({
     };
 
     fetchInitialData();
-  }, [open, dispatch]); 
+  }, [open, dispatch]);
 
   const handleToggle = async (
     itemId: number,
@@ -165,58 +167,66 @@ export function AttachItemToOutletDrawer({
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-5xl bg-black text-white overflow-x-auto rounded-l-2xl"
+        className="w-full sm:max-w-5xl bg-white dark:bg-gray-900 text-black dark:text-white overflow-x-auto rounded-l-2xl"
       >
         <SheetHeader>
-          <SheetTitle className="text-white text-lg">
+          <SheetTitle className="text-black dark:text-white text-lg">
             Attach Items to Outlets
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-6">
-          <table className="min-w-full border border-gray-700 text-sm">
-            <thead className="bg-gray-800 text-white sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-700 w-20">
-                  Code
-                </th>
-                <th className="px-4 py-3 text-left border-r border-gray-700 w-64">
-                  Item Name
-                </th>
-                {posCenters.map((center) => (
-                  <th
-                    key={center.hotelPosCenterId}
-                    className="px-4 py-3 text-center border-r border-gray-700"
-                  >
-                    {center.posCenter}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+          <table className="min-w-full border border-black dark:border-gray-700 text-sm">
+        <thead className="bg-white dark:bg-gray-800 text-black dark:text-white sticky top-0 z-10">
+  <tr className="border-b border-black dark:border-gray-700">
+    <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-20">
+      Code
+    </th>
+    <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-64">
+      Item Name
+    </th>
+    {posCenters.map((center) => (
+      <th
+        key={center.hotelPosCenterId}
+        className="px-4 py-3 text-center border-r border-black dark:border-gray-700 border-b "
+      >
+        {center.posCenter}
+      </th>
+    ))}
+  </tr>
+</thead>
+
             <tbody>
               {Object.entries(groupedItems).map(
                 ([categoryId, itemsInCategory]) => (
                   <Fragment key={categoryId}>
-                    <tr className="bg-gray-700 text-white text-sm">
+                    {/* Category row */}
+                    <tr className="bg-white dark:bg-gray-800 text-black dark:text-white text-sm border-t border-b border-black dark:border-gray-700">
                       <td
                         colSpan={posCenters.length + 2}
-                        className="px-4 py-2 font-bold uppercase tracking-wide text-white border-b border-gray-800 bg-gray-700"
+                        className="px-4 py-2 font-bold uppercase tracking-wide text-black dark:text-white bg-white dark:bg-gray-800 border-black dark:border-gray-700"
                       >
                         {categories.find((cat: any) => cat.id === categoryId)
                           ?.name || `Category ${categoryId}`}
                       </td>
                     </tr>
+
+                    {/* Item rows */}
                     {itemsInCategory.map((item: any) => (
                       <tr
                         key={item.id}
-                        className="even:bg-gray-900 odd:bg-gray-800 border-t border-gray-700"
+                        className="even:bg-white even:dark:bg-gray-900 odd:bg-white odd:dark:bg-gray-900 border-t border-black dark:border-gray-700"
                       >
-                        <td className="px-4 py-2">{item.id}</td>
-                        <td className="px-4 py-2">{item.name}</td>
+                        <td className="px-4 py-2 border-r border-black dark:border-gray-700">
+                          {item.id}
+                        </td>
+                        <td className="px-4 py-2 border-r border-black dark:border-gray-700">
+                          {item.name}
+                        </td>
                         {posCenters.map((center) => (
                           <td
                             key={center.hotelPosCenterId}
-                            className="text-center"
+                            className="text-center border-r border-black dark:border-gray-700"
                           >
                             <Checkbox
                               checked={
@@ -231,7 +241,7 @@ export function AttachItemToOutletDrawer({
                                   checked as boolean
                                 )
                               }
-                              className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                              className="border-black dark:border-gray-400 data-[state=checked]:bg-white data-[state=checked]:text-black dark:data-[state=checked]:bg-gray-700 dark:data-[state=checked]:text-white"
                             />
                           </td>
                         ))}
