@@ -41,11 +41,12 @@ import {
   fetchHotelPOSCenterMas,
   selectHotelPOSCenterMasData,
 } from "@/redux/slices/fetchHotelPOSCenterMasSlice";
-// ✅ new create thunk
 import {
   createHotelPOSCenterMas,
   type CreateHotelPOSCenterMasPayload,
 } from "@/redux/slices/createHotelPOSCenterMasSlice";
+// ✅ toast
+import { toast } from "sonner";
 
 type Category = { id: number | string; name: string };
 type PosCenter = { hotelPosCenterId: number; posCenter: string };
@@ -175,49 +176,11 @@ export default function EditItemDrawer({
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    // const accessToken = tokens.accessToken;
     const hotelID = property.id;
-    // const fullName = tokens.fullName || "system";
-    // if (!accessToken || !hotelID) {
-    //   alert("Missing auth or hotel context.");
-    //   return;
-    // }
 
     let imageURL = form.imageUrl || "";
-    // if (imageFile) {
-    //   const base64 = await new Promise<string>((resolve, reject) => {
-    //     const r = new FileReader();
-    //     r.onloadend = () => resolve((r.result as string).split(",")[1]);
-    //     r.onerror = reject;
-    //     r.readAsDataURL(imageFile);
-    //   });
-    //   try {
-    //     const up = await createHotelImage({
-    //       token: accessToken,
-    //       payload: {
-    //         imageID: 0,
-    //         hotelID,
-    //         imageFileName: `hotel-image-${Date.now()}.jpg`,
-    //         description: "Item image",
-    //         isMain: true,
-    //         finAct: true,
-    //         createdOn: new Date().toISOString(),
-    //         createdBy: fullName,
-    //         updatedOn: new Date().toISOString(),
-    //         updatedBy: fullName,
-    //         base64Image: base64,
-    //       },
-    //     });
-    //     imageURL = (up.imageFileName || "").split("?")[0];
-    //   } catch (e) {
-    //     console.error("Image upload failed", e);
-    //   }
-    // }
 
-     const userID = JSON.parse(
-      localStorage.getItem("userID") || "{}"
-    );
-
+    const userID = JSON.parse(localStorage.getItem("userID") || "0");
 
     const body = {
       categoryID: Number(selectedCategory),
@@ -241,7 +204,7 @@ export default function EditItemDrawer({
     try {
       const updated = await dispatch(
         updateItemMas({
-          ...body,
+          ...(body as any),
           itemNumber: form.itemCode,
         } as any)
       ).unwrap();
@@ -261,7 +224,7 @@ export default function EditItemDrawer({
               property.hotelCode ??
               property.code ??
               String(hotelID),
-            createdBy: src?.createdBy  ?? "system",
+            createdBy: src?.createdBy ?? "system",
             createdOn: src?.createdOn ?? new Date().toISOString(),
             finAct: src?.finAct ?? true,
             kotPrinterName: src?.kotPrinterName ?? "",
@@ -311,10 +274,17 @@ export default function EditItemDrawer({
         }
       }
 
-      await dispatch(fetchItemMas());
+      // 🔄 refresh items so parent list shows updated data without manual refresh
+      await dispatch(fetchItemMas()).unwrap();
+
+      // ✅ toast on success
+      toast.success("Item updated successfully");
+
+      // close drawer
       onOpenChange(false);
     } catch (e) {
       console.error("Update failed", e);
+      toast.error("Failed to update item");
     }
   };
 

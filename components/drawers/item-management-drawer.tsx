@@ -52,9 +52,6 @@ export function ItemManagementDrawer({
       localStorage.getItem("selectedProperty") || "{}"
     );
     const hotelID = property?.id;
-
-      // ❌ old:
-      // dispatch(fetchItems(hotelID));
       // ✅ new: same idea, but via ItemMas API
       dispatch(fetchItemMas());
     
