@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/redux/store";
-import { createPosOrder } from "@/redux/slices/posOrderSlice";
+import { createPosOrder } from "@/redux/slices/createPosOrderSlice";
 import { clearCart } from "@/redux/slices/cartSlice";
 import {
   Dialog,
@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { openPayment, setDelivery } from "@/redux/slices/checkoutFlowSlice";
 import { createPosInvoice } from "@/redux/slices/createPosInvoiceSlice";
-import { fetchHotelPosCenterTaxConfig } from "@/redux/slices/fetchHotelPosCenterTaxConfigSlice";
 
 interface CartItem {
   id: string | number;
@@ -63,21 +62,6 @@ interface DeliveryMethodDrawerProps {
   skipNextCancelConfirm?: boolean;
 }
 
-type PosCenterTaxCfg = {
-  taxName: string;
-  percentage: number; // 0..100
-  calcBasedOn: string; // "base" | "subtotal1" | "subtotal2" ...
-  accountId?: number | null;
-};
-
-type TaxLine = {
-  name: string;
-  pct: number;
-  basedOn: string;
-  accountId?: number;
-  amount: number;
-};
-
 const round2 = (n: number) => Number((n ?? 0).toFixed(2));
 
 export function DeliveryMethodDrawer({
@@ -107,58 +91,6 @@ export function DeliveryMethodDrawer({
     if (skipNextCancelConfirm) bypassRef.current = true;
   }, [skipNextCancelConfirm]);
 
-  const posTaxConfig: PosCenterTaxCfg[] =
-    useSelector((s: RootState) => s.fetchHotelPosCenterTaxConfig?.data) ?? [];
-
-  // Fetch POS Center tax config whenever center id changes
-  useEffect(() => {
-    if (selectedPosCenterId) {
-      dispatch(fetchHotelPosCenterTaxConfig(Number(selectedPosCenterId)));
-    }
-  }, [dispatch, selectedPosCenterId]);
-
-  function computeTaxesFromConfig(
-    cfgs: PosCenterTaxCfg[] = [],
-    cartItems: { price: number; quantity: number }[]
-  ) {
-    const subTotal = round2(
-      (cartItems ?? []).reduce(
-        (t, it) => t + Number(it.price || 0) * Number(it.quantity || 0),
-        0
-      )
-    );
-
-    let running = subTotal;
-    const lines: TaxLine[] = [];
-
-    for (const c of cfgs ?? []) {
-      const name = (c.taxName || "").trim();
-      const pct = Number(c.percentage || 0);
-      const based = (c.calcBasedOn || "base").toLowerCase();
-
-      const base =
-        based === "base"
-          ? subTotal
-          : based.startsWith("subtotal")
-          ? running
-          : subTotal;
-
-      const amount = round2(base * (pct / 100));
-      lines.push({
-        name,
-        pct,
-        basedOn: based,
-        accountId: c.accountId ?? undefined,
-        amount,
-      });
-
-      if (based.startsWith("subtotal")) running = round2(running + amount);
-    }
-
-    const taxTotal = round2(lines.reduce((t, x) => t + x.amount, 0));
-    const grand = round2(subTotal + taxTotal);
-    return { subTotal, lines, taxTotal, grand };
-  }
 
   /** ROOM SERVICE: posts a POS Order (hold) and then a GL invoice with AR debit + sales/tax credits */
   const handleRoomServiceSubmit = async (
@@ -271,20 +203,19 @@ export function DeliveryMethodDrawer({
           },
         ],
       };
+      const username = localStorage.getItem("rememberedUsername") || "";
 
-      await dispatch(createPosOrder(orderPayload)).unwrap();
+      await dispatch(
+        createPosOrder({
+          username,
+          payload: orderPayload,
+        })
+      ).unwrap();
 
-      // 2) Build TAXES from POS center config → GL invoice (A/R debit + sales/tax credits)
-      const taxCalc = computeTaxesFromConfig(posTaxConfig, cart);
-      const { lines: taxLines, grand, taxTotal } = taxCalc;
-
-      const taxes = (taxLines ?? []).map((l) => ({
-        taxName: l.name,
-        percentage: l.pct,
-        basedOn: l.basedOn,
-        accountId: l.accountId ?? 0,
-        amount: l.amount,
-      }));
+      // 2) Build GL invoice (A/R debit + sales credits)
+      const grand = total; // Use the cart total directly
+      const taxTotal = 0; // No tax calculation
+      const taxes: any[] = []; // Empty taxes array
 
       // GL helpers
       const mkBase = (overrides: Partial<any> = {}) => ({
@@ -391,24 +322,9 @@ export function DeliveryMethodDrawer({
         );
       });
 
-      // CR Taxes (only those with a mapped account)
-      const taxCredits = (taxLines ?? [])
-        .filter((l) => (l.accountId ?? 0) > 0 && l.amount > 0)
-        .map((l) =>
-          mkCredit(
-            mkBase({
-              accountID: Number(l.accountId),
-              comment: l.name,
-              memo: "POS tax",
-            }),
-            l.amount
-          )
-        );
-
       const glAccTransactions = [
         arDebit,
         ...salesCredits,
-        ...taxCredits,
       ].filter(
         (x) => Number(x.accountID) > 0 && Math.abs(Number(x.amount)) > 0
       );

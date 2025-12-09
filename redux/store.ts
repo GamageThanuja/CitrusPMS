@@ -252,6 +252,7 @@ import sendBulkEmailReducer from "./slices/sendBulkEmailSlice";
 import sendSimpleEmailReducer from "./slices/sendSimpleEmailSlice";
 import emailServiceInfoReducer from "./slices/emailServiceInfoSlice";
 import createItemMasListReducer from "./slices/createItemMasListSlice";
+import createPosOrderReducer from "./slices/createPosOrderSlice";
 
 const store = configureStore({
   reducer: {
@@ -508,6 +509,7 @@ const store = configureStore({
     sendSimpleEmail: sendSimpleEmailReducer, 
     emailServiceInfo: emailServiceInfoReducer,
     createItemMasList: createItemMasListReducer,
+    createPosOrder: createPosOrderReducer,
   },
 });
 

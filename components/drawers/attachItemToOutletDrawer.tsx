@@ -177,24 +177,24 @@ export function AttachItemToOutletDrawer({
 
         <div className="mt-6">
           <table className="min-w-full border border-black dark:border-gray-700 text-sm">
-        <thead className="bg-white dark:bg-gray-800 text-black dark:text-white sticky top-0 z-10">
-  <tr className="border-b border-black dark:border-gray-700">
-    <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-20">
-      Code
-    </th>
-    <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-64">
-      Item Name
-    </th>
-    {posCenters.map((center) => (
-      <th
-        key={center.hotelPosCenterId}
-        className="px-4 py-3 text-center border-r border-black dark:border-gray-700 border-b "
-      >
-        {center.posCenter}
-      </th>
-    ))}
-  </tr>
-</thead>
+            <thead className="bg-white dark:bg-gray-800 text-black dark:text-white sticky top-0 z-10">
+              <tr className="border-b border-black dark:border-gray-700">
+                <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-20">
+                  Code
+                </th>
+                <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-64">
+                  Item Name
+                </th>
+                {posCenters.map((center) => (
+                  <th
+                    key={center.hotelPosCenterId}
+                    className="px-4 py-3 text-center border-r border-black dark:border-gray-700 border-b "
+                  >
+                    {center.posCenter}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
             <tbody>
               {Object.entries(groupedItems).map(
