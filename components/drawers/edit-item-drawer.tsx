@@ -215,7 +215,7 @@ export default function EditItemDrawer({
           const src = hotelPosCenters.find((c: any) => c.posCenterID === pc);
 
           const payload: CreateHotelPOSCenterMasPayload = {
-            posCenterID: src?.posCenterID ?? pc,
+            posCenterID: 0,
             posCenterCode: src?.posCenterCode ?? "",
             posCenterName: src?.posCenterName ?? "",
             nextBillNo: src?.nextBillNo ?? "1",

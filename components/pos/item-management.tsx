@@ -64,10 +64,10 @@ import {
 } from "@/redux/slices/updateItemMasterSlice";
 import EditItemDrawer from "@/components/drawers/edit-item-drawer";
 import {
-  deleteItemMaster,
-  selectDeleteStatus,
-  selectDeleteError,
-} from "@/redux/slices/deleteItemMasterSlice";
+  deleteItemMas,
+  selectDeleteItemMasLoading,
+  selectDeleteItemMasError,
+} from "@/redux/slices/deleteItemMasSlice";
 
 interface Item {
   id: string; // UI key (often equals itemCode)
@@ -158,8 +158,8 @@ export function ItemManagement({ categories, onClose }: ItemManagementProps) {
   const [editing, setEditing] = useState<Item | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const delStatus = useSelector(selectDeleteStatus);
-  const delError = useSelector(selectDeleteError);
+  const delStatus = useSelector(selectDeleteItemMasLoading);
+  const delError = useSelector(selectDeleteItemMasError);
 
   const handleEditItem = (item: Item) => {
     setCurrentItem(item);
@@ -242,130 +242,129 @@ export function ItemManagement({ categories, onClose }: ItemManagementProps) {
   };
 
   // build ItemMasData payload from our form + image URL
-const buildItemMasPayload = (
-  formData: Item,
-  imageUrl: string
-): ItemMasData => {
-  const now = new Date().toISOString();
-  return {
-    finAct: true,
-    itemID: 0, // backend will assign
-    itemNumber: formData.itemCode,
-    description: formData.name || formData.description || "",
-    extDescription: formData.description || "",
-    uomid: 0,
-    itemTypeID: 0,
-    categoryID: Number(formData.category) || 0,
-    salesTaxID: 0,
-    price: formData.price,
-    cost: 0,
-    binLocation: "",
-    notes: "",
-    reorderPoint: 0,
-    restockLevel: 0,
-    picturePath: imageUrl || "",
-    notDiscountable: false,
-    cannotPurchase: false,
-    cannotInvoDecimal: false,
-    waighMustEnter: false,
-    itemMessage: "",
-    createdBy: 0,
-    createdOn: now,
-    lastModBy: 0,
-    lastModOn: now,
-    cogsAccountID: 0,
-    salesAccountID: 0,
-    inventoryAssetsAccID: 0,
-    lowestSellingPrice: 0,
-    packagingSize: "",
-    messageClient: "",
-    cannotInvoInsufQty: false,
-    subCompanyID: 0,
-    serialNo: "",
-    costCenterID: 0,
-    custodianID: 0,
-    supplierID: 0,
-    acqDate: null,
-    lifeTimeYears: 0,
-    lifeTimeMonths: 0,
-    serviceProvider: "",
-    warranty: "",
-    nextServiceDate: null,
-    serviceContractNo: "",
-    commercialDepreMethodID: 0,
-    fiscalDepreMethodID: 0,
-    profitMargin: 0,
-    vat: false,
-    nbt: false,
-    sinhalaDes: "",
-    brandID: 0,
-    kitItem: false,
-    buid: 0,
-    serialNumbered: false,
-    preferedSupplierID: 0,
-    backColour: "",
-    limitWholesaleQtyAtCHK: false,
-    limitWholesaleQtyAt: 0,
-    maxWholesaleQtyCHK: false,
-    maxWholesaleQty: 0,
-    discountRTNarration: "",
-    discountWSNarration: "",
-    limitRetailQtyAtCHK: false,
-    limitRetailQtyAt: 0,
-    maxRetialQtyCHK: false,
-    maxRetailQty: 0,
-    isPick: false,
-    rtPrice: 0,
-    wsPrice: 0,
-    itemMessage_Client: "",
-    showOnPOS: true,
-    isKOT: false,
-    isBOT: false,
-    posCenter: "",
-    rackNo: "",
-    isTrading: true,
-    isTaxIncluded: false,
-    isSCIncluded: false,
-    baseItemCatID: 0,
-    oldItemCode: "",
-    small: false,
-    regular: false,
-    large: false,
-    guestPrice: formData.price,
-    childPrice: 0,
-    guidePrice: 0,
-    driverPrice: 0,
-    isRecipe: false,
-    isAIEntitled: false,
-    sku: "",
-    useBatchPriceOnSale: false,
-    discountPercentage: 0,
-    discountID: 0,
-    isFastCheckOut: false,
-    changePriceOnGRN: false,
-    partNo: "",
-    oldPrice: 0,
-    oldPriceAsAt: null,
-    lastPriceUpdateBy: "",
-    colour: "",
-    askQtyOnSale: false,
-    isAskSKU: false,
-    skuid: 0,
-    isShotItem: false,
-    shotItemID: 0,
-    shotItemCode: "",
-    subItemOf: "",
-    imageURL: imageUrl || "",
-    lastDepreciatedDate: null,
-    depreciationExpenseAccountID: 0,
-    bookValue: 0,
-    bookValueAsAt: null,
-    guardian: "",
-    barCode: "",
-    nameOnBill: formData.name,
+  const buildItemMasPayload = (
+    formData: Item,
+    imageUrl: string
+  ): ItemMasData => {
+    const now = new Date().toISOString();
+    return {
+      finAct: true,
+      itemID: 0, // backend will assign
+      itemNumber: formData.itemCode,
+      description: formData.name || formData.description || "",
+      extDescription: formData.description || "",
+      uomid: 0,
+      itemTypeID: 0,
+      categoryID: Number(formData.category) || 0,
+      salesTaxID: 0,
+      price: formData.price,
+      cost: 0,
+      binLocation: "",
+      notes: "",
+      reorderPoint: 0,
+      restockLevel: 0,
+      picturePath: imageUrl || "",
+      notDiscountable: false,
+      cannotPurchase: false,
+      cannotInvoDecimal: false,
+      waighMustEnter: false,
+      itemMessage: "",
+      createdBy: 0,
+      createdOn: now,
+      lastModBy: 0,
+      lastModOn: now,
+      cogsAccountID: 0,
+      salesAccountID: 0,
+      inventoryAssetsAccID: 0,
+      lowestSellingPrice: 0,
+      packagingSize: "",
+      messageClient: "",
+      cannotInvoInsufQty: false,
+      subCompanyID: 0,
+      serialNo: "",
+      costCenterID: 0,
+      custodianID: 0,
+      supplierID: 0,
+      acqDate: null,
+      lifeTimeYears: 0,
+      lifeTimeMonths: 0,
+      serviceProvider: "",
+      warranty: "",
+      nextServiceDate: null,
+      serviceContractNo: "",
+      commercialDepreMethodID: 0,
+      fiscalDepreMethodID: 0,
+      profitMargin: 0,
+      vat: false,
+      nbt: false,
+      sinhalaDes: "",
+      brandID: 0,
+      kitItem: false,
+      buid: 0,
+      serialNumbered: false,
+      preferedSupplierID: 0,
+      backColour: "",
+      limitWholesaleQtyAtCHK: false,
+      limitWholesaleQtyAt: 0,
+      maxWholesaleQtyCHK: false,
+      maxWholesaleQty: 0,
+      discountRTNarration: "",
+      discountWSNarration: "",
+      limitRetailQtyAtCHK: false,
+      limitRetailQtyAt: 0,
+      maxRetialQtyCHK: false,
+      maxRetailQty: 0,
+      isPick: false,
+      rtPrice: 0,
+      wsPrice: 0,
+      itemMessage_Client: "",
+      showOnPOS: true,
+      isKOT: false,
+      isBOT: false,
+      posCenter: "",
+      rackNo: "",
+      isTrading: true,
+      isTaxIncluded: false,
+      isSCIncluded: false,
+      baseItemCatID: 0,
+      oldItemCode: "",
+      small: false,
+      regular: false,
+      large: false,
+      guestPrice: formData.price,
+      childPrice: 0,
+      guidePrice: 0,
+      driverPrice: 0,
+      isRecipe: false,
+      isAIEntitled: false,
+      sku: "",
+      useBatchPriceOnSale: false,
+      discountPercentage: 0,
+      discountID: 0,
+      isFastCheckOut: false,
+      changePriceOnGRN: false,
+      partNo: "",
+      oldPrice: 0,
+      oldPriceAsAt: null,
+      lastPriceUpdateBy: "",
+      colour: "",
+      askQtyOnSale: false,
+      isAskSKU: false,
+      skuid: 0,
+      isShotItem: false,
+      shotItemID: 0,
+      shotItemCode: "",
+      subItemOf: "",
+      imageURL: imageUrl || "",
+      lastDepreciatedDate: null,
+      depreciationExpenseAccountID: 0,
+      bookValue: 0,
+      bookValueAsAt: null,
+      guardian: "",
+      barCode: "",
+      nameOnBill: formData.name,
+    };
   };
-};
-  
 
   const handleSaveItem = async (
     formData: Item,
@@ -480,22 +479,26 @@ const buildItemMasPayload = (
   };
 
   const handleConfirmDelete = async () => {
-    if (!currentItem?.itemID) {
-      alert("Missing itemID for delete.");
+    if (!currentItem?.itemCode) {
+      alert("Missing itemNumber (itemCode) for delete.");
       return;
     }
+
     try {
-      const property = JSON.parse(
-        localStorage.getItem("selectedProperty") || "{}"
-      );
-      await dispatch(deleteItemMaster(currentItem.itemID)).unwrap();
-      await dispatch(fetchItems(property.id)); // refresh list
+      // DELETE /api/ItemMas/{itemNumber}
+      await dispatch(
+        deleteItemMas({ itemNumber: currentItem.itemCode })
+      ).unwrap();
+
+      // refresh ItemMas list used by this screen
+      await dispatch(fetchItemMas()).unwrap();
+
       setShowDeleteDialog(false);
     } catch (e: any) {
+      console.error("Delete failed:", e);
       alert(typeof e === "string" ? e : "Delete failed.");
     }
   };
-
   const [excelData, setExcelData] = useState<any[]>([]);
 
   const handleExcelUpload = async (file: File) => {
@@ -726,16 +729,16 @@ const buildItemMasPayload = (
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
-              disabled={delStatus === "loading"}
+              disabled={delStatus} // boolean loading flag
             >
               {cancel}
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
-              disabled={delStatus === "loading"}
+              disabled={delStatus} // boolean loading flag
             >
-              {delStatus === "loading" ? "Deleting..." : confirmDelete}
+              {delStatus ? "Deleting..." : confirmDelete}
             </Button>
           </DialogFooter>
           {delError && (
@@ -789,7 +792,9 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
 
   const [posCenters, setPosCenters] = useState<PosCenter[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
-  const [selectedImageFile, setSelectedImageFile] = useState<File | undefined>();
+  const [selectedImageFile, setSelectedImageFile] = useState<
+    File | undefined
+  >();
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -814,37 +819,37 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
     }
   }, [selectedCategory]);
 
-// 🔹 Fetch POS centers via Redux thunk
-useEffect(() => {
-  const property = JSON.parse(
-    localStorage.getItem("selectedProperty") || "{}"
-  );
+  // 🔹 Fetch POS centers via Redux thunk
+  useEffect(() => {
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
 
-  // Use whatever your property shape has – adjust if needed
-  const hotelCode =
-    property.hotelCode ||
-    property.code ||
-    (property.id ? String(property.id) : undefined);
+    // Use whatever your property shape has – adjust if needed
+    const hotelCode =
+      property.hotelCode ||
+      property.code ||
+      (property.id ? String(property.id) : undefined);
 
-  // Dispatch with or without params depending on hotelCode
-  if (hotelCode) {
-    dispatch(fetchHotelPOSCenterMas({ hotelCode }));
-  } else {
-    dispatch(fetchHotelPOSCenterMas());
-  }
-}, [dispatch]);
+    // Dispatch with or without params depending on hotelCode
+    if (hotelCode) {
+      dispatch(fetchHotelPOSCenterMas({ hotelCode }));
+    } else {
+      dispatch(fetchHotelPOSCenterMas());
+    }
+  }, [dispatch]);
 
-// 🔹 Map Redux data -> local PosCenter[]
-useEffect(() => {
-  if (!hotelPosCenters) return;
+  // 🔹 Map Redux data -> local PosCenter[]
+  useEffect(() => {
+    if (!hotelPosCenters) return;
 
-  const mapped: PosCenter[] = hotelPosCenters.map((c) => ({
-    hotelPosCenterId: c.posCenterID,
-    posCenter: c.posCenterName,
-  }));
+    const mapped: PosCenter[] = hotelPosCenters.map((c) => ({
+      hotelPosCenterId: c.posCenterID,
+      posCenter: c.posCenterName,
+    }));
 
-  setPosCenters(mapped);
-}, [hotelPosCenters]);
+    setPosCenters(mapped);
+  }, [hotelPosCenters]);
 
   const handleChange = (field: keyof Item, value: string | number) => {
     setFormData({ ...formData, [field]: value });
