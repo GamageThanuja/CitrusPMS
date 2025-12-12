@@ -23,25 +23,24 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { createPosOrder } from "@/redux/slices/posOrderSlice";
+import { createPosOrder } from "@/redux/slices/createPosOrderSlice";
 import { createPosInvoice } from "@/redux/slices/createPosInvoiceSlice";
-import { fetchHotelCurrencies } from "@/redux/slices/hotelCurrencySlice";
 import {
-  fetchCurrencies,
-  selectCurrencies,
-  selectCurrencyLoading,
-  selectCurrencyError,
-} from "@/redux/slices/currencySlice";
+  fetchCurrencyMas,
+  selectCurrencyMasItems,
+  selectCurrencyMasLoading,
+  selectCurrencyMasError,
+  selectCurrencyMasSuccess,
+} from "@/redux/slices/fetchCurrencyMasSlice";
 import { RootState } from "@/redux/store";
 import { setPayments, setSelectedForm } from "@/redux/slices/checkoutFlowSlice";
 import { closePayment, openPayment } from "@/redux/slices/checkoutFlowSlice";
 import {
-  fetchGlAccounts,
-  selectGlAccountList,
-  selectGlAccountListLoading,
-  selectGlAccountListError,
-} from "@/redux/slices/glAccountSlice";
-import { fetchHotelPosCenterTaxConfig } from "@/redux/slices/fetchHotelPosCenterTaxConfigSlice";
+  fetchGLAccount,
+  selectGLAccountData,
+  selectGLAccountLoading,
+  selectGLAccountError,
+} from "@/redux/slices/fetchGLAccountSlices";
 import { Label } from "@/components/ui/label";
 
 import buildReceiptEmailHtml from "@/lib/email/buildPOSReceiptEmailHtml";
@@ -71,14 +70,14 @@ import {
   TableBody,
   TableFooter,
 } from "@/components/ui/table";
-import { fetchExchangeRate } from "@/redux/slices/currencyExchangeSlice";
 
-import { fetchReservations } from "@/redux/slices/fetchReservationsSlice";
-import { selectReservations } from "@/redux/slices/fetchReservationsSlice";
+
+import { fetchReservationMas } from "@/redux/slices/fetchReservationMasSlice";
+import { selectReservationMasData } from "@/redux/slices/fetchReservationMasSlice";
 import { useClientStorage } from "@/hooks/useClientStorage";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { useStoredCurrencyCode } from "@/hooks/useStoredCurrencyCode";
-import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
+import { fetchNameMas, selectFetchNameMasItems } from "@/redux/slices/fetchNameMasSlice";
 import { useAppSelector } from "@/redux/hooks";
 import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
 
@@ -161,15 +160,6 @@ interface PaymentMethodSelectionProps {
   fromTableManagement?: boolean;
 }
 
-type PosCenterTaxCfg = {
-  recordId: number;
-  hotelId: number;
-  hotelPOSCenterId: number;
-  taxName: string; // e.g., "CITY TAX", "SERVICE CHARGE", "GST"
-  percentage: number; // 0-100
-  calcBasedOn: string; // e.g., "base", "subtotal1", "subtotal2"
-  accountId?: number; // GL to credit
-};
 
 type TaxLine = {
   name: string; // taxName
@@ -180,12 +170,24 @@ type TaxLine = {
   levelBase: number;
 };
 
+type PosCenterTaxCfg = {
+  recordId: number;
+  hotelId: number;
+  hotelPOSCenterId: number;
+  taxName: string; // e.g., "CITY TAX", "SERVICE CHARGE", "GST"
+  percentage: number; // 0-100
+  calcBasedOn: string; // "base", "subtotal1", "subtotal2", ...
+  accountId?: number; // GL to credit
+};
+
 type TaxTotals = {
   lines: TaxLine[];
-  taxTotal: number; // sum(lines.amount)
-  subTotal: number; // sum(cart)
-  grand: number; // subTotal + taxTotal
+  taxTotal: number;
+  subTotal: number;
+  grand: number;
 };
+
+
 
 type LSOutlet = {
   hotelPosCenterId?: number;
@@ -220,29 +222,29 @@ export function PaymentMethodSelection({
   fromTableManagement,
 }: PaymentMethodSelectionProps) {
 
- 
+
 
 
   const dispatch = useDispatch();
-  const currencies = useSelector(selectCurrencies);
-  const currencyLoading = useSelector(selectCurrencyLoading);
-  const currencyError = useSelector(selectCurrencyError);
-  const loadedOnce = useSelector((s: any) => s.currency?.loadedOnce);
+  const currencies = useSelector(selectCurrencyMasItems);
+  const currencyLoading = useSelector(selectCurrencyMasLoading);
+  const currencyError = useSelector(selectCurrencyMasError);
+  const loadedOnce = useSelector(selectCurrencyMasSuccess);
 
   console.log("fromTableManagement : ", fromTableManagement);
 
   console.log("total : ", total);
   console.log("posCenterName aaaaa : ", posCenterName);
-  
+
 
   console.log("cart : ", cart);
   console.log("tranMasId : ", tranMasId);
   console.log("tax : ", tax);
   console.log("posCenter : ", cart);
 
-  const glAccounts = useSelector(selectGlAccountList);
-  const glLoading = useSelector(selectGlAccountListLoading);
-  const glError = useSelector(selectGlAccountListError);
+  const glAccounts = useSelector(selectGLAccountData);
+  const glLoading = useSelector(selectGLAccountLoading);
+  const glError = useSelector(selectGLAccountError);
 
   const emailSending = useSelector(selectEmailSending);
   const emailErr = useSelector(selectEmailError);
@@ -261,7 +263,7 @@ export function PaymentMethodSelection({
   const [printHtml, setPrintHtml] = useState<string>("");
   const [isRoomPost, setIsRoomPost] = useState(false);
 
-  const reservations = useSelector(selectReservations);
+  const reservations = useSelector(selectReservationMasData);
   const { fullName } = useUserFromLocalStorage();
   const hotelCurrency = useStoredCurrencyCode();
 
@@ -277,7 +279,7 @@ export function PaymentMethodSelection({
 
 
   console.log("systemDate : ", systemDate);
-  
+
 
   // which reservation & which room tile user chose
   const [selectedReservationId, setSelectedReservationId] = useState<
@@ -294,18 +296,6 @@ export function PaymentMethodSelection({
   const round4 = (n: number) => Number((n ?? 0).toFixed(4));
   // Rounding for UI display (2 decimals)
   const round2 = (n: number) => Number((n ?? 0).toFixed(2));
-
-  // ADD: read POS tax config state
-  const posTaxConfigAll = useSelector(
-    (s: RootState) =>
-      (s.fetchHotelPosCenterTaxConfig?.data as PosCenterTaxCfg[]) ?? []
-  );
-  const posTaxConfigStatus = useSelector(
-    (s: RootState) => s.fetchHotelPosCenterTaxConfig?.status
-  );
-  const posTaxConfigError = useSelector(
-    (s: RootState) => s.fetchHotelPosCenterTaxConfig?.error
-  );
 
   function mapPaymentMethodForOrder(
     payments: PaymentEntry[],
@@ -327,12 +317,12 @@ export function PaymentMethodSelection({
     return "cash";
   }
   const [selectedTravelAgent, setSelectedTravelAgent] = useState<string>("");
-  const { data } = useSelector((state) => state.nameMaster);
+  const data = useSelector(selectFetchNameMasItems);
 
   console.log("data : ", data);
 
   useEffect(() => {
-    dispatch(fetchNameMasterByHotel());
+    (dispatch as any)(fetchNameMas({}));
   }, [dispatch]);
 
   console.log("selectedTravelAgent : ", selectedTravelAgent);
@@ -348,33 +338,18 @@ export function PaymentMethodSelection({
   const outletName =
     posCenterName ||
     outletInfo.posCenter ||
-    String(posCenter );
+    String(posCenter);
   const outletId = Number(
     outletInfo.hotelPosCenterId ?? (Number(posCenter) || 0)
   );
 
-  // Filter tax config to only selected hotelPOSCenterId
-  const selectedPosCenterId = Number(posCenter) || 0;
-  const posTaxConfig = (posTaxConfigAll || []).filter((cfg) =>
-    selectedPosCenterId ? Number(cfg.hotelPOSCenterId) === selectedPosCenterId : true
-  );
-
+  // Tax computation: use empty config since parent already computed taxes
+  // This function is kept for fallback scenarios
   const taxTotals = useMemo(() => {
-    // compute using items in the *current* cart
-    return computeTaxesFromConfig(posTaxConfig, cart ?? []);
-  }, [posTaxConfig, cart]);
+    return computeTaxesFromConfig([], cart ?? []);
+  }, [cart]);
 
-  const canonicalTaxConfigs = useMemo(() => {
-    const map = new Map<string, PosCenterTaxCfg>();
-    for (const cfg of (posTaxConfig as PosCenterTaxCfg[]) ?? []) {
-      const key = (cfg.taxName || "").replace(/\s+/g, "").toLowerCase();
-      if (key) {
-        map.set(key, cfg);
-      }
-    }
-    return map;
-  }, [posTaxConfig]);
-
+  // Convert tax prop to TaxLine format for consistency
   const fallbackTaxLines = useMemo(() => {
     if (!tax) return [];
     const entries = [
@@ -393,18 +368,17 @@ export function PaymentMethodSelection({
     for (const entry of entries) {
       const amt = round4(Number(entry.amount || 0));
       if (!amt) continue;
-      const cfg = canonicalTaxConfigs.get(entry.key);
       lines.push({
-        name: cfg?.taxName || entry.label,
-        pct: Number(cfg?.percentage ?? entry.pct ?? 0),
-        basedOn: (cfg?.calcBasedOn || "base").toLowerCase(),
-        accountId: cfg?.accountId,
+        name: entry.label,
+        pct: Number(entry.pct ?? 0),
+        basedOn: "base",
+        accountId: undefined,
         amount: amt,
         levelBase: tax?.base ?? 0,
       });
     }
     return lines;
-  }, [tax, canonicalTaxConfigs]);
+  }, [tax]);
 
   const taxLines = useMemo(() => {
     return (taxTotals.lines?.length ? taxTotals.lines : fallbackTaxLines) ?? [];
@@ -423,13 +397,6 @@ export function PaymentMethodSelection({
       ),
     [taxLines]
   );
-
-  useEffect(() => {
-    const id = Number(posCenter) || 0;
-    if (id > 0) {
-      (dispatch as any)(fetchHotelPosCenterTaxConfig(id));
-    }
-  }, [dispatch, posCenter]);
 
   /**
    * TAX LADDER CALCULATION
@@ -564,7 +531,6 @@ export function PaymentMethodSelection({
     return { lines, taxTotal, subTotal: base, grand };
   }
 
-  console.log("posTaxConfig : ", posTaxConfig);
 
   const allRooms = useMemo(() => {
     const list =
@@ -623,11 +589,29 @@ export function PaymentMethodSelection({
     `****** ********** ${last4 || "____"}`;
 
   // If a currency has no exchangeRate coming from API, fall back to 1 for LKR, otherwise 1 by default.
+  // OLD
+  // const getRate = (c: any | null) => {
+  //   if (!c) return 1;
+  //   if (typeof c.exchangeRate === "number" && isFinite(c.exchangeRate))
+  //     return c.exchangeRate || 1;
+  //   return c.currencyCode === "LKR" ? 1 : 1;
+  // };
+
+  // NEW
   const getRate = (c: any | null) => {
     if (!c) return 1;
-    if (typeof c.exchangeRate === "number" && isFinite(c.exchangeRate))
-      return c.exchangeRate || 1;
-    return c.currencyCode === "LKR" ? 1 : 1;
+
+    const raw =
+      typeof c.exchangeRate === "number"
+        ? c.exchangeRate
+        : typeof c.conversionRate === "number"
+          ? c.conversionRate
+          : typeof c.buyingRate === "number"
+            ? c.buyingRate
+            : 1;
+
+    const rate = Number(raw);
+    return Number.isFinite(rate) && rate > 0 ? rate : 1;
   };
 
   const selectedProperty = useMemo(
@@ -638,7 +622,7 @@ export function PaymentMethodSelection({
 
   // fetch once
   useEffect(() => {
-    (dispatch as any)(fetchGlAccounts());
+    (dispatch as any)(fetchGLAccount());
   }, [dispatch]);
 
   // your filter (as you wrote)
@@ -686,9 +670,9 @@ export function PaymentMethodSelection({
         itemDescription: label, // ⬅️ includes item code + name
         quantity: Number(it.quantity || 0),
         price: Number(it.price || 0),
-                lineTotal: round2(Number(
-                  (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
-                )),
+        lineTotal: round2(Number(
+          (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
+        )),
       };
     });
 
@@ -770,9 +754,8 @@ export function PaymentMethodSelection({
   }
 
   useEffect(() => {
-    // If you want to always refresh, drop the loadedOnce guard.
     if (!loadedOnce) {
-      (dispatch as any)(fetchCurrencies());
+      (dispatch as any)(fetchCurrencyMas()); // or fetchCurrencyMas({})
     }
   }, [dispatch, loadedOnce]);
 
@@ -867,11 +850,15 @@ export function PaymentMethodSelection({
 
   useEffect(() => {
     if (selectedForm === "roomPost") {
+      const selectedProperty = JSON.parse(
+        localStorage.getItem("selectedProperty") || "{}"
+      );
+      const hotelCode = selectedProperty?.hotelCode || "";
+
       (dispatch as any)(
-        fetchReservations({
-          reservationStatusId: 4,
-          page: 1,
-          pageSize: 50, // tweak if needed
+        fetchReservationMas({
+          hotelCode,
+          status: "Checked In", // Equivalent to reservationStatusId: 4
         })
       );
     }
@@ -970,9 +957,9 @@ export function PaymentMethodSelection({
         x.currencyCode === b[i].currencyCode &&
         Number(x.amount.toFixed(2)) === Number(b[i].amount.toFixed(2)) &&
         Number(x.amountLocal.toFixed(2)) ===
-          Number(b[i].amountLocal.toFixed(2)) &&
+        Number(b[i].amountLocal.toFixed(2)) &&
         Number((x.exchangeRate ?? 0).toFixed(6)) ===
-          Number((b[i].exchangeRate ?? 0).toFixed(6))
+        Number((b[i].exchangeRate ?? 0).toFixed(6))
     );
 
   useEffect(() => {
@@ -1064,10 +1051,8 @@ export function PaymentMethodSelection({
     const [pairRate, setPairRate] = useState<number>(1);
 
     useEffect(() => {
-      (async () => {
-        const rate = await getPairRate(currencyCode, outletCurrency);
-        setPairRate(rate);
-      })();
+      const rate = getPairRate(currencyCode, outletCurrency);
+      setPairRate(rate);
     }, [currencyCode, outletCurrency]);
 
     const approx = (() => {
@@ -1161,18 +1146,39 @@ export function PaymentMethodSelection({
     return Math.round(Number(value));
   };
 
-  const getPairRate = async (baseCurrency: string, targetCurrency: string) => {
+  const getPairRate = (baseCurrency: string, targetCurrency: string): number => {
     if (!baseCurrency || !targetCurrency || baseCurrency === targetCurrency)
       return 1;
-    try {
-      const r = await (dispatch as any)(
-        fetchExchangeRate({ baseCurrency, targetCurrency })
-      ).unwrap();
-      const n = Number(r);
-      return Number.isFinite(n) && n > 0 ? n : 1;
-    } catch {
-      return 1;
+
+    // Find the target currency in the currencies array
+    const targetCurrencyObj = currencies.find(
+      (c) => c.currencyCode === targetCurrency
+    );
+
+    // If target currency is found, use its exchange rate
+    // This assumes all rates are relative to a base currency (e.g., LKR)
+    if (targetCurrencyObj) {
+      const targetRate = getRate(targetCurrencyObj);
+
+      // If base currency is the same as the system base, return target rate directly
+      if (baseCurrency === outletCurrency || baseCurrency === hotelCurrency) {
+        return targetRate;
+      }
+
+      // Otherwise, find the base currency rate and calculate cross rate
+      const baseCurrencyObj = currencies.find(
+        (c) => c.currencyCode === baseCurrency
+      );
+
+      if (baseCurrencyObj) {
+        const baseRate = getRate(baseCurrencyObj);
+        // Cross rate: (1 base = X target) = targetRate / baseRate
+        return baseRate > 0 ? targetRate / baseRate : 1;
+      }
     }
+
+    // Fallback: return 1 if currencies not found
+    return 1;
   };
 
   function toReceiptTaxList(lines: TaxLine[]) {
@@ -1209,8 +1215,8 @@ export function PaymentMethodSelection({
         : 0;
 
       // Get exchange rate from outlet currency to hotel currency
-      const exchangeRateToHotel = await getPairRate(outletCurrency, hotelCurrency);
-      
+      const exchangeRateToHotel = getPairRate(outletCurrency, hotelCurrency);
+
       // Totals in outlet currency (user-paid currency)
       const grossOutlet = Number(grand.toFixed(4)); // grand in outlet currency
       const paidOutlet = Number(
@@ -1323,8 +1329,8 @@ export function PaymentMethodSelection({
       // valHotel: amount in hotel currency (converted)
       const mkDebit = (base: any, valOutlet: number, valHotel?: number) => {
         const outletAmt = Math.abs(Number(valOutlet.toFixed(4))); // outlet currency
-        const hotelAmt = valHotel != null 
-          ? Math.abs(Number(valHotel.toFixed(4))) 
+        const hotelAmt = valHotel != null
+          ? Math.abs(Number(valHotel.toFixed(4)))
           : Math.abs(Number((valOutlet * exchangeRateToHotel).toFixed(4))); // hotel currency
         return {
           ...base,
@@ -1339,8 +1345,8 @@ export function PaymentMethodSelection({
 
       const mkCredit = (base: any, valOutlet: number, valHotel?: number) => {
         const outletAmt = Math.abs(Number(valOutlet.toFixed(4))); // outlet currency
-        const hotelAmt = valHotel != null 
-          ? Math.abs(Number(valHotel.toFixed(4))) 
+        const hotelAmt = valHotel != null
+          ? Math.abs(Number(valHotel.toFixed(4)))
           : Math.abs(Number((valOutlet * exchangeRateToHotel).toFixed(4))); // hotel currency
         return {
           ...base,
@@ -1403,13 +1409,13 @@ export function PaymentMethodSelection({
           // paymentAmount is the amount in the payment currency (e.g., 80.55 USD)
           const paymentAmount = round4(p.amount || 0);
           if (!paymentAmount) return null;
-          
+
           // Use the already calculated amountLocal for precision (it's in outlet currency)
           // This ensures consistency with what was displayed/calculated when payment was recorded
           // amountLocal = paymentAmount * exchangeRate (converted to outlet currency)
           let hotelAmt: number;
           let paymentToHotelRate: number;
-          
+
           if (p.amountLocal) {
             // amountLocal is already calculated in outlet currency with proper precision
             if (outletCurrency === hotelCurrency) {
@@ -1418,12 +1424,12 @@ export function PaymentMethodSelection({
               paymentToHotelRate = p.exchangeRate || 1;
             } else {
               // Convert from outlet currency (amountLocal) to hotel currency
-              paymentToHotelRate = await getPairRate(outletCurrency, hotelCurrency || outletCurrency);
+              paymentToHotelRate = getPairRate(outletCurrency, hotelCurrency || outletCurrency);
               hotelAmt = round4(p.amountLocal * paymentToHotelRate);
             }
           } else {
             // Fallback: calculate fresh if amountLocal not available
-            paymentToHotelRate = await getPairRate(paymentCurrency, hotelCurrency || outletCurrency);
+            paymentToHotelRate = getPairRate(paymentCurrency, hotelCurrency || outletCurrency);
             hotelAmt = round4(paymentAmount * paymentToHotelRate);
           }
 
@@ -1454,9 +1460,9 @@ export function PaymentMethodSelection({
           };
         })
       );
-      
+
       const paymentCashDebitsFiltered = paymentCashDebits.filter(Boolean) as any[];
-      
+
       // Recalculate paidHotel from actual payment amounts in hotel currency
       const paidHotelRecalculated = Number(
         paymentCashDebitsFiltered.reduce((sum, p) => sum + (p.debit || 0), 0).toFixed(4)
@@ -1466,17 +1472,17 @@ export function PaymentMethodSelection({
       const customerCreditForPaid =
         paidOutlet > 0
           ? mkCredit(
-              mkBase(
-                {
-                  accountID: Number(2),
-                  comment: "POS A/R Settlement (on invoice)",
-                  memo: "Reduce A/R by payments",
-                  isDue: remainingOutlet > 0,
-                },
-                TRAN_TYPE_PAYMENT
-              ),
-              paidOutlet // outlet currency amount
-            )
+            mkBase(
+              {
+                accountID: Number(2),
+                comment: "POS A/R Settlement (on invoice)",
+                memo: "Reduce A/R by payments",
+                isDue: remainingOutlet > 0,
+              },
+              TRAN_TYPE_PAYMENT
+            ),
+            paidOutlet // outlet currency amount
+          )
           : null;
 
       const taxCreditLines = (taxLines || [])
@@ -1575,6 +1581,7 @@ export function PaymentMethodSelection({
           reservationDetailId: useReservationDetailId,
           finAct: "false",
         })),
+        accountId: 0,
         isTaxApplied: taxLines.length > 0,
         serviceChargeAmount: toWhole(serviceChargeAmountLocal),
         tdlTaxAmount: toWhole(tdlAmountLocal),
@@ -1598,14 +1605,14 @@ export function PaymentMethodSelection({
       const deliveryMethodLower = (deliveryMethod || "").toLowerCase();
       const isDineIn = deliveryMethodLower === "dinein";
       const isRoomService = deliveryMethodLower === "roomservice" || deliveryMethodLower === "room service";
-      const isTakeAwayOrDelivery = 
-        deliveryMethodLower === "takeaway" || 
-        deliveryMethodLower === "take away" || 
+      const isTakeAwayOrDelivery =
+        deliveryMethodLower === "takeaway" ||
+        deliveryMethodLower === "take away" ||
         deliveryMethodLower === "delivery" ||
         (deliveryMethodLower && !isDineIn && !isRoomService); // Fallback for any other delivery method
-      
+
       const shouldCreatePosOrder = !fromTableManagement && isTakeAwayOrDelivery;
-      
+
       if (shouldCreatePosOrder) {
         const orderNow = new Date().toISOString();
         const orderDocNo = `DOC-${Date.now()}`;
@@ -1639,7 +1646,7 @@ export function PaymentMethodSelection({
           tdlTaxId: 0,
 
           tranMasId: 0,
-          posCenter: String(posCenterName ||outletName ),
+          posCenter: String(posCenterName || outletName),
           accountIdDebit: 0,
           accountIdCredit: 0,
           hotelCode: String(selectedProperty?.hotelCode || "DEFAULT_CODE"),
@@ -1661,8 +1668,8 @@ export function PaymentMethodSelection({
           comment: "Auto-generated POS Order",
           createdBy: fullName,
           currAmount: grossOutlet, // outlet currency (user-paid currency)
-          currencyCode: hotelCurrency || outletCurrency , // hotel currency
-          currCode: outletCurrency , // outlet currency
+          currencyCode: hotelCurrency || outletCurrency, // hotel currency
+          currCode: outletCurrency, // outlet currency
           convRate: String(exchangeRateToHotel),
           credit: 0,
           paymentReceiptRef: "N/A",
@@ -1707,7 +1714,7 @@ export function PaymentMethodSelection({
             {
               method: orderPayMethod,
               amount: grossOutlet, // outlet currency (user-paid currency)
-              currency: outletCurrency ,
+              currency: outletCurrency,
               cardType: payments[0]?.details?.cardType || "",
               lastDigits: payments[0]?.details?.cardNo || "",
               roomNo: orderRoomNumber,
@@ -1716,14 +1723,21 @@ export function PaymentMethodSelection({
         };
         console.log("orderPayload : ", JSON.stringify(orderPayload));
 
+        const username = localStorage.getItem("rememberedUsername") || "";
+
         try {
-          await (dispatch as any)(createPosOrder(orderPayload)).unwrap();
+          await (dispatch as any)(
+            createPosOrder({
+              username: username || fullName || "POS", // query param
+              payload: orderPayload,                   // request body
+            })
+          ).unwrap();
+
           console.log(
             "✅ POS Order created for delivery method:",
             deliveryMethod
           );
           console.log("test order sent");
-
           console.log("orderPayload : ", JSON.stringify(orderPayload));
         } catch (err) {
           console.error("❌ Failed to create POS Order:", err);
@@ -1735,7 +1749,7 @@ export function PaymentMethodSelection({
 
       await (dispatch as any)(createPosInvoice(payload)).unwrap();
       console.log("payload invoice : ", JSON.stringify(payload));
-      
+
       console.log("test invoice sent : ");
 
       console.log("cart:", cart);
@@ -1802,9 +1816,9 @@ export function PaymentMethodSelection({
               itemDescription: label, // ⬅️ includes item code & name
               quantity: Number(it.quantity || 0),
               price: Number(it.price || 0),
-                lineTotal: round2(Number(
-                  (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
-                )),
+              lineTotal: round2(Number(
+                (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
+              )),
             };
           }),
           subtotal: Number(subTotalLocal.toFixed(2)),
@@ -1818,9 +1832,8 @@ export function PaymentMethodSelection({
             localAmount: Number(p.amountLocal || 0),
             localCurrency: outletCurrency || "",
           })),
-          footerNote: `POS Center: ${posCenterName} • Cashier: ${
-            fullName || "POS"
-          }`, // ⬅️ nice footer
+          footerNote: `POS Center: ${posCenterName} • Cashier: ${fullName || "POS"
+            }`, // ⬅️ nice footer
         })
       );
 
@@ -1854,7 +1867,7 @@ export function PaymentMethodSelection({
       </SelectTrigger>
       <SelectContent>
         {currencies.map((c) => (
-          <SelectItem key={c.currencyId} value={c.currencyCode}>
+          <SelectItem key={c.currencyID} value={c.currencyCode}>
             {c.currencyCode} — {c.currencyName}
           </SelectItem>
         ))}
@@ -1882,53 +1895,40 @@ export function PaymentMethodSelection({
 
     // auto-calc suggested full payment in selected currency
     useEffect(() => {
-      let active = true;
-      (async () => {
-        const [forwardRaw, reverseRaw] = await Promise.all([
-          getPairRate(currencyCode, outletCurrency),
-          currencyCode === outletCurrency
-            ? Promise.resolve(1)
-            : getPairRate(outletCurrency, currencyCode),
-        ]);
-        if (!active) return;
-        const forward = Number(forwardRaw) || 1;
-        const reverse =
-          currencyCode === outletCurrency
-            ? 1
-            : Number(reverseRaw) || (forward ? Number((1 / forward).toFixed(8)) : 1);
-        setPairRate(forward);
+      const forward = getPairRate(currencyCode, outletCurrency);
+      const reverse =
+        currencyCode === outletCurrency
+          ? 1
+          : getPairRate(outletCurrency, currencyCode);
+      setPairRate(forward);
 
-        const suggested =
-          currencyCode === outletCurrency
-            ? remaining
-            : round4(remaining * reverse);
-        const currencyChanged = prevCurrencyRef.current !== currencyCode;
+      const suggested =
+        currencyCode === outletCurrency
+          ? remaining
+          : round4(remaining * reverse);
+      const currencyChanged = prevCurrencyRef.current !== currencyCode;
 
+      if (currencyChanged && touchedAmountRef.current) {
+        const numeric = Number(amount) || 0;
+        const oldRate = prevPairRateRef.current || 1;
+        const inOutlet = numeric * oldRate;
+        const converted =
+          currencyCode === outletCurrency
+            ? inOutlet
+            : round4(inOutlet * reverse);
+        setAmount(
+          converted ? Number(round4(converted)).toFixed(2) : ""
+        );
+      } else if (currencyChanged || !touchedAmountRef.current) {
+        setAmount(Number(suggested.toFixed(4)).toFixed(2));
         if (currencyChanged && touchedAmountRef.current) {
-          const numeric = Number(amount) || 0;
-          const oldRate = prevPairRateRef.current || 1;
-          const inOutlet = numeric * oldRate;
-          const converted =
-            currencyCode === outletCurrency
-              ? inOutlet
-              : round4(inOutlet * reverse);
-          setAmount(
-            converted ? Number(round4(converted)).toFixed(2) : ""
-          );
-        } else if (currencyChanged || !touchedAmountRef.current) {
-          setAmount(Number(suggested.toFixed(4)).toFixed(2));
-          if (currencyChanged && touchedAmountRef.current) {
-            touchedAmountRef.current = false;
-            setTouchedAmount(false);
-          }
+          touchedAmountRef.current = false;
+          setTouchedAmount(false);
         }
+      }
 
-        prevCurrencyRef.current = currencyCode;
-        prevPairRateRef.current = forward;
-      })();
-      return () => {
-        active = false;
-      };
+      prevCurrencyRef.current = currencyCode;
+      prevPairRateRef.current = forward;
     }, [currencyCode, outletCurrency, remaining, amount]);
 
     // what this amount becomes in outlet currency
@@ -1992,7 +1992,7 @@ export function PaymentMethodSelection({
             const num = parseFloat(amount || "0");
             if (!canSubmit) return;
 
-            const rate = await getPairRate(currencyCode, outletCurrency); // pay → outlet
+            const rate = getPairRate(currencyCode, outletCurrency); // pay → outlet
             recordPayment({
               method: "cash",
               amount: num, // entered in selected currency
@@ -2028,53 +2028,40 @@ export function PaymentMethodSelection({
     const [pairRate, setPairRate] = useState(1);
 
     useEffect(() => {
-      let active = true;
-      (async () => {
-        const [forwardRaw, reverseRaw] = await Promise.all([
-          getPairRate(currencyCode, outletCurrency),
-          currencyCode === outletCurrency
-            ? Promise.resolve(1)
-            : getPairRate(outletCurrency, currencyCode),
-        ]);
-        if (!active) return;
-        const forward = Number(forwardRaw) || 1;
-        const reverse =
-          currencyCode === outletCurrency
-            ? 1
-            : Number(reverseRaw) || (forward ? Number((1 / forward).toFixed(8)) : 1);
-        setPairRate(forward);
+      const forward = getPairRate(currencyCode, outletCurrency);
+      const reverse =
+        currencyCode === outletCurrency
+          ? 1
+          : getPairRate(outletCurrency, currencyCode);
+      setPairRate(forward);
 
-        const suggested =
-          currencyCode === outletCurrency
-            ? remaining
-            : round4(remaining * reverse);
-        const currencyChanged = prevCurrencyRef.current !== currencyCode;
+      const suggested =
+        currencyCode === outletCurrency
+          ? remaining
+          : round4(remaining * reverse);
+      const currencyChanged = prevCurrencyRef.current !== currencyCode;
 
+      if (currencyChanged && touchedAmountRef.current) {
+        const numeric = Number(amount) || 0;
+        const oldRate = prevPairRateRef.current || 1;
+        const inOutlet = numeric * oldRate;
+        const converted =
+          currencyCode === outletCurrency
+            ? inOutlet
+            : round4(inOutlet * reverse);
+        setAmount(
+          converted ? Number(round4(converted)).toFixed(2) : ""
+        );
+      } else if (currencyChanged || !touchedAmountRef.current) {
+        setAmount(Number(suggested.toFixed(4)).toFixed(2));
         if (currencyChanged && touchedAmountRef.current) {
-          const numeric = Number(amount) || 0;
-          const oldRate = prevPairRateRef.current || 1;
-          const inOutlet = numeric * oldRate;
-          const converted =
-            currencyCode === outletCurrency
-              ? inOutlet
-              : round4(inOutlet * reverse);
-          setAmount(
-            converted ? Number(round4(converted)).toFixed(2) : ""
-          );
-        } else if (currencyChanged || !touchedAmountRef.current) {
-          setAmount(Number(suggested.toFixed(4)).toFixed(2));
-          if (currencyChanged && touchedAmountRef.current) {
-            touchedAmountRef.current = false;
-            setTouchedAmount(false);
-          }
+          touchedAmountRef.current = false;
+          setTouchedAmount(false);
         }
+      }
 
-        prevCurrencyRef.current = currencyCode;
-        prevPairRateRef.current = forward;
-      })();
-      return () => {
-        active = false;
-      };
+      prevCurrencyRef.current = currencyCode;
+      prevPairRateRef.current = forward;
     }, [currencyCode, outletCurrency, remaining, amount]);
 
     const approxLocal = useMemo(() => {
@@ -2178,53 +2165,40 @@ export function PaymentMethodSelection({
 
     useEffect(() => {
       if (!currencyCode) return;
-      let active = true;
-      (async () => {
-        const [forwardRaw, reverseRaw] = await Promise.all([
-          getPairRate(currencyCode, outletCurrency),
-          currencyCode === outletCurrency
-            ? Promise.resolve(1)
-            : getPairRate(outletCurrency, currencyCode),
-        ]);
-        if (!active) return;
-        const forward = Number(forwardRaw) || 1;
-        const reverse =
-          currencyCode === outletCurrency
-            ? 1
-            : Number(reverseRaw) || (forward ? Number((1 / forward).toFixed(8)) : 1);
-        setPairRate(forward);
+      const forward = getPairRate(currencyCode, outletCurrency);
+      const reverse =
+        currencyCode === outletCurrency
+          ? 1
+          : getPairRate(outletCurrency, currencyCode);
+      setPairRate(forward);
 
-        const suggested =
-          currencyCode === outletCurrency
-            ? remaining
-            : round4(remaining * reverse);
-        const currencyChanged = prevCurrencyRef.current !== currencyCode;
+      const suggested =
+        currencyCode === outletCurrency
+          ? remaining
+          : round4(remaining * reverse);
+      const currencyChanged = prevCurrencyRef.current !== currencyCode;
 
+      if (currencyChanged && touchedAmountRef.current) {
+        const numeric = Number(amount) || 0;
+        const oldRate = prevPairRateRef.current || 1;
+        const inOutlet = numeric * oldRate;
+        const converted =
+          currencyCode === outletCurrency
+            ? inOutlet
+            : round4(inOutlet * reverse);
+        setAmount(
+          converted ? Number(round4(converted)).toFixed(2) : ""
+        );
+      } else if (currencyChanged || !touchedAmountRef.current) {
+        setAmount(Number(suggested.toFixed(4)).toFixed(2));
         if (currencyChanged && touchedAmountRef.current) {
-          const numeric = Number(amount) || 0;
-          const oldRate = prevPairRateRef.current || 1;
-          const inOutlet = numeric * oldRate;
-          const converted =
-            currencyCode === outletCurrency
-              ? inOutlet
-              : round4(inOutlet * reverse);
-          setAmount(
-            converted ? Number(round4(converted)).toFixed(2) : ""
-          );
-        } else if (currencyChanged || !touchedAmountRef.current) {
-          setAmount(Number(suggested.toFixed(4)).toFixed(2));
-          if (currencyChanged && touchedAmountRef.current) {
-            touchedAmountRef.current = false;
-            setTouchedAmount(false);
-          }
+          touchedAmountRef.current = false;
+          setTouchedAmount(false);
         }
+      }
 
-        prevCurrencyRef.current = currencyCode;
-        prevPairRateRef.current = forward;
-      })();
-      return () => {
-        active = false;
-      };
+      prevCurrencyRef.current = currencyCode;
+      prevPairRateRef.current = forward;
     }, [currencyCode, outletCurrency, remaining, amount]);
 
     const approxLocal = useMemo(() => {
@@ -2308,7 +2282,7 @@ export function PaymentMethodSelection({
             if (!num) return;
 
             const rate =
-              pairRate || (await getPairRate(currencyCode, outletCurrency));
+              pairRate || getPairRate(currencyCode, outletCurrency);
 
             recordPayment({
               method: "cityLedger",
@@ -2528,41 +2502,28 @@ export function PaymentMethodSelection({
     const meta = brandMeta(brand);
 
     useEffect(() => {
-      let active = true;
-      (async () => {
-        const [forwardRaw, reverseRaw] = await Promise.all([
-          getPairRate(currencyCode, outletCurrency),
-          currencyCode === outletCurrency
-            ? Promise.resolve(1)
-            : getPairRate(outletCurrency, currencyCode),
-        ]);
-        if (!active) return;
-        const forward = Number(forwardRaw) || 1;
-        const reverse =
-          currencyCode === outletCurrency
-            ? 1
-            : Number(reverseRaw) || (forward ? Number((1 / forward).toFixed(8)) : 1);
-        setPairRate(forward);
+      const forward = getPairRate(currencyCode, outletCurrency);
+      const reverse =
+        currencyCode === outletCurrency
+          ? 1
+          : getPairRate(outletCurrency, currencyCode);
+      setPairRate(forward);
 
-        const suggested =
-          currencyCode === outletCurrency
-            ? remaining
-            : round4(remaining * reverse);
-        const currencyChanged = prevCurrencyRef.current !== currencyCode;
+      const suggested =
+        currencyCode === outletCurrency
+          ? remaining
+          : round4(remaining * reverse);
+      const currencyChanged = prevCurrencyRef.current !== currencyCode;
 
-        if (currencyChanged || !touchedAmountRef.current) {
-          setAmount(Number(suggested.toFixed(4)).toFixed(2));
-          if (currencyChanged && touchedAmountRef.current) {
-            touchedAmountRef.current = false;
-            setTouchedAmount(false);
-          }
+      if (currencyChanged || !touchedAmountRef.current) {
+        setAmount(Number(suggested.toFixed(4)).toFixed(2));
+        if (currencyChanged && touchedAmountRef.current) {
+          touchedAmountRef.current = false;
+          setTouchedAmount(false);
         }
+      }
 
-        prevCurrencyRef.current = currencyCode;
-      })();
-      return () => {
-        active = false;
-      };
+      prevCurrencyRef.current = currencyCode;
     }, [currencyCode, outletCurrency, remaining]);
 
     const approxLocal = useMemo(() => {
@@ -2683,7 +2644,7 @@ export function PaymentMethodSelection({
             const num = parseFloat(amount || "0");
             if (!canSubmit) return;
             const rate =
-              pairRate || (await getPairRate(currencyCode, outletCurrency));
+              pairRate || getPairRate(currencyCode, outletCurrency);
 
             recordPayment({
               method: "card",
@@ -2712,35 +2673,35 @@ export function PaymentMethodSelection({
     label: string;
     icon: JSX.Element;
   }[] = [
-    { key: "cash", label: "Cash", icon: <DollarSign className="w-5 h-5" /> },
-    { key: "card", label: "Card", icon: <CreditCard className="w-5 h-5" /> },
-    {
-      key: "bankTransfer",
-      label: "Online Banking",
-      icon: <Banknote className="w-5 h-5" />,
-    },
-    { key: "check", label: "Check", icon: <CheckSquare className="w-5 h-5" /> },
-    {
-      key: "cityLedger",
-      label: "City Ledger",
-      icon: <BookOpenCheck className="w-5 h-5" />,
-    },
-    {
-      key: "giftVoucher",
-      label: "Gift Voucher",
-      icon: <Gift className="w-5 h-5" />,
-    }, // maps to your voucher/credit
-    {
-      key: "roomPost",
-      label: "Room Post",
-      icon: <Bed className="w-5 h-5" />,
-    },
-    {
-      key: "complimentary",
-      label: "Complimentary",
-      icon: <Gift className="w-5 h-5" />,
-    },
-  ];
+      { key: "cash", label: "Cash", icon: <DollarSign className="w-5 h-5" /> },
+      { key: "card", label: "Card", icon: <CreditCard className="w-5 h-5" /> },
+      {
+        key: "bankTransfer",
+        label: "Online Banking",
+        icon: <Banknote className="w-5 h-5" />,
+      },
+      { key: "check", label: "Check", icon: <CheckSquare className="w-5 h-5" /> },
+      {
+        key: "cityLedger",
+        label: "City Ledger",
+        icon: <BookOpenCheck className="w-5 h-5" />,
+      },
+      {
+        key: "giftVoucher",
+        label: "Gift Voucher",
+        icon: <Gift className="w-5 h-5" />,
+      }, // maps to your voucher/credit
+      {
+        key: "roomPost",
+        label: "Room Post",
+        icon: <Bed className="w-5 h-5" />,
+      },
+      {
+        key: "complimentary",
+        label: "Complimentary",
+        icon: <Gift className="w-5 h-5" />,
+      },
+    ];
 
   const emailLooksValid = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTo.trim()),
@@ -2795,9 +2756,9 @@ export function PaymentMethodSelection({
         itemDescription: label,
         quantity: Number(it.quantity || 0),
         price: Number(it.price || 0),
-                lineTotal: round2(Number(
-                  (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
-                )),
+        lineTotal: round2(Number(
+          (Number(it.price || 0) * Number(it.quantity || 0)).toFixed(4)
+        )),
       };
     });
 
@@ -2824,9 +2785,8 @@ export function PaymentMethodSelection({
       taxes: toReceiptTaxList(taxLines),
       grand: Number(grand.toFixed(2)),
       payments: paymentsForHtml,
-      footerNote: `POS Center: ${outletName} • Cashier: ${
-        fullName || "POS"
-      } • Powered by HotelMate`,
+      footerNote: `POS Center: ${outletName} • Cashier: ${fullName || "POS"
+        } • Powered by HotelMate`,
     });
   }
 
@@ -2945,11 +2905,10 @@ export function PaymentMethodSelection({
                   </TableCell>
                   <TableCell className="text-right">
                     <span
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                        isFullyPaid
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
+                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${isFullyPaid
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                        }`}
                     >
                       {isFullyPaid
                         ? "Paid in full"
@@ -3151,8 +3110,8 @@ function PostActionsSheet({
   };
 
   return (
-    <Sheet 
-      open={open} 
+    <Sheet
+      open={open}
       onOpenChange={(o) => {
         if (!o && canClose) {
           onClose();
@@ -3282,8 +3241,8 @@ function PostActionsSheet({
         </div>
 
         <div className="p-3 mt-auto border-t">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full"
             onClick={handleClose}
             disabled={!canClose}

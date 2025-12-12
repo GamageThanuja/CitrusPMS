@@ -253,6 +253,8 @@ import sendSimpleEmailReducer from "./slices/sendSimpleEmailSlice";
 import emailServiceInfoReducer from "./slices/emailServiceInfoSlice";
 import createItemMasListReducer from "./slices/createItemMasListSlice";
 import createPosOrderReducer from "./slices/createPosOrderSlice";
+import fetchReservationMasReducer from "./slices/fetchReservationMasSlice";
+import fetchTransactionListReducer from "./slices/fetchTransactionListSlice";
 
 const store = configureStore({
   reducer: {
@@ -510,6 +512,8 @@ const store = configureStore({
     emailServiceInfo: emailServiceInfoReducer,
     createItemMasList: createItemMasListReducer,
     createPosOrder: createPosOrderReducer,
+    fetchReservationMas: fetchReservationMasReducer,
+    fetchTransactionList: fetchTransactionListReducer,
   },
 });
 

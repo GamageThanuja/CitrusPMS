@@ -70,7 +70,7 @@ import {
   fetchItemsByPOSCenter,
   selectItemsByPOSCenterData,
 } from "@/redux/slices/fetchItemsByPOSCenterSlice";
-import { createPosOrder } from "@/redux/slices/posOrderSlice";
+import { createPosOrder } from "@/redux/slices/createPosOrderSlice";
 import { set } from "lodash";
 import { AttachItemToOutletDrawer } from "@/components/drawers/attachItemToOutletDrawer";
 import EditOutletDrawer from "@/components/drawers/edit-outlet-drawer";
@@ -348,8 +348,8 @@ export default function POSPage() {
           const latestItems: any[] = Array.isArray(result)
             ? result
             : Array.isArray(result?.items)
-            ? result.items
-            : [];
+              ? result.items
+              : [];
 
           latestItems.forEach((item: any) => {
             const code = item?.itemCode ?? item?.itemNumber;
@@ -493,21 +493,21 @@ export default function POSPage() {
           taxes: outlet.taxes ?? null,
         })
       );
-    } catch {}
+    } catch { }
   }
 
   // Optional: show only the currently selected POS center in the modal
   const posCentersForModal = selectedCenterId
     ? outlets
-        .filter((o) => o.hotelPosCenterId === selectedCenterId)
-        .map((o) => ({
-          hotelPosCenterId: o.hotelPosCenterId,
-          posCenter: o.posCenter,
-        }))
-    : outlets.map((o) => ({
+      .filter((o) => o.hotelPosCenterId === selectedCenterId)
+      .map((o) => ({
         hotelPosCenterId: o.hotelPosCenterId,
         posCenter: o.posCenter,
-      }));
+      }))
+    : outlets.map((o) => ({
+      hotelPosCenterId: o.hotelPosCenterId,
+      posCenter: o.posCenter,
+    }));
 
   const [showEditOutlet, setShowEditOutlet] = useState(false);
 
@@ -682,7 +682,7 @@ export default function POSPage() {
           setSelectOutletCurrency(saved.outletCurrency ?? "");
           return; // ✅ done
         }
-      } catch {}
+      } catch { }
     }
 
     // Fallback: old key with just the id
@@ -1177,14 +1177,14 @@ export default function POSPage() {
 
     const posCenter = String(
       outlets.find((o) => o.hotelPosCenterId === selectedCenterId)?.posCenter ||
-        "DefaultPOSCenter"
+      "DefaultPOSCenter"
     );
 
     const posCenterId = Number(
       selectedCenterId ||
-        outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
-          ?.hotelPosCenterId ||
-        0
+      outlets.find((o) => o.hotelPosCenterId === selectedCenterId)
+        ?.hotelPosCenterId ||
+      0
     );
 
     const payload = {
@@ -1218,7 +1218,7 @@ export default function POSPage() {
       debit: 0,
       amount: cartTotal,
       comment: "Auto hold transaction from POS page",
-      createdBy: fullName,
+      createdBy: fullName || "system",
       currAmount: cartTotal,
       currencyCode: selectedOutletCurrency,
       convRate: "1",
@@ -1238,23 +1238,24 @@ export default function POSPage() {
       deliveryMethod: "dineIn",
       phoneNo: "",
       hotelPosCenterId: posCenterId,
+      reservationId: 0, // Added missing field
 
       items: cart.length
         ? cart.map((item) => ({
-            itemId: Number(item.id),
-            quantity: item.quantity || 1,
-            price: item.price || 0,
-            cost: 0,
-            lineDiscount: 0,
-            comment: "",
-            itemDescription: item.name || "Unnamed Item",
-            isKOT: true,
-            isBOT: true,
-            cover: "",
-            discPercentage: 0,
-            reservationDetailId: 0,
-            finAct: "false",
-          }))
+          itemId: Number(item.id),
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          cost: 0,
+          lineDiscount: 0,
+          comment: "",
+          itemDescription: item.name || "Unnamed Item",
+          isKOT: true,
+          isBOT: true,
+          cover: "",
+          discPercentage: 0,
+          reservationDetailId: 0,
+          finAct: "false",
+        }))
         : [],
       payments: [
         {
@@ -1271,7 +1272,15 @@ export default function POSPage() {
     console.log("📦 HOLD Payload:", JSON.stringify(payload, null, 2));
 
     try {
-      const result = await dispatch(createPosOrder(payload)).unwrap();
+      // Get username from localStorage (key: rememberedUsername)
+      const username = localStorage.getItem("rememberedUsername") || "";
+
+      const result = await dispatch(
+        createPosOrder({
+          username,
+          payload,
+        })
+      ).unwrap();
       console.log("✅ Hold Transaction Created:", result);
 
       // 🔹 Print KOT for this table re-order (use current cart to get itemCode)
@@ -1439,8 +1448,8 @@ export default function POSPage() {
                     <Button variant="outline" className="gap-2 px-4 py-2">
                       {selectedCenterId
                         ? outlets.find(
-                            (o: any) => o.hotelPosCenterId === selectedCenterId
-                          )?.posCenter ?? "Select Outlet"
+                          (o: any) => o.hotelPosCenterId === selectedCenterId
+                        )?.posCenter ?? "Select Outlet"
                         : "Select Outlet"}
                     </Button>
                   </DropdownMenuTrigger>
@@ -1950,10 +1959,10 @@ export default function POSPage() {
             }}
             initialMethod={fullCheckoutData?.deliveryMethod} // ✅ Preserve selected method
             initialDetails={fullCheckoutData?.deliveryDetails} // ✅ Preserve input data like table/pax
-            // selectedOutletCurrency={selectedOutletCurrency}
+          // selectedOutletCurrency={selectedOutletCurrency}
           />
         )}
-{/* 
+        {/* 
         <AddItemModal
           open={addOpen}
           onOpenChange={setAddOpen}
@@ -2028,8 +2037,8 @@ export default function POSPage() {
                 ?.posCenter || ""
             }
             tranMasId={fullCheckoutData.tranMasId}
-            // tax={taxForDrawer}
-            // fromTableManagement={fromTableManagement}
+          // tax={taxForDrawer}
+          // fromTableManagement={fromTableManagement}
           />
         )}
 
@@ -2059,34 +2068,34 @@ export default function POSPage() {
                 // do NOT open the Select Outlet modal here
               }
             }
-            // onCreated={(created) => {
-            //   if (created?.hotelPosCenterId) {
-            //     const newOutletId = Number(created.hotelPosCenterId);
-            //     setSelectedCenterId(newOutletId);
-            //     // ✅ Refresh tax config for the newly created outlet
-            //     // Note: If taxes haven't been saved yet, this will return empty, which is fine
-            //     // The tax config will be refreshed again when onTaxesSaved is called
-            //     dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
-            //     console.log(
-            //       "✅ Tax config refresh triggered for newly created outlet:",
-            //       newOutletId
-            //     );
-            //   }
-            // }}
-            // onTaxesSaved={() => {
-            //   // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
-            //   setSuppressOutletModal(false);
-            //   localStorage.removeItem(STORAGE_SUPPRESS_KEY);
+          // onCreated={(created) => {
+          //   if (created?.hotelPosCenterId) {
+          //     const newOutletId = Number(created.hotelPosCenterId);
+          //     setSelectedCenterId(newOutletId);
+          //     // ✅ Refresh tax config for the newly created outlet
+          //     // Note: If taxes haven't been saved yet, this will return empty, which is fine
+          //     // The tax config will be refreshed again when onTaxesSaved is called
+          //     dispatch(fetchHotelPosCenterTaxConfig(newOutletId) as any);
+          //     console.log(
+          //       "✅ Tax config refresh triggered for newly created outlet:",
+          //       newOutletId
+          //     );
+          //   }
+          // }}
+          // onTaxesSaved={() => {
+          //   // ✅ lift the suppression so the Select-Outlet modal becomes eligible again
+          //   setSuppressOutletModal(false);
+          //   localStorage.removeItem(STORAGE_SUPPRESS_KEY);
 
-            //   // ✅ Refresh tax config if an outlet is currently selected
-            //   if (selectedCenterId) {
-            //     dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
-            //     console.log(
-            //       "✅ Tax config refreshed after taxes saved for outlet:",
-            //       selectedCenterId
-            //     );
-            //   }
-            // }}
+          //   // ✅ Refresh tax config if an outlet is currently selected
+          //   if (selectedCenterId) {
+          //     dispatch(fetchHotelPosCenterTaxConfig(selectedCenterId) as any);
+          //     console.log(
+          //       "✅ Tax config refreshed after taxes saved for outlet:",
+          //       selectedCenterId
+          //     );
+          //   }
+          // }}
           />
         )}
         {showCreateCategory && (

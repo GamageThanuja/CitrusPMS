@@ -96,19 +96,24 @@ export function DeliveryMethodDrawer({
   const handleRoomServiceSubmit = async (
     details: Record<string, string | number>
   ) => {
+    console.log("details in room service", details);
     try {
       const nowIso = new Date().toISOString();
       const stamp = Date.now(); // keep same stamp across doc numbers
 
+      // Get hotelCode directly from localStorage (key: "hotelCode", value: "1097")
+      const hotelCode = localStorage.getItem("hotelCode") || "DEFAULT_CODE";
+
       const property = JSON.parse(
         localStorage.getItem("selectedProperty") || "{}"
       );
-      const hotelCode = String(property?.hotelCode || "DEFAULT_CODE");
       const propertyID = Number(property?.hotelId || property?.id || 0);
       const hotelPosCenterId = Number(selectedPosCenterId) || 0;
 
       // Parse room + reservation linkages coming from DeliveryMethodSelection
       const roomNo = Number(details?.roomNo ?? 0) || 0;
+
+      const refInvNo = details?.refInvNo ?? "";
 
       const reservationId =
         Number(details?.reservationId ?? details?.reservationID ?? 0) || 0;
@@ -158,7 +163,7 @@ export function DeliveryMethodDrawer({
         paymentReceiptRef: "N/A",
         remarks: "Posted via Room Service",
         dueDate: nowIso,
-        refInvNo: `REF-${stamp}`,
+        refInvNo: refInvNo,
         tableNo: "N/A",
         isFinished: false,
         discPercentage: 0,
@@ -203,6 +208,8 @@ export function DeliveryMethodDrawer({
           },
         ],
       };
+
+      // Get username once for both API calls
       const username = localStorage.getItem("rememberedUsername") || "";
 
       await dispatch(
@@ -337,7 +344,7 @@ export function DeliveryMethodDrawer({
         posCenter: String(selectedPosCenterName || "DefaultPOSCenter"),
         accountIdDebit: 0,
         accountIdCredit: 0,
-        hotelCode: String(hotelCode),
+        hotelCode: String(hotelCode), // API expects lowercase
         finAct: false,
         tranTypeId: 2, // Invoice
         tranDate: nowIso,
@@ -361,7 +368,7 @@ export function DeliveryMethodDrawer({
         paymentReceiptRef: "",
         remarks: "Auto-generated after RS order",
         dueDate: nowIso,
-        refInvNo: `REF-${stamp}`,
+        refInvNo: `REF-${stamp}`, // API expects lowercase
         tableNo: "N/A",
         isFinished: false,
         discPercentage: 0,
@@ -400,18 +407,35 @@ export function DeliveryMethodDrawer({
         taxTotalAmount: taxTotal,
         taxes, // [{ taxName, percentage, basedOn, accountId, amount }]
 
-        // legacy single-tax fields (keep 0 if unused)
-        serviceChargeId: 0,
-        tdlTaxId: 0,
+        // Required tax fields
+        accountId: 0,
+        ssclTaxAmount: 0,
         ssclTaxId: 0,
+        vatTaxAmount: 0,
         vatTaxId: 0,
+        serviceChargeAmount: 0,
+        serviceChargeId: 0,
+        tdlTaxAmount: 0,
+        tdlTaxId: 0,
 
         // NEW: top-level reservation linkage
         reservationId,
         reservationDetailId,
       };
 
-      const invRes = await dispatch(createPosInvoice(invoicePayload)).unwrap();
+      // Use username already declared at top of function
+      console.log("📦 Invoice Payload:", {
+        hotelCode: invoicePayload.hotelCode,
+        refInvNo: invoicePayload.refInvNo,
+        fullPayload: invoicePayload
+      });
+
+      const invRes = await dispatch(
+        createPosInvoice({
+          username,
+          payload: invoicePayload,
+        })
+      ).unwrap();
       console.log("✅ Room service invoice posted:", invRes);
 
       // success UX: clear cart & close

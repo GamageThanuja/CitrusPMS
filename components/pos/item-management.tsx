@@ -44,7 +44,6 @@ import {
 } from "@/redux/slices/fetchItemMasSlice";
 import { addItem, fetchItems } from "@/redux/slices/itemSlice";
 import { createHotelImage } from "@/controllers/hotelImageController";
-// ✅ add
 import type { ItemMasData } from "@/redux/slices/createItemMasSlice";
 import { createItemMas } from "@/redux/slices/createItemMasSlice";
 import { createItemByPOSCenter } from "@/redux/slices/createItemsByPOSCenterSlice";
@@ -54,7 +53,7 @@ import {
 } from "@/redux/slices/fetchHotelPOSCenterMasSlice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
-import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
+import { createItemMasList } from "@/redux/slices/createItemMasListSlice";
 import { postCategoryList } from "@/redux/slices/categoryMasterSlice";
 import AddItemModal from "../modals/add-item-modal";
 import {
@@ -571,8 +570,8 @@ export function ItemManagement({ categories, onClose }: ItemManagementProps) {
 
         console.log("📦 Final items to post:", itemPayloads);
 
-        // ✅ Step 6: Post items
-        await dispatch(postItemMasterList(itemPayloads));
+        // ✅ Step 6: Post items using createItemMasList
+        await dispatch(createItemMasList(itemPayloads));
 
         alert("✅ Categories and Items imported successfully");
       } catch (error) {

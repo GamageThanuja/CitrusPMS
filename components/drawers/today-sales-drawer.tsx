@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RootState } from "@/redux/store";
-import { fetchTransactions } from "@/redux/slices/transactionListSlice";
+import { fetchTransactionList } from "@/redux/slices/fetchTransactionListSlice";
 import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
 import { useTranslatedText } from "@/lib/translation";
 import { TrendingUp, DollarSign, ShoppingCart, Calendar } from "lucide-react";
@@ -51,7 +51,7 @@ export function TodaySalesDrawer({
   );
 
   console.log("transactions today sales drawer : ", transactions);
-  
+
 
   const systemDate = useSelector((state: RootState) => state.systemDate.value);
 
@@ -82,7 +82,7 @@ export function TodaySalesDrawer({
     if (open && hotelCode) {
       // Fetch transactions with tranTypeId = 2 (POS sales)
       dispatch(
-        fetchTransactions({
+        fetchTransactionList({
           hotelCode,
           tranTypeId: 2,
         }) as any
@@ -109,7 +109,7 @@ export function TodaySalesDrawer({
     console.log("  - systemDate (normalized):", todayDateStr);
     console.log("  - Transactions count:", transactions?.length);
     console.log("  - selectedPosCenterId:", selectedPosCenterId);
-    
+
     // Log sample transaction structure
     if (transactions && transactions.length > 0) {
       const sample = transactions[0] as any;
@@ -132,7 +132,7 @@ export function TodaySalesDrawer({
 
       // Normalize transaction tranDate to local YYYY-MM-DD format
       const transactionDateStr = normalizeToLocalYMD(transaction.tranDate);
-      
+
       if (!transactionDateStr) {
         console.warn(
           "  ⚠️ Invalid tranDate:",
@@ -236,8 +236,8 @@ export function TodaySalesDrawer({
       const itemsCount = Array.isArray(order.items)
         ? order.items.length
         : Array.isArray(order.transactionDetails)
-        ? order.transactionDetails.length
-        : 0;
+          ? order.transactionDetails.length
+          : 0;
       return sum + itemsCount;
     }, 0);
 
@@ -391,7 +391,7 @@ export function TodaySalesDrawer({
                       ? transaction.items.length
                       : 0) ||
                     (transaction.transactionDetails &&
-                    Array.isArray(transaction.transactionDetails)
+                      Array.isArray(transaction.transactionDetails)
                       ? transaction.transactionDetails.length
                       : 0);
 
