@@ -20,7 +20,6 @@ import posOrderReducer from "./slices/posOrderSlice";
 import fetchReservationReducer from "./slices/fetchReservationSlice";
 import hotelCurrencySlice from "./slices/hotelCurrencySlice";
 import createPosInvoiceReducer from "./slices/createPosInvoiceSlice";
-import posTableSlice from "./slices/posTableSlice";
 import itemMasterSlice from "./slices/itemMasterSlice";
 import hotelPosCenterSlice from "./slices/hotelPosCenterSlice";
 import availableRoomsReducer from "./slices/availableRoomsSlice";
@@ -255,6 +254,7 @@ import createItemMasListReducer from "./slices/createItemMasListSlice";
 import createPosOrderReducer from "./slices/createPosOrderSlice";
 import fetchReservationMasReducer from "./slices/fetchReservationMasSlice";
 import fetchTransactionListReducer from "./slices/fetchTransactionListSlice";
+import posTableReducer from "./slices/fetchPosTableSlice";
 
 const store = configureStore({
   reducer: {
@@ -276,7 +276,6 @@ const store = configureStore({
     posOrder: posOrderReducer,
     reservations: fetchReservationReducer,
     createPosInvoice: createPosInvoiceReducer,
-    posTable: posTableSlice,
     itemMaster: itemMasterSlice,
     hotelPosCenter: hotelPosCenterSlice,
     availableRooms: availableRoomsReducer,
@@ -514,6 +513,7 @@ const store = configureStore({
     createPosOrder: createPosOrderReducer,
     fetchReservationMas: fetchReservationMasReducer,
     fetchTransactionList: fetchTransactionListReducer,
+    posTable: posTableReducer,
   },
 });
 

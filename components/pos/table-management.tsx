@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import clsx from "clsx";
 import type { AppDispatch, RootState } from "@/redux/store";
-import { fetchPosTables } from "@/redux/slices/posTableSlice";
+import { fetchPosTable } from "@/redux/slices/fetchPosTableSlice";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslatedText } from "@/lib/translation";
@@ -172,10 +172,10 @@ const buildDineInTables = (entries: any[]): Table[] => {
           tranMasId:
             Number(
               entry.tranMasId ??
-                entry.tranMasID ??
-                entry.tranmasid ??
-                entry.TranMasId ??
-                entry.TranMasID
+              entry.tranMasID ??
+              entry.tranmasid ??
+              entry.TranMasId ??
+              entry.TranMasID
             ) || undefined,
         },
       };
@@ -229,10 +229,10 @@ const buildOrderCards = (entries: any[]): OrderCard[] =>
 
     const tranMasId = Number(
       entry.tranMasId ??
-        entry.tranMasID ??
-        entry.tranmasid ??
-        entry.TranMasId ??
-        entry.TranMasID
+      entry.tranMasID ??
+      entry.tranmasid ??
+      entry.TranMasId ??
+      entry.TranMasID
     );
     const idKey = Number.isFinite(tranMasId) ? `o-${tranMasId}` : `o-${idx}`;
 
@@ -293,7 +293,7 @@ export function TableManagement({
 
 
   console.log("onStartOrder : ", onStartOrder);
-  
+
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeMethod, setActiveMethod] = useState<UIMethod>("DINE_IN");
@@ -333,7 +333,7 @@ export function TableManagement({
 
   useEffect(() => {
     // Load all orders (Active / Finished / Void) for selected POS center
-    dispatch(fetchPosTables({ hotelPosCenterId: selectedPosCenterId ?? null } as any));
+    dispatch(fetchPosTable({ hotelPosCenterId: selectedPosCenterId ?? undefined }));
   }, [dispatch, selectedPosCenterId]);
 
   const getStatusText = (status: Table["status"]) => {
@@ -416,11 +416,11 @@ export function TableManagement({
 
     // Load only unfinished KOT for that table and selected POS center
     dispatch(
-      fetchPosTables({
+      fetchPosTable({
         tableNo: table.number,
         isFinished: false,
-        hotelPosCenterId: selectedPosCenterId ?? null,
-      } as any)
+        hotelPosCenterId: selectedPosCenterId ?? undefined,
+      })
     );
   };
 
@@ -460,29 +460,28 @@ export function TableManagement({
     const itemsRows =
       backendItems.length > 0
         ? backendItems
-            .map((it: any) => {
-              const name =
-                it.itemDescription ?? it.itemName ?? it.name ?? "Item";
-              const qty = Number(it.qty ?? it.Qty ?? 0);
-              const code =
-                it.itemCode ?? it.item_code ?? it.code ?? it.id ?? "";
+          .map((it: any) => {
+            const name =
+              it.itemDescription ?? it.itemName ?? it.name ?? "Item";
+            const qty = Number(it.qty ?? it.Qty ?? 0);
+            const code =
+              it.itemCode ?? it.item_code ?? it.code ?? it.id ?? "";
 
-              const remarks = it.remarks ?? it.Remarks ?? "";
+            const remarks = it.remarks ?? it.Remarks ?? "";
 
-              return `
+            return `
               <tr>
                 <td class="code">${code || ""}</td>
                 <td class="name">${name}</td>
                 <td class="qty">${qty}</td>
               </tr>
-              ${
-                remarks
-                  ? `<tr><td></td><td class="remarks" colspan="2">* ${remarks}</td></tr>`
-                  : ""
+              ${remarks
+                ? `<tr><td></td><td class="remarks" colspan="2">* ${remarks}</td></tr>`
+                : ""
               }
             `;
-            })
-            .join("")
+          })
+          .join("")
         : `<tr><td colspan="3" class="muted center">No items</td></tr>`;
 
     const html = `
@@ -664,7 +663,7 @@ export function TableManagement({
   // When closing KOT drawer, reload all tables again for selected POS center
   useEffect(() => {
     if (!isKotDrawerOpen && kotTableNo) {
-      dispatch(fetchPosTables({ hotelPosCenterId: selectedPosCenterId ?? null } as any));
+      dispatch(fetchPosTable({ hotelPosCenterId: selectedPosCenterId ?? undefined }));
       setKotTableNo(null);
     }
   }, [isKotDrawerOpen, kotTableNo, dispatch, selectedPosCenterId]);
@@ -699,13 +698,13 @@ export function TableManagement({
     const rowsHtml =
       items.length > 0
         ? items
-            .map((it) => {
-              const qty = it.qty || 0;
-              const price = it.price || 0;
-              const lineTotal = qty * price;
-              const code = (it as any).code || it.id || "";
+          .map((it) => {
+            const qty = it.qty || 0;
+            const price = it.price || 0;
+            const lineTotal = qty * price;
+            const code = (it as any).code || it.id || "";
 
-              return `
+            return `
               <tr class="item-row">
                 <td class="item-name">
                   ${it.name || ""}
@@ -716,8 +715,8 @@ export function TableManagement({
                 <td class="qty">${qty}</td>
               </tr>
             `;
-            })
-            .join("")
+          })
+          .join("")
         : `<tr><td colspan="3" class="muted center">No items</td></tr>`;
 
     const html = `
@@ -846,16 +845,14 @@ export function TableManagement({
       <body>
         <div class="center">
           <div class="hotel-name">${hotelName}</div>
-          ${
-            hotelCode
-              ? `<div class="header-sub muted">Hotel Code: ${hotelCode}</div>`
-              : ""
-          }
-          ${
-            posCenterName
-              ? `<div class="header-sub">${posCenterName}</div>`
-              : ""
-          }
+          ${hotelCode
+        ? `<div class="header-sub muted">Hotel Code: ${hotelCode}</div>`
+        : ""
+      }
+          ${posCenterName
+        ? `<div class="header-sub">${posCenterName}</div>`
+        : ""
+      }
           <div class="reprint-badge">RE-PRINT</div>
           <div class="header-sub">Restaurant Bill</div>
         </div>
@@ -865,11 +862,10 @@ export function TableManagement({
         <div>
           <div class="muted">Date &amp; Time: ${dateStr}</div>
           <div class="muted">${tableLbl} ${table.number}</div>
-          ${
-            table.order?.id
-              ? `<div class="muted">${orderLbl}: ${table.order.id}</div>`
-              : ""
-          }
+          ${table.order?.id
+        ? `<div class="muted">${orderLbl}: ${table.order.id}</div>`
+        : ""
+      }
           <div class="muted">${cashierLbl}: ${fullName || "-"}</div>
         </div>
 
@@ -987,9 +983,9 @@ export function TableManagement({
     (posTable ?? []).filter((e: any) => {
       const method = rawMethod(e);
       const methodLower = normLower(method);
-      const isTakeAway = 
-        methodLower === "takeaway" || 
-        methodLower === "take away" || 
+      const isTakeAway =
+        methodLower === "takeaway" ||
+        methodLower === "take away" ||
         methodLower === "take-away";
       return isTakeAway && classifyStatus(e) === "FINISHED";
     })
@@ -998,9 +994,9 @@ export function TableManagement({
     (posTable ?? []).filter((e: any) => {
       const method = rawMethod(e);
       const methodLower = normLower(method);
-      const isTakeAway = 
-        methodLower === "takeaway" || 
-        methodLower === "take away" || 
+      const isTakeAway =
+        methodLower === "takeaway" ||
+        methodLower === "take away" ||
         methodLower === "take-away";
       return isTakeAway && classifyStatus(e) === "VOID";
     })
