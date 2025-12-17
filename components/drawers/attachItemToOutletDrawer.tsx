@@ -1,3 +1,4 @@
+// AttachItemToOutletDrawer.tsx
 "use client";
 
 import {
@@ -9,14 +10,23 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useState, Fragment } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/redux/store";
+import { AppDispatch, RootState } from "@/redux/store";
 import { toast } from "@/components/ui/use-toast";
-import { getPosCenter } from "@/controllers/posCenterController";
+import { createItemByPOSCenter } from "@/redux/slices/createItemsByPOSCenterSlice";
+import { fetchItemsByPOSCenter } from "@/redux/slices/fetchItemsByPOSCenterSlice";
 import {
-  createItemByPosCenter,
-  getItemsByPosCenter,
-} from "@/controllers/itemByPosCenterController";
-import { fetchCategories } from "@/redux/slices/categorySlice";
+  fetchItemMas,
+  selectItemMasItems,
+} from "@/redux/slices/fetchItemMasSlice";
+import {
+  fetchHotelPOSCenterMas,
+  type HotelPOSCenterMas,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
+import {
+  fetchCategoryMas,
+  selectCategoryMasItems,
+  type CategoryMasItem,
+} from "@/redux/slices/fetchCategoryMasSlice";
 
 interface ItemManagementDrawerProps {
   open: boolean;
@@ -29,46 +39,79 @@ export function AttachItemToOutletDrawer({
   onClose,
   onMappingChanged,
 }: ItemManagementDrawerProps) {
-  const dispatch = useDispatch();
-  const { items } = useSelector((state: RootState) => state.items);
-  const { categories } = useSelector((state: RootState) => state.categories);
+  const dispatch = useDispatch<AppDispatch>();
+
+  const items = useSelector(selectItemMasItems);
+  const categoryMasItems = useSelector(selectCategoryMasItems);
+
+  // Map ItemMas to the format expected by the component
+  const mappedItems = items.map((item) => ({
+    id: item.itemID,
+    name: item.description || item.itemNumber,
+    category: item.categoryID,
+    price: item.price,
+  }));
+
+  const categories = (categoryMasItems ?? []).map((c: CategoryMasItem) => ({
+    id: String(c.categoryID),
+    name: c.categoryName,
+  }));
+
   const [posCenters, setPosCenters] = useState<
     { hotelPosCenterId: number; posCenter: string }[]
   >([]);
   const [assigned, setAssigned] = useState<{ [itemId: number]: number[] }>({});
 
-  const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
-  const accessToken = tokens.accessToken;
-  const property = JSON.parse(localStorage.getItem("selectedProperty") || "{}");
-  const hotelId = property.id;
-
   useEffect(() => {
     if (!open) return;
 
+    // 👇 Move localStorage reads *inside* the effect
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
+    const hotelId = property.id;
+
+    const hotelCode: string = property.hotelCode;
+
     const fetchInitialData = async () => {
       try {
-        dispatch(fetchCategories(hotelId));
-        const [centers, assignedData] = await Promise.all([
-          getPosCenter({ token: accessToken, hotelId }),
-          getItemsByPosCenter({ token: accessToken, hotelId }),
+        // categories via CategoryMas slice
+        dispatch(fetchCategoryMas());
+
+        // Fetch items (fetchItemMas fetches all items, no hotelId filter)
+        dispatch(fetchItemMas());
+
+        const [centersRes, assignedData] = await Promise.all([
+          dispatch(
+            fetchHotelPOSCenterMas(hotelCode ? { hotelCode } : undefined)
+          ).unwrap(),
+          dispatch(fetchItemsByPOSCenter()).unwrap(),
         ]);
 
-        setPosCenters(centers || []);
+        const centers = (centersRes || []) as HotelPOSCenterMas[];
+
+        setPosCenters(
+          centers.map((c) => ({
+            hotelPosCenterId: c.posCenterID,
+            posCenter: c.posCenterName,
+          }))
+        );
 
         const map: { [itemId: number]: number[] } = {};
         for (const entry of assignedData) {
-          if (!map[entry.itemId]) map[entry.itemId] = [];
-          map[entry.itemId].push(entry.hotelPosCenterId);
+          if (!map[entry.itemID]) map[entry.itemID] = [];
+          map[entry.itemID].push(entry.posCenterID);
         }
 
         setAssigned(map);
-      } catch {
+      } catch (err) {
+        console.error(err);
         toast({ title: "Error", description: "Failed to load data" });
       }
     };
 
     fetchInitialData();
-  }, [open]);
+  }, [open, dispatch]);
 
   const handleToggle = async (
     itemId: number,
@@ -76,14 +119,21 @@ export function AttachItemToOutletDrawer({
     checked: boolean
   ) => {
     try {
-      await createItemByPosCenter({
-        token: accessToken,
-        payload: {
-          hotelId,
-          itemId,
-          hotelPosCenterId,
-        },
-      });
+      const currentItem = mappedItems.find((it: any) => it.id === itemId);
+      const price = currentItem?.price ?? 0;
+
+      await dispatch(
+        createItemByPOSCenter({
+          id: 0,
+          posCenterID: hotelPosCenterId,
+          itemID: itemId,
+          price,
+          guidePrice: 0,
+          driverPrice: 0,
+          kidsPrice: 0,
+          price2: 0,
+        })
+      ).unwrap();
 
       setAssigned((prev) => {
         const current = prev[itemId] || [];
@@ -94,7 +144,8 @@ export function AttachItemToOutletDrawer({
       });
 
       onMappingChanged?.();
-    } catch {
+    } catch (e) {
+      console.error("Failed to update item assignment", e);
       toast({
         title: "Error",
         description: "Failed to update item assignment",
@@ -102,10 +153,11 @@ export function AttachItemToOutletDrawer({
     }
   };
 
-  const groupedItems = items.reduce(
-    (acc: { [category: number]: typeof items }, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
+  const groupedItems = mappedItems.reduce(
+    (acc: { [category: string]: typeof mappedItems }, item: any) => {
+      const key = String(item.category);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
       return acc;
     },
     {}
@@ -115,58 +167,66 @@ export function AttachItemToOutletDrawer({
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-5xl bg-black text-white overflow-x-auto rounded-l-2xl"
+        className="w-full sm:max-w-5xl bg-white dark:bg-gray-900 text-black dark:text-white overflow-x-auto rounded-l-2xl"
       >
         <SheetHeader>
-          <SheetTitle className="text-white text-lg">
+          <SheetTitle className="text-black dark:text-white text-lg">
             Attach Items to Outlets
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-6">
-          <table className="min-w-full border border-gray-700 text-sm">
-            <thead className="bg-gray-800 text-white sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 text-left border-r border-gray-700 w-20">
+          <table className="min-w-full border border-black dark:border-gray-700 text-sm">
+            <thead className="bg-white dark:bg-gray-800 text-black dark:text-white sticky top-0 z-10">
+              <tr className="border-b border-black dark:border-gray-700">
+                <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-20">
                   Code
                 </th>
-                <th className="px-4 py-3 text-left border-r border-gray-700 w-64">
+                <th className="px-4 py-3 text-left border-r border-black dark:border-gray-700 border-b w-64">
                   Item Name
                 </th>
                 {posCenters.map((center) => (
                   <th
                     key={center.hotelPosCenterId}
-                    className="px-4 py-3 text-center border-r border-gray-700"
+                    className="px-4 py-3 text-center border-r border-black dark:border-gray-700 border-b "
                   >
                     {center.posCenter}
                   </th>
                 ))}
               </tr>
             </thead>
+
             <tbody>
               {Object.entries(groupedItems).map(
                 ([categoryId, itemsInCategory]) => (
                   <Fragment key={categoryId}>
-                    <tr className="bg-gray-700 text-white text-sm">
+                    {/* Category row */}
+                    <tr className="bg-white dark:bg-gray-800 text-black dark:text-white text-sm border-t border-b border-black dark:border-gray-700">
                       <td
                         colSpan={posCenters.length + 2}
-                        className="px-4 py-2 font-bold uppercase tracking-wide text-white border-b border-gray-800 bg-gray-700"
+                        className="px-4 py-2 font-bold uppercase tracking-wide text-black dark:text-white bg-white dark:bg-gray-800 border-black dark:border-gray-700"
                       >
-                        {categories.find((cat) => cat.id === categoryId)
+                        {categories.find((cat: any) => cat.id === categoryId)
                           ?.name || `Category ${categoryId}`}
                       </td>
                     </tr>
-                    {itemsInCategory.map((item) => (
+
+                    {/* Item rows */}
+                    {itemsInCategory.map((item: any) => (
                       <tr
                         key={item.id}
-                        className="even:bg-gray-900 odd:bg-gray-800 border-t border-gray-700"
+                        className="even:bg-white even:dark:bg-gray-900 odd:bg-white odd:dark:bg-gray-900 border-t border-black dark:border-gray-700"
                       >
-                        <td className="px-4 py-2">{item.id}</td>
-                        <td className="px-4 py-2">{item.name}</td>
+                        <td className="px-4 py-2 border-r border-black dark:border-gray-700">
+                          {item.id}
+                        </td>
+                        <td className="px-4 py-2 border-r border-black dark:border-gray-700">
+                          {item.name}
+                        </td>
                         {posCenters.map((center) => (
                           <td
                             key={center.hotelPosCenterId}
-                            className="text-center"
+                            className="text-center border-r border-black dark:border-gray-700"
                           >
                             <Checkbox
                               checked={
@@ -181,7 +241,7 @@ export function AttachItemToOutletDrawer({
                                   checked as boolean
                                 )
                               }
-                              className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                              className="border-black dark:border-gray-400 data-[state=checked]:bg-white data-[state=checked]:text-black dark:data-[state=checked]:bg-gray-700 dark:data-[state=checked]:text-white"
                             />
                           </td>
                         ))}

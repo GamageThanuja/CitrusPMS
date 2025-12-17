@@ -20,7 +20,6 @@ import posOrderReducer from "./slices/posOrderSlice";
 import fetchReservationReducer from "./slices/fetchReservationSlice";
 import hotelCurrencySlice from "./slices/hotelCurrencySlice";
 import createPosInvoiceReducer from "./slices/createPosInvoiceSlice";
-import posTableSlice from "./slices/posTableSlice";
 import itemMasterSlice from "./slices/itemMasterSlice";
 import hotelPosCenterSlice from "./slices/hotelPosCenterSlice";
 import availableRoomsReducer from "./slices/availableRoomsSlice";
@@ -246,13 +245,16 @@ import fetchTransactionCodeReducer from "./slices/fetchTransactionCodeSlice";
 import createTransactionReducer from "./slices/createTransactionSlice";
 import fetchHotelTaxByHotelIdReducer from "./slices/fetchHotelTaxByHotelIdSlice";
 import cashPayoutReducer from "./slices/cashPayoutSlice";
-
 import updateReservationStatusReducer from "./slices/updateReservationStatusSlice";
 import sendEmailReducer from "./slices/sendEmailSlice";
 import sendBulkEmailReducer from "./slices/sendBulkEmailSlice";
 import sendSimpleEmailReducer from "./slices/sendSimpleEmailSlice";
 import emailServiceInfoReducer from "./slices/emailServiceInfoSlice";
-
+import createItemMasListReducer from "./slices/createItemMasListSlice";
+import createPosOrderReducer from "./slices/createPosOrderSlice";
+import fetchReservationMasReducer from "./slices/fetchReservationMasSlice";
+import fetchTransactionListReducer from "./slices/fetchTransactionListSlice";
+import posTableReducer from "./slices/fetchPosTableSlice";
 
 const store = configureStore({
   reducer: {
@@ -274,7 +276,6 @@ const store = configureStore({
     posOrder: posOrderReducer,
     reservations: fetchReservationReducer,
     createPosInvoice: createPosInvoiceReducer,
-    posTable: posTableSlice,
     itemMaster: itemMasterSlice,
     hotelPosCenter: hotelPosCenterSlice,
     availableRooms: availableRoomsReducer,
@@ -508,6 +509,11 @@ const store = configureStore({
     sendBulkEmail: sendBulkEmailReducer, 
     sendSimpleEmail: sendSimpleEmailReducer, 
     emailServiceInfo: emailServiceInfoReducer,
+    createItemMasList: createItemMasListReducer,
+    createPosOrder: createPosOrderReducer,
+    fetchReservationMas: fetchReservationMasReducer,
+    fetchTransactionList: fetchTransactionListReducer,
+    posTable: posTableReducer,
   },
 });
 

@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/redux/store";
-import { createPosOrder } from "@/redux/slices/posOrderSlice";
+import { createPosOrder } from "@/redux/slices/createPosOrderSlice";
 import { clearCart } from "@/redux/slices/cartSlice";
 import {
   Dialog,
@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
 import { openPayment, setDelivery } from "@/redux/slices/checkoutFlowSlice";
 import { createPosInvoice } from "@/redux/slices/createPosInvoiceSlice";
-import { fetchHotelPosCenterTaxConfig } from "@/redux/slices/fetchHotelPosCenterTaxConfigSlice";
 
 interface CartItem {
   id: string | number;
@@ -63,21 +62,6 @@ interface DeliveryMethodDrawerProps {
   skipNextCancelConfirm?: boolean;
 }
 
-type PosCenterTaxCfg = {
-  taxName: string;
-  percentage: number; // 0..100
-  calcBasedOn: string; // "base" | "subtotal1" | "subtotal2" ...
-  accountId?: number | null;
-};
-
-type TaxLine = {
-  name: string;
-  pct: number;
-  basedOn: string;
-  accountId?: number;
-  amount: number;
-};
-
 const round2 = (n: number) => Number((n ?? 0).toFixed(2));
 
 export function DeliveryMethodDrawer({
@@ -107,76 +91,29 @@ export function DeliveryMethodDrawer({
     if (skipNextCancelConfirm) bypassRef.current = true;
   }, [skipNextCancelConfirm]);
 
-  const posTaxConfig: PosCenterTaxCfg[] =
-    useSelector((s: RootState) => s.fetchHotelPosCenterTaxConfig?.data) ?? [];
-
-  // Fetch POS Center tax config whenever center id changes
-  useEffect(() => {
-    if (selectedPosCenterId) {
-      dispatch(fetchHotelPosCenterTaxConfig(Number(selectedPosCenterId)));
-    }
-  }, [dispatch, selectedPosCenterId]);
-
-  function computeTaxesFromConfig(
-    cfgs: PosCenterTaxCfg[] = [],
-    cartItems: { price: number; quantity: number }[]
-  ) {
-    const subTotal = round2(
-      (cartItems ?? []).reduce(
-        (t, it) => t + Number(it.price || 0) * Number(it.quantity || 0),
-        0
-      )
-    );
-
-    let running = subTotal;
-    const lines: TaxLine[] = [];
-
-    for (const c of cfgs ?? []) {
-      const name = (c.taxName || "").trim();
-      const pct = Number(c.percentage || 0);
-      const based = (c.calcBasedOn || "base").toLowerCase();
-
-      const base =
-        based === "base"
-          ? subTotal
-          : based.startsWith("subtotal")
-          ? running
-          : subTotal;
-
-      const amount = round2(base * (pct / 100));
-      lines.push({
-        name,
-        pct,
-        basedOn: based,
-        accountId: c.accountId ?? undefined,
-        amount,
-      });
-
-      if (based.startsWith("subtotal")) running = round2(running + amount);
-    }
-
-    const taxTotal = round2(lines.reduce((t, x) => t + x.amount, 0));
-    const grand = round2(subTotal + taxTotal);
-    return { subTotal, lines, taxTotal, grand };
-  }
 
   /** ROOM SERVICE: posts a POS Order (hold) and then a GL invoice with AR debit + sales/tax credits */
   const handleRoomServiceSubmit = async (
     details: Record<string, string | number>
   ) => {
+    console.log("details in room service", details);
     try {
       const nowIso = new Date().toISOString();
       const stamp = Date.now(); // keep same stamp across doc numbers
 
+      // Get hotelCode directly from localStorage (key: "hotelCode", value: "1097")
+      const hotelCode = localStorage.getItem("hotelCode") || "DEFAULT_CODE";
+
       const property = JSON.parse(
         localStorage.getItem("selectedProperty") || "{}"
       );
-      const hotelCode = String(property?.hotelCode || "DEFAULT_CODE");
       const propertyID = Number(property?.hotelId || property?.id || 0);
       const hotelPosCenterId = Number(selectedPosCenterId) || 0;
 
       // Parse room + reservation linkages coming from DeliveryMethodSelection
       const roomNo = Number(details?.roomNo ?? 0) || 0;
+
+      const refInvNo = details?.refInvNo ?? "";
 
       const reservationId =
         Number(details?.reservationId ?? details?.reservationID ?? 0) || 0;
@@ -226,7 +163,7 @@ export function DeliveryMethodDrawer({
         paymentReceiptRef: "N/A",
         remarks: "Posted via Room Service",
         dueDate: nowIso,
-        refInvNo: `REF-${stamp}`,
+        refInvNo: refInvNo,
         tableNo: "N/A",
         isFinished: false,
         discPercentage: 0,
@@ -272,19 +209,20 @@ export function DeliveryMethodDrawer({
         ],
       };
 
-      await dispatch(createPosOrder(orderPayload)).unwrap();
+      // Get username once for both API calls
+      const username = localStorage.getItem("rememberedUsername") || "";
 
-      // 2) Build TAXES from POS center config → GL invoice (A/R debit + sales/tax credits)
-      const taxCalc = computeTaxesFromConfig(posTaxConfig, cart);
-      const { lines: taxLines, grand, taxTotal } = taxCalc;
+      await dispatch(
+        createPosOrder({
+          username,
+          payload: orderPayload,
+        })
+      ).unwrap();
 
-      const taxes = (taxLines ?? []).map((l) => ({
-        taxName: l.name,
-        percentage: l.pct,
-        basedOn: l.basedOn,
-        accountId: l.accountId ?? 0,
-        amount: l.amount,
-      }));
+      // 2) Build GL invoice (A/R debit + sales credits)
+      const grand = total; // Use the cart total directly
+      const taxTotal = 0; // No tax calculation
+      const taxes: any[] = []; // Empty taxes array
 
       // GL helpers
       const mkBase = (overrides: Partial<any> = {}) => ({
@@ -391,24 +329,9 @@ export function DeliveryMethodDrawer({
         );
       });
 
-      // CR Taxes (only those with a mapped account)
-      const taxCredits = (taxLines ?? [])
-        .filter((l) => (l.accountId ?? 0) > 0 && l.amount > 0)
-        .map((l) =>
-          mkCredit(
-            mkBase({
-              accountID: Number(l.accountId),
-              comment: l.name,
-              memo: "POS tax",
-            }),
-            l.amount
-          )
-        );
-
       const glAccTransactions = [
         arDebit,
         ...salesCredits,
-        ...taxCredits,
       ].filter(
         (x) => Number(x.accountID) > 0 && Math.abs(Number(x.amount)) > 0
       );
@@ -421,7 +344,7 @@ export function DeliveryMethodDrawer({
         posCenter: String(selectedPosCenterName || "DefaultPOSCenter"),
         accountIdDebit: 0,
         accountIdCredit: 0,
-        hotelCode: String(hotelCode),
+        hotelCode: String(hotelCode), // API expects lowercase
         finAct: false,
         tranTypeId: 2, // Invoice
         tranDate: nowIso,
@@ -445,7 +368,7 @@ export function DeliveryMethodDrawer({
         paymentReceiptRef: "",
         remarks: "Auto-generated after RS order",
         dueDate: nowIso,
-        refInvNo: `REF-${stamp}`,
+        refInvNo: `REF-${stamp}`, // API expects lowercase
         tableNo: "N/A",
         isFinished: false,
         discPercentage: 0,
@@ -484,18 +407,35 @@ export function DeliveryMethodDrawer({
         taxTotalAmount: taxTotal,
         taxes, // [{ taxName, percentage, basedOn, accountId, amount }]
 
-        // legacy single-tax fields (keep 0 if unused)
-        serviceChargeId: 0,
-        tdlTaxId: 0,
+        // Required tax fields
+        accountId: 0,
+        ssclTaxAmount: 0,
         ssclTaxId: 0,
+        vatTaxAmount: 0,
         vatTaxId: 0,
+        serviceChargeAmount: 0,
+        serviceChargeId: 0,
+        tdlTaxAmount: 0,
+        tdlTaxId: 0,
 
         // NEW: top-level reservation linkage
         reservationId,
         reservationDetailId,
       };
 
-      const invRes = await dispatch(createPosInvoice(invoicePayload)).unwrap();
+      // Use username already declared at top of function
+      console.log("📦 Invoice Payload:", {
+        hotelCode: invoicePayload.hotelCode,
+        refInvNo: invoicePayload.refInvNo,
+        fullPayload: invoicePayload
+      });
+
+      const invRes = await dispatch(
+        createPosInvoice({
+          username,
+          payload: invoicePayload,
+        })
+      ).unwrap();
       console.log("✅ Room service invoice posted:", invRes);
 
       // success UX: clear cart & close

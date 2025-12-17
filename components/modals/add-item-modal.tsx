@@ -46,6 +46,7 @@ export interface Category {
   id: string | number;
   name: string;
 }
+
 export interface PosCenter {
   hotelPosCenterId: number;
   posCenter: string;
@@ -55,7 +56,7 @@ export interface PosCenter {
 export interface AddItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When editing pass the existing item, for add pass a prefilled blank */
+  /** When editing pass the existing item, for add pass null */
   item: Item | null;
   categories: Category[];
   /** Persist handler for manual entry */
@@ -89,7 +90,21 @@ export default function AddItemModal({
 }: AddItemModalProps) {
   const addNewItem = useTranslatedText("Add New Item");
   const editItem = useTranslatedText("Edit Item");
+
   const isAdd = !item || !item.id;
+
+  // 🔹 Build a default blank item when adding
+  const defaultCategoryId = categories[0]?.id ?? "";
+  const initialItem: Item = item ?? {
+    id: "",
+    itemCode: "",
+    name: "",
+    price: 0,
+    category: defaultCategoryId,
+    description: "",
+    imageUrl: "",
+  };
+
   const title = isAdd ? titleAddText ?? addNewItem : titleEditText ?? editItem;
 
   // local ref to pass file to parent when saving
@@ -109,21 +124,19 @@ export default function AddItemModal({
           </TabsList>
 
           <TabsContent value="manual">
-            {item && (
-              <ManualItemForm
-                item={item}
-                categories={categories}
-                posCenters={posCenters}
-                onCreateCategoryClick={onCreateCategoryClick}
-                onSave={async (payload, centers) => {
-                  await onSaveManual(payload, centers, imageFileRef.current);
-                  imageFileRef.current = undefined; // reset
-                  onOpenChange(false);
-                }}
-                onImageSelected={(f) => (imageFileRef.current = f)}
-                onCancel={() => onOpenChange(false)}
-              />
-            )}
+            <ManualItemForm
+              item={initialItem}
+              categories={categories}
+              posCenters={posCenters}
+              onCreateCategoryClick={onCreateCategoryClick}
+              onSave={async (payload, centers) => {
+                await onSaveManual(payload, centers, imageFileRef.current);
+                imageFileRef.current = undefined; // reset
+                onOpenChange(false);
+              }}
+              onImageSelected={(f) => (imageFileRef.current = f)}
+              onCancel={() => onOpenChange(false)}
+            />
           </TabsContent>
 
           <TabsContent value="excel">
@@ -135,7 +148,7 @@ export default function AddItemModal({
   );
 }
 
-// ---------- Manual form (inline, no external deps) ----------
+// ---------- Manual form ----------
 interface ManualItemFormProps {
   item: Item;
   categories: Category[];
@@ -162,9 +175,10 @@ function ManualItemForm({
   const [saving, setSaving] = React.useState(false);
   const [selectedCenters, setSelectedCenters] = React.useState<number[]>([]);
   const [openPopover, setOpenPopover] = React.useState(false);
-  const [selectedCategory, setSelectedCategory] = React.useState<number | null>(
-    typeof item.category === "number" ? (item.category as number) : null
-  );
+  const [selectedCategory, setSelectedCategory] =
+    React.useState<string | number>(
+      item.category ?? (categories[0]?.id ?? "")
+    );
 
   const itemName = useTranslatedText("Item Name");
   const description = useTranslatedText("Description (optional)");
@@ -175,9 +189,7 @@ function ManualItemForm({
   const cancel = useTranslatedText("Cancel");
 
   React.useEffect(() => {
-    if (selectedCategory !== null) {
-      setFormData((prev) => ({ ...prev, category: selectedCategory as any }));
-    }
+    setFormData((prev) => ({ ...prev, category: selectedCategory }));
   }, [selectedCategory]);
 
   const handleChange = (field: keyof Item, value: any) =>
@@ -293,14 +305,14 @@ function ManualItemForm({
                     <CommandItem
                       key={cat.id}
                       onSelect={() => {
-                        setSelectedCategory(cat.id as number);
+                        setSelectedCategory(cat.id);
                         setOpenPopover(false);
                       }}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          selectedCategory === (cat.id as any)
+                          selectedCategory === cat.id
                             ? "opacity-100"
                             : "opacity-0"
                         )}
@@ -308,33 +320,38 @@ function ManualItemForm({
                       {cat.name}
                     </CommandItem>
                   ))}
-                  <div className="flex items-center justify-between p-2 border-t">
-                    <span className="text-sm text-muted-foreground">
-                      Can't find?
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-sm"
-                      type="button"
-                      onClick={onCreateCategoryClick}
-                    >
-                      <Plus className="w-4 h-4" /> New
-                    </Button>
-                  </div>
+
+                  {onCreateCategoryClick && (
+                    <div className="flex items-center justify-between p-2 border-t">
+                      <span className="text-sm text-muted-foreground">
+                        Can't find?
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 text-sm"
+                        type="button"
+                        onClick={onCreateCategoryClick}
+                      >
+                        <Plus className="w-4 h-4" /> New
+                      </Button>
+                    </div>
+                  )}
                 </CommandGroup>
               </Command>
             </PopoverContent>
           </Popover>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-primary"
-            onClick={onCreateCategoryClick}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+          {onCreateCategoryClick && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-primary"
+              onClick={onCreateCategoryClick}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -385,7 +402,7 @@ function ManualItemForm({
   );
 }
 
-// ---------- Excel Import (inline lightweight shell) ----------
+// ---------- Excel Import ----------
 function ExcelImport({
   onImportExcel,
 }: {
@@ -408,25 +425,3 @@ function ExcelImport({
     </div>
   );
 }
-
-// -------------------------------------------------------------
-// Example usage (paste into components/pos/item-management.tsx)
-// -------------------------------------------------------------
-// import AddItemModal, { Item, Category } from "@/components/items/add-item-modal";
-// ... inside component:
-// const [dialogOpen, setDialogOpen] = useState(false);
-// const [editing, setEditing] = useState<Item | null>(null);
-// const openAdd = () => {
-//   setEditing({ id: "", itemCode: "", name: "", price: 0, category: categories?.[0]?.id ?? "", description: "", imageUrl: "" });
-//   setDialogOpen(true);
-// };
-// <Button onClick={openAdd}>Add Item</Button>
-// <AddItemModal
-//   open={dialogOpen}
-//   onOpenChange={setDialogOpen}
-//   item={editing}
-//   categories={formattedCategories as Category[]}
-//   onSaveManual={handleSaveItem}
-//   onImportExcel={handleExcelUpload}
-//   posCenters={preloadedPosCenters /* optional */}
-// />

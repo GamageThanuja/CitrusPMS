@@ -10,13 +10,17 @@ import { Home, Package, Truck, UtensilsCrossed } from "lucide-react";
 import { useTranslatedText } from "@/lib/translation";
 import { AppDispatch, RootState } from "@/redux/store";
 import { useDispatch, useSelector } from "react-redux";
-import { createPosOrder } from "@/redux/slices/posOrderSlice";
+import { createPosOrder } from "@/redux/slices/createPosOrderSlice";
 import { clearCart } from "@/redux/slices/cartSlice";
 import { toast } from "../ui/use-toast";
 import { Alert } from "../ui/alert";
-import { fetchReservationList } from "@/redux/slices/reservationListSlice";
+import {
+  fetchReservationMas,
+  selectReservationMasData,
+  selectReservationMasLoading,
+} from "@/redux/slices/fetchReservationMasSlice";
 import { useUserFromLocalStorage } from "@/hooks/useUserFromLocalStorage";
-import { fetchNameMasterByHotel } from "@/redux/slices/nameMasterSlice";
+import { fetchNameMas } from "@/redux/slices/fetchNameMasSlice";
 import { useAppSelector } from "@/redux/hooks";
 import { fetchSystemDate } from "@/redux/slices/systemDateSlice";
 
@@ -71,15 +75,13 @@ export function DeliveryMethodSelection({
     (state: RootState) => state.systemDate.value
   );
 
-  const { data } = useSelector((state) => state.nameMaster);
 
   const dispatch = useDispatch<AppDispatch>();
 
-  const { data: reservations, loading: roomsLoading } = useSelector(
-    (state: RootState) => state.reservationList
-  );
+  const reservations = useSelector(selectReservationMasData);
 
-  console.log("reservations : ", reservations);
+  console.log("reservations in delivery method selection: ", reservations);
+  const roomsLoading = useSelector(selectReservationMasLoading);
 
   useEffect(() => {
     dispatch(fetchSystemDate());
@@ -88,12 +90,13 @@ export function DeliveryMethodSelection({
   console.log("systemDate : ", systemDate);
 
   useEffect(() => {
-    dispatch(fetchNameMasterByHotel());
+    dispatch(fetchNameMas({})); // or e.g. { nameType: "GUEST" } if you need
   }, [dispatch]);
 
   useEffect(() => {
     if (selectedMethod === "roomService") {
-      dispatch(fetchReservationList({ reservationStatusId: 4 }));
+      // status filter now uses the string "Check-In"
+      dispatch(fetchReservationMas({ status: "Check-In" }));
     }
   }, [dispatch, selectedMethod]);
 
@@ -103,7 +106,6 @@ export function DeliveryMethodSelection({
     0
   );
 
-  // --- 80mm receipt popup helper ---
   // --- 80mm receipt popup helper ---
   const open80mmReceipt = (
     orderResult: any,
@@ -395,7 +397,7 @@ export function DeliveryMethodSelection({
       comment: "Auto hold transaction from POS page",
       createdBy: fullName,
       currAmount: cartTotal,
-      currencyCode: selectedOutletCurrency,
+      currencyCode: selectedOutletCurrency || "",
       convRate: "1",
       credit: 0,
       paymentReceiptRef: "N/A",
@@ -432,7 +434,7 @@ export function DeliveryMethodSelection({
         {
           method: "hold",
           amount: cartTotal,
-          currency: selectedOutletCurrency,
+          currency: selectedOutletCurrency || "",
           cardType: "",
           lastDigits: "",
           roomNo: "",
@@ -443,16 +445,25 @@ export function DeliveryMethodSelection({
     console.log("payload selection : ", JSON.stringify(payload));
 
     try {
-      const result = await dispatch(createPosOrder(payload)).unwrap();
-      console.log("test order sent");
+      // 🔹 Get username from localStorage (key: rememberedUsername)
+      const username =
+        localStorage.getItem("rememberedUsername") || " ";
 
+      const result = await dispatch(
+        createPosOrder({
+          username, // <- new arg
+          payload,  // <- same body as before
+        })
+      ).unwrap();
+
+      console.log("test order sent");
       console.log(`Order sent to table ${tableNo}`);
       console.log("✅ Hold Transaction Created:", result);
 
-      // 🔹 🔹 NEW: Open 80mm receipt popup here
+      // 80mm KOT print
       open80mmReceipt(result, payload, cart);
 
-      setSubmitted(true); // prevent re-submission
+      setSubmitted(true);
       dispatch(clearCart());
       setIsRunningTableSelected(false);
       onComplete("dineIn", { tableNo, noOfPax: noOfPax.toString() });
@@ -502,9 +513,8 @@ export function DeliveryMethodSelection({
         ].map(({ method, icon, label }) => (
           <Card
             key={method}
-            className={`p-4 cursor-pointer hover:bg-muted transition-colors ${
-              selectedMethod === method ? "border-primary" : ""
-            }`}
+            className={`p-4 cursor-pointer hover:bg-muted transition-colors ${selectedMethod === method ? "border-primary" : ""
+              }`}
             onClick={() => {
               setSelectedMethod(method as DeliveryMethod);
               setError(null);
@@ -606,8 +616,8 @@ export function DeliveryMethodSelection({
               ) : (
                 <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                   {reservations.flatMap((reservation) =>
-                    reservation.rooms
-                      .filter((room) => room.status === 4)
+                    (reservation.rooms || [])
+                      .filter((room) => room.reservationStatusID === 4) // 4 = Checked In
                       .map((room) => {
                         const isSelected =
                           formData.roomId === String(room.roomID);
@@ -619,8 +629,8 @@ export function DeliveryMethodSelection({
                                 ...formData,
                                 // ✅ store roomId (used by the submitter)
                                 roomId: String(room.roomID),
-                                // (optional) keep roomNo for UX / slips
-                                roomNo: room.roomNumber,
+                                // Store actual room number from folioNo or roomMas
+                                roomNo: room.roomMas?.roomNumber || String(room.roomID),
                                 // (recommended) pass linkage for GL/lines
                                 reservationId: String(
                                   reservation.reservationID
@@ -628,16 +638,16 @@ export function DeliveryMethodSelection({
                                 reservationDetailId: String(
                                   room.reservationDetailID
                                 ),
+                                refInvNo: reservation.performaInvNo || "",
                               })
                             }
-                            className={`p-3 text-center cursor-pointer border-2 transition ${
-                              isSelected
-                                ? "border-blue-400"
-                                : "border-gray-200 hover:border-blue-400"
-                            }`}
+                            className={`p-3 text-center cursor-pointer border-2 transition ${isSelected
+                              ? "border-blue-400"
+                              : "border-gray-200 hover:border-blue-400"
+                              }`}
                           >
                             <p className="font-medium text-lg">
-                              {room.roomNumber}
+                              {room.roomMas?.roomNumber || room.roomID}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {room.roomType}

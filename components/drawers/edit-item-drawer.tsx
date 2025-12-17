@@ -29,16 +29,24 @@ import {
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslatedText } from "@/lib/translation";
-import { getPosCenter } from "@/controllers/posCenterController";
 import { createHotelImage } from "@/controllers/hotelImageController";
-import { createItemByPosCenter } from "@/controllers/itemByPosCenterController";
 import {
-  updateItemMaster,
-  selectUpdateItemStatus,
-  selectUpdateItemError,
-} from "@/redux/slices/updateItemMasterSlice";
-import { fetchItems } from "@/redux/slices/itemSlice";
+  updateItemMas,
+  selectUpdateItemMasLoading,
+  selectUpdateItemMasError,
+} from "@/redux/slices/updateItemMasSlice";
+import { fetchItemMas } from "@/redux/slices/fetchItemMasSlice";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  fetchHotelPOSCenterMas,
+  selectHotelPOSCenterMasData,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
+import {
+  createHotelPOSCenterMas,
+  type CreateHotelPOSCenterMasPayload,
+} from "@/redux/slices/createHotelPOSCenterMasSlice";
+// ✅ toast
+import { toast } from "sonner";
 
 type Category = { id: number | string; name: string };
 type PosCenter = { hotelPosCenterId: number; posCenter: string };
@@ -68,8 +76,8 @@ export default function EditItemDrawer({
   relinkPosCenters?: boolean;
 }) {
   const dispatch = useDispatch<AppDispatch>();
-  const updStatus = useSelector(selectUpdateItemStatus);
-  const updError = useSelector(selectUpdateItemError);
+  const updStatus = useSelector(selectUpdateItemMasLoading);
+  const updError = useSelector(selectUpdateItemMasError);
   console.log("EditItemDrawer render", { item });
 
   const tName = useTranslatedText("Item Name");
@@ -88,8 +96,10 @@ export default function EditItemDrawer({
     item?.imageUrl
   );
   const [imageFile, setImageFile] = useState<File | undefined>();
+
   const [posCenters, setPosCenters] = useState<PosCenter[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
+  const hotelPosCenters = useSelector(selectHotelPOSCenterMasData);
 
   useEffect(() => {
     setForm(item ?? null);
@@ -107,28 +117,35 @@ export default function EditItemDrawer({
     }
   }, [form, categories]);
 
+  // ✅ When drawer opens, fetch POS centers via Redux thunk
   useEffect(() => {
     if (!open) return;
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
+
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens.accessToken;
-    const hotelID = property.id;
-    if (!accessToken || !hotelID) return;
 
-    (async () => {
-      try {
-        const data = await getPosCenter({
-          token: accessToken,
-          hotelId: hotelID,
-        });
-        setPosCenters(data || []);
-      } catch (e) {
-        console.error("POS centers fetch failed", e);
-      }
-    })();
-  }, [open]);
+    const hotelCode: string | undefined =
+      property.hotelCode ||
+      property.code ||
+      (property.id ? String(property.id) : undefined);
+
+    if (hotelCode) {
+      dispatch(fetchHotelPOSCenterMas({ hotelCode }));
+    } else {
+      dispatch(fetchHotelPOSCenterMas());
+    }
+  }, [open, dispatch]);
+
+  // ✅ Map Redux data -> local PosCenter[] (same shape as before)
+  useEffect(() => {
+    if (!hotelPosCenters) return;
+    const mapped: PosCenter[] = hotelPosCenters.map((c) => ({
+      hotelPosCenterId: c.posCenterID,
+      posCenter: c.posCenterName,
+    }));
+    setPosCenters(mapped);
+  }, [hotelPosCenters]);
 
   const setField = (k: keyof Item, v: any) =>
     form && setForm({ ...form, [k]: v });
@@ -159,44 +176,11 @@ export default function EditItemDrawer({
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens.accessToken;
     const hotelID = property.id;
-    const fullName = tokens.fullName || "system";
-    if (!accessToken || !hotelID) {
-      alert("Missing auth or hotel context.");
-      return;
-    }
 
     let imageURL = form.imageUrl || "";
-    if (imageFile) {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onloadend = () => resolve((r.result as string).split(",")[1]);
-        r.onerror = reject;
-        r.readAsDataURL(imageFile);
-      });
-      try {
-        const up = await createHotelImage({
-          token: accessToken,
-          payload: {
-            imageID: 0,
-            hotelID,
-            imageFileName: `hotel-image-${Date.now()}.jpg`,
-            description: "Item image",
-            isMain: true,
-            finAct: true,
-            createdOn: new Date().toISOString(),
-            createdBy: fullName,
-            updatedOn: new Date().toISOString(),
-            updatedBy: fullName,
-            base64Image: base64,
-          },
-        });
-        imageURL = (up.imageFileName || "").split("?")[0];
-      } catch (e) {
-        console.error("Image upload failed", e);
-      }
-    }
+
+    const userID = JSON.parse(localStorage.getItem("userID") || "0");
 
     const body = {
       categoryID: Number(selectedCategory),
@@ -209,34 +193,98 @@ export default function EditItemDrawer({
       price: Number(form.price),
       imageURL,
       finAct: true,
-      createdBy: fullName,
+      createdBy: userID,
       createdOn: new Date().toISOString(),
-      updatedBy: fullName,
+      updatedBy: "system",
       updatedOn: new Date().toISOString(),
     };
 
+    console.log("Submitting form data:", form);
+
     try {
-      const updated = await (dispatch as AppDispatch)(
-        updateItemMaster({ id: form.itemID, data: body })
+      const updated = await dispatch(
+        updateItemMas({
+          ...(body as any),
+          itemNumber: form.itemCode,
+        } as any)
       ).unwrap();
 
+      // 🔁 REPLACED: createItemByPosCenter -> createHotelPOSCenterMas (Redux)
       if (relinkPosCenters && selectedCenters.length) {
         for (const pc of selectedCenters) {
-          await createItemByPosCenter({
-            token: accessToken,
-            payload: {
-              hotelId: hotelID,
-              itemId: updated.itemID,
-              hotelPosCenterId: pc,
-            },
-          });
+          const src = hotelPosCenters.find((c: any) => c.posCenterID === pc);
+
+          const payload: CreateHotelPOSCenterMasPayload = {
+            posCenterID: 0,
+            posCenterCode: src?.posCenterCode ?? "",
+            posCenterName: src?.posCenterName ?? "",
+            nextBillNo: src?.nextBillNo ?? "1",
+            hotelCode:
+              src?.hotelCode ??
+              property.hotelCode ??
+              property.code ??
+              String(hotelID),
+            createdBy: src?.createdBy ?? "system",
+            createdOn: src?.createdOn ?? new Date().toISOString(),
+            finAct: src?.finAct ?? true,
+            kotPrinterName: src?.kotPrinterName ?? "",
+            botPrinterName: src?.botPrinterName ?? "",
+            billPrinterName: src?.billPrinterName ?? "",
+            nextOrderNo: src?.nextOrderNo ?? "",
+            locationID: src?.locationID ?? 0,
+            show: src?.show ?? true,
+            isTaxInclusivePrices: src?.isTaxInclusivePrices ?? false,
+            isAskRoomNo: src?.isAskRoomNo ?? false,
+            isAskTableNo: src?.isAskTableNo ?? false,
+            isAskDeliveryMtd: src?.isAskDeliveryMtd ?? false,
+            isAskPOSCenter: src?.isAskPOSCenter ?? false,
+            isAskNoOfPax: src?.isAskNoOfPax ?? false,
+            isChargeSeperateSC: src?.isChargeSeperateSC ?? false,
+            vat: src?.vat ?? 0,
+            nbt: src?.nbt ?? 0,
+            sc: src?.sc ?? 0,
+            ct: src?.ct ?? 0,
+            gotoLogin: src?.gotoLogin ?? false,
+            isNBTPlusVat: src?.isNBTPlusVat ?? false,
+            printBillOnLQ: src?.printBillOnLQ ?? false,
+            usdBilling: src?.usdBilling ?? false,
+            noOfBillCopies: src?.noOfBillCopies ?? 1,
+            isPossibleToPostToFOCashier:
+              src?.isPossibleToPostToFOCashier ?? false,
+            isTakeAway: src?.isTakeAway ?? false,
+            outletGroup: src?.outletGroup ?? "",
+            isProfitCenter: src?.isProfitCenter ?? false,
+            roomServiceSC: src?.roomServiceSC ?? 0,
+            takeAwaySC: src?.takeAwaySC ?? 0,
+            deliverySC: src?.deliverySC ?? 0,
+            allowDirectBill: src?.allowDirectBill ?? false,
+            printKOTCopyAtBILLPrinter: src?.printKOTCopyAtBILLPrinter ?? false,
+            costPercentage: src?.costPercentage ?? 0,
+            isBar: src?.isBar ?? false,
+            isMergeTableWhenPrintSt: src?.isMergeTableWhenPrintSt ?? false,
+            koT_paperwidth: src?.koT_paperwidth ?? 0,
+            boT_paperwidth: src?.boT_paperwidth ?? 0,
+            bilL_paperwidth: src?.bilL_paperwidth ?? 0,
+            showOnGSS: src?.showOnGSS ?? true,
+          };
+
+          await (dispatch as AppDispatch)(
+            createHotelPOSCenterMas(payload)
+          ).unwrap();
         }
       }
 
-      await (dispatch as AppDispatch)(fetchItems(hotelID));
+      // 🔄 refresh items so parent list shows updated data without manual refresh
+      await dispatch(fetchItemMas()).unwrap();
+
+      // ✅ toast on success
+      toast.success("Item updated successfully");
+
+      // close drawer
       onOpenChange(false);
     } catch (e) {
       console.error("Update failed", e);
+      toast.error("Failed to update item");
     }
   };
 
@@ -382,12 +430,8 @@ export default function EditItemDrawer({
             >
               {tCancel}
             </Button>
-            <Button
-              className="w-1/2"
-              onClick={submit}
-              disabled={updStatus === "loading"}
-            >
-              {updStatus === "loading" ? "Saving..." : tSave}
+            <Button className="w-1/2" onClick={submit} disabled={updStatus}>
+              {updStatus ? "Saving..." : tSave}
             </Button>
           </div>
           {updError && (

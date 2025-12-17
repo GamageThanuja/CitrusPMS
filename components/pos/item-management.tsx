@@ -36,18 +36,24 @@ import { cn } from "@/lib/utils";
 import { CreateCategoryDrawer } from "../drawers/add-category-drawer";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
-import { fetchCategories } from "@/redux/slices/categorySlice";
+import {
+  fetchItemMas,
+  selectItemMasItems,
+  selectItemMasLoading,
+  selectItemMasError,
+} from "@/redux/slices/fetchItemMasSlice";
 import { addItem, fetchItems } from "@/redux/slices/itemSlice";
 import { createHotelImage } from "@/controllers/hotelImageController";
+import type { ItemMasData } from "@/redux/slices/createItemMasSlice";
+import { createItemMas } from "@/redux/slices/createItemMasSlice";
+import { createItemByPOSCenter } from "@/redux/slices/createItemsByPOSCenterSlice";
 import {
-  createItemMaster,
-  getItemMaster,
-} from "@/controllers/itemMasterController";
-import { createItemByPosCenter } from "@/controllers/itemByPosCenterController";
-import { getPosCenter } from "@/controllers/posCenterController";
+  fetchHotelPOSCenterMas,
+  selectHotelPOSCenterMasData,
+} from "@/redux/slices/fetchHotelPOSCenterMasSlice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
-import { postItemMasterList } from "@/redux/slices/itemMasterSlice";
+import { createItemMasList } from "@/redux/slices/createItemMasListSlice";
 import { postCategoryList } from "@/redux/slices/categoryMasterSlice";
 import AddItemModal from "../modals/add-item-modal";
 import {
@@ -57,10 +63,10 @@ import {
 } from "@/redux/slices/updateItemMasterSlice";
 import EditItemDrawer from "@/components/drawers/edit-item-drawer";
 import {
-  deleteItemMaster,
-  selectDeleteStatus,
-  selectDeleteError,
-} from "@/redux/slices/deleteItemMasterSlice";
+  deleteItemMas,
+  selectDeleteItemMasLoading,
+  selectDeleteItemMasError,
+} from "@/redux/slices/deleteItemMasSlice";
 
 interface Item {
   id: string; // UI key (often equals itemCode)
@@ -94,34 +100,43 @@ interface ItemManagementProps {
   onClose: () => void;
 }
 
-export function ItemManagement({ onClose }: ItemManagementProps) {
+export function ItemManagement({ categories, onClose }: ItemManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddEditDialog, setShowAddEditDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const dispatch = useDispatch();
-  const { categories, status } = useSelector(
-    (state: RootState) => state.categories
-  );
+  const dispatch = useDispatch<AppDispatch>();
 
+  // get raw items from ItemMas slice
+  const itemMasItems = useSelector(selectItemMasItems);
+  const itemMasLoading = useSelector(selectItemMasLoading);
+  const itemMasError = useSelector(selectItemMasError);
+
+  // fetch them when drawer mounts
   useEffect(() => {
-    const property = JSON.parse(
-      localStorage.getItem("selectedProperty") || "{}"
-    );
-    if (property?.id) {
-      dispatch(fetchCategories(property.id));
-    }
+    dispatch(fetchItemMas());
   }, [dispatch]);
 
-  const formattedCategories = categories;
+  // map API shape -> UI Item shape
+  const items: Item[] = (itemMasItems ?? []).map((it: any) => ({
+    id: String(it.itemID),
+    itemID: it.itemID,
+    // API sometimes has itemName null, but description filled
+    name: it.itemName || it.description || "",
+    // API uses itemNumber / itemCode
+    itemCode: it.itemNumber || it.itemCode || "",
+    price: it.price ?? 0,
+    // keep as string for filtering
+    category: String(it.categoryID ?? ""),
+    description: it.description || "",
+    imageUrl: it.imageURL || undefined,
+  }));
 
-  console.log("categories", categories);
+  // 🔽 NEW: category filter state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
 
-  const { items } = useSelector((state: RootState) => state.items);
-
-
-  console.log("items : ", items);
-  
+  console.log("categories passed into ItemManagement", categories);
 
   const search = useTranslatedText("Search");
   const addNewItem = useTranslatedText("Add New Item");
@@ -142,38 +157,46 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
   const [editing, setEditing] = useState<Item | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const delStatus = useSelector(selectDeleteStatus);
-  const delError = useSelector(selectDeleteError);
+  const delStatus = useSelector(selectDeleteItemMasLoading);
+  const delError = useSelector(selectDeleteItemMasError);
 
   const handleEditItem = (item: Item) => {
-    // item must have itemID for PUT
     setCurrentItem(item);
     setEditOpen(true);
   };
 
   // open
   const openAdd = () => {
+    const defaultCategory = selectedCategoryId || categories?.[0]?.id || "";
+
     setEditing({
       id: "",
       itemCode: "",
       name: "",
       price: 0,
-      category: formattedCategories?.[0]?.id ?? "",
+      category: defaultCategory,
       description: "",
       imageUrl: "",
     });
     setDialogOpen(true);
   };
 
-  const filteredItems = items.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 🔽 UPDATED: filter by search + selected category
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.name
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
 
-  console.log("filteredItems", filteredItems);
+    const matchesCategory =
+      !selectedCategoryId ||
+      String(item.category) === String(selectedCategoryId);
+
+    return matchesSearch && matchesCategory;
+  });
 
   const handleAddItem = () => {
     const defaultCategory =
-      formattedCategories.length > 0 ? formattedCategories[0].id : "";
+      selectedCategoryId || (categories.length > 0 ? categories[0].id : "");
 
     setCurrentItem({
       id: "",
@@ -188,49 +211,158 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
     setShowAddEditDialog(true);
   };
 
+  // ... rest of your code (postItemWithImage, handleSaveItem, etc.) stays the same
+
   const handleDeleteItem = (item: Item) => {
     setCurrentItem(item);
     setShowDeleteDialog(true);
   };
 
   const postItemWithImage = (formData: Item) => {
-    const tokens = JSON.parse(localStorage.getItem("hotelmateTokens") || "{}");
     const property = JSON.parse(
       localStorage.getItem("selectedProperty") || "{}"
     );
-    const accessToken = tokens.accessToken;
-    const hotelID = property.id;
 
-    const payload = {
-      itemID: 0,
-      hotelID,
-      itemCode: formData.id,
-      itemName: formData.name,
-      description: formData.description || "",
-      salesAccountID: 0,
-      price: formData.price,
-      imageURL: formData.imageUrl || "",
-      finAct: true,
-      createdBy: tokens.fullName || "system",
-      createdOn: new Date().toISOString(),
-      updatedBy: tokens.fullName || "system",
-      updatedOn: new Date().toISOString(),
-    };
+    const imageUrl = formData.imageUrl || "";
+    const itemMasPayload = buildItemMasPayload(formData, imageUrl);
 
-    createItemMaster({
-      token: accessToken,
-      payload,
-    })
+    dispatch(createItemMas(itemMasPayload))
+      .unwrap()
       .then(() => {
+        // keep local slice in sync if needed
         dispatch(addItem(formData));
+        // refresh ItemMas list used by this screen
+        dispatch(fetchItemMas());
         setShowAddEditDialog(false);
       })
-      .catch((error) => {
-        console.error(
-          "Failed to create item:",
-          (error as Error).message || error
-        );
+      .catch((error: any) => {
+        console.error("Failed to create item:", error);
       });
+  };
+
+  // build ItemMasData payload from our form + image URL
+  const buildItemMasPayload = (
+    formData: Item,
+    imageUrl: string
+  ): ItemMasData => {
+    const now = new Date().toISOString();
+    return {
+      finAct: true,
+      itemID: 0, // backend will assign
+      itemNumber: formData.itemCode,
+      description: formData.name || formData.description || "",
+      extDescription: formData.description || "",
+      uomid: 0,
+      itemTypeID: 0,
+      categoryID: Number(formData.category) || 0,
+      salesTaxID: 0,
+      price: formData.price,
+      cost: 0,
+      binLocation: "",
+      notes: "",
+      reorderPoint: 0,
+      restockLevel: 0,
+      picturePath: imageUrl || "",
+      notDiscountable: false,
+      cannotPurchase: false,
+      cannotInvoDecimal: false,
+      waighMustEnter: false,
+      itemMessage: "",
+      createdBy: 0,
+      createdOn: now,
+      lastModBy: 0,
+      lastModOn: now,
+      cogsAccountID: 0,
+      salesAccountID: 0,
+      inventoryAssetsAccID: 0,
+      lowestSellingPrice: 0,
+      packagingSize: "",
+      messageClient: "",
+      cannotInvoInsufQty: false,
+      subCompanyID: 0,
+      serialNo: "",
+      costCenterID: 0,
+      custodianID: 0,
+      supplierID: 0,
+      acqDate: null,
+      lifeTimeYears: 0,
+      lifeTimeMonths: 0,
+      serviceProvider: "",
+      warranty: "",
+      nextServiceDate: null,
+      serviceContractNo: "",
+      commercialDepreMethodID: 0,
+      fiscalDepreMethodID: 0,
+      profitMargin: 0,
+      vat: false,
+      nbt: false,
+      sinhalaDes: "",
+      brandID: 0,
+      kitItem: false,
+      buid: 0,
+      serialNumbered: false,
+      preferedSupplierID: 0,
+      backColour: "",
+      limitWholesaleQtyAtCHK: false,
+      limitWholesaleQtyAt: 0,
+      maxWholesaleQtyCHK: false,
+      maxWholesaleQty: 0,
+      discountRTNarration: "",
+      discountWSNarration: "",
+      limitRetailQtyAtCHK: false,
+      limitRetailQtyAt: 0,
+      maxRetialQtyCHK: false,
+      maxRetailQty: 0,
+      isPick: false,
+      rtPrice: 0,
+      wsPrice: 0,
+      itemMessage_Client: "",
+      showOnPOS: true,
+      isKOT: false,
+      isBOT: false,
+      posCenter: "",
+      rackNo: "",
+      isTrading: true,
+      isTaxIncluded: false,
+      isSCIncluded: false,
+      baseItemCatID: 0,
+      oldItemCode: "",
+      small: false,
+      regular: false,
+      large: false,
+      guestPrice: formData.price,
+      childPrice: 0,
+      guidePrice: 0,
+      driverPrice: 0,
+      isRecipe: false,
+      isAIEntitled: false,
+      sku: "",
+      useBatchPriceOnSale: false,
+      discountPercentage: 0,
+      discountID: 0,
+      isFastCheckOut: false,
+      changePriceOnGRN: false,
+      partNo: "",
+      oldPrice: 0,
+      oldPriceAsAt: null,
+      lastPriceUpdateBy: "",
+      colour: "",
+      askQtyOnSale: false,
+      isAskSKU: false,
+      skuid: 0,
+      isShotItem: false,
+      shotItemID: 0,
+      shotItemCode: "",
+      subItemOf: "",
+      imageURL: imageUrl || "",
+      lastDepreciatedDate: null,
+      depreciationExpenseAccountID: 0,
+      bookValue: 0,
+      bookValueAsAt: null,
+      guardian: "",
+      barCode: "",
+      nameOnBill: formData.name,
+    };
   };
 
   const handleSaveItem = async (
@@ -310,66 +442,33 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
       }
     }
 
-    const payload = {
-      itemID: 0,
-      hotelID,
-      categoryID: formData.category,
-      itemCode: formData.itemCode,
-      itemName: formData.name,
-      description: formData.description || "",
-      salesAccountID: 0,
-      price: formData.price,
-      imageURL: imageUrl,
-      finAct: true,
-      createdBy: tokens.fullName || "system",
-      createdOn: new Date().toISOString(),
-      updatedBy: tokens.fullName || "system",
-      updatedOn: new Date().toISOString(),
-    };
-    console.log("Payload being sent to ItemMaster:", payload);
+    // Build ItemMas payload
+    const itemMasPayload = buildItemMasPayload(formData, imageUrl);
+    console.log("Payload being sent to ItemMas:", itemMasPayload);
 
     try {
-      // Create the item
-      await createItemMaster({
-        token: accessToken,
-        payload,
-      });
+      // Create the item in ItemMas
+      const created = await dispatch(createItemMas(itemMasPayload)).unwrap();
+      const itemID = created.itemID;
 
-      // Optionally, re-fetch the item list to get the new item
-      await dispatch(fetchItems(property.id));
+      // Refresh ItemMas list used for this screen
+      await dispatch(fetchItemMas()).unwrap();
 
-      // If you need to know the new item's ID immediately, you *must* refetch or adjust your helper to return the created item
-      // Example: refetch items and get last one
-      const items = await getItemMaster({
-        token: accessToken,
-        hotelId: hotelID,
-      });
-
-      const createdItem = items[items.length - 1];
-      const itemID = createdItem.itemID;
-
-      // Loop over selected POS centers and create mappings
+      // ✅ Loop over selected POS centers and create mappings via Redux thunk
       for (const posCenterId of selectedCenters) {
-        const posPayload = {
-          hotelId: hotelID,
-          itemId: itemID,
-          hotelPosCenterId: posCenterId,
-        };
-
-        await createItemByPosCenter({
-          token: accessToken,
-          payload: posPayload,
-        });
+        await dispatch(
+          createItemByPOSCenter({
+            id: 0,
+            posCenterID: posCenterId,
+            itemID,
+            price: formData.price,
+            guidePrice: 0,
+            driverPrice: 0,
+            kidsPrice: 0,
+            price2: 0,
+          })
+        ).unwrap();
       }
-
-      // // Update Redux store with the new item
-      // dispatch(
-      //   addItem({
-      //     ...formData,
-      //     id: createdItem.itemCode,
-      //     imageUrl,
-      //   })
-      // );
 
       setShowAddEditDialog(false);
     } catch (error) {
@@ -379,22 +478,26 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
   };
 
   const handleConfirmDelete = async () => {
-    if (!currentItem?.itemID) {
-      alert("Missing itemID for delete.");
+    if (!currentItem?.itemCode) {
+      alert("Missing itemNumber (itemCode) for delete.");
       return;
     }
+
     try {
-      const property = JSON.parse(
-        localStorage.getItem("selectedProperty") || "{}"
-      );
-      await dispatch(deleteItemMaster(currentItem.itemID)).unwrap();
-      await dispatch(fetchItems(property.id)); // refresh list
+      // DELETE /api/ItemMas/{itemNumber}
+      await dispatch(
+        deleteItemMas({ itemNumber: currentItem.itemCode })
+      ).unwrap();
+
+      // refresh ItemMas list used by this screen
+      await dispatch(fetchItemMas()).unwrap();
+
       setShowDeleteDialog(false);
     } catch (e: any) {
+      console.error("Delete failed:", e);
       alert(typeof e === "string" ? e : "Delete failed.");
     }
   };
-
   const [excelData, setExcelData] = useState<any[]>([]);
 
   const handleExcelUpload = async (file: File) => {
@@ -467,8 +570,8 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
 
         console.log("📦 Final items to post:", itemPayloads);
 
-        // ✅ Step 6: Post items
-        await dispatch(postItemMasterList(itemPayloads));
+        // ✅ Step 6: Post items using createItemMasList
+        await dispatch(createItemMasList(itemPayloads));
 
         alert("✅ Categories and Items imported successfully");
       } catch (error) {
@@ -482,15 +585,79 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
 
   return (
     <div className="flex flex-col gap-6 py-6 h-full">
-      <div className="flex justify-between items-center">
-        <div className="relative flex-1">
-          <Input
-            type="search"
-            placeholder={`${search}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-2">
+          <div className="relative flex-1">
+            <Input
+              type="search"
+              placeholder={`${search}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <Popover
+            open={categoryFilterOpen}
+            onOpenChange={setCategoryFilterOpen}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={categoryFilterOpen}
+                className="w-[200px] justify-between"
+              >
+                {selectedCategoryId
+                  ? categories.find((c) => c.id === selectedCategoryId)?.name
+                  : "All Categories"}
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+              <Command>
+                <CommandInput placeholder="Search category..." />
+                <CommandEmpty>No category found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => {
+                      setSelectedCategoryId("");
+                      setCategoryFilterOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        !selectedCategoryId ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    All Categories
+                  </CommandItem>
+
+                  {categories.map((cat) => (
+                    <CommandItem
+                      key={cat.id}
+                      onSelect={() => {
+                        setSelectedCategoryId(cat.id);
+                        setCategoryFilterOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCategoryId === cat.id
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {cat.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
+
         <Button className="ml-2" onClick={openAdd}>
           <Plus className="h-4 w-4 mr-2" />
           {addNewItem}
@@ -507,10 +674,7 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
                   Code: {item.itemCode || "-"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {
-                    formattedCategories.find((c) => c.id === item.category)
-                      ?.name
-                  }
+                  {categories.find((c) => c.id === item.category)?.name}
                 </p>
                 {item.description && (
                   <p className="text-sm mt-1">{item.description}</p>
@@ -549,11 +713,9 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         item={editing}
-        categories={formattedCategories as Category[]}
+        categories={categories}
         onSaveManual={handleSaveItem}
         onImportExcel={handleExcelUpload}
-        // posCenters={preloadedPosCenters} // optional
-        // onCreateCategoryClick={() => setDrawerOpen(true)} // optional
       />
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -566,16 +728,16 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
-              disabled={delStatus === "loading"}
+              disabled={delStatus} // boolean loading flag
             >
               {cancel}
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
-              disabled={delStatus === "loading"}
+              disabled={delStatus} // boolean loading flag
             >
-              {delStatus === "loading" ? "Deleting..." : confirmDelete}
+              {delStatus ? "Deleting..." : confirmDelete}
             </Button>
           </DialogFooter>
           {delError && (
@@ -589,7 +751,7 @@ export function ItemManagement({ onClose }: ItemManagementProps) {
         open={editOpen}
         onOpenChange={setEditOpen}
         item={currentItem}
-        categories={formattedCategories as any}
+        categories={categories as any}
         relinkPosCenters={true}
       />
     </div>
@@ -621,6 +783,12 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
   const uploadImage = useTranslatedText("Upload Image");
   const save = useTranslatedText("Save");
   const cancel = useTranslatedText("Cancel");
+
+  const dispatch = useDispatch<AppDispatch>();
+
+  // 🔽 get POS centers from Redux slice
+  const hotelPosCenters = useSelector(selectHotelPOSCenterMasData);
+
   const [posCenters, setPosCenters] = useState<PosCenter[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
   const [selectedImageFile, setSelectedImageFile] = useState<
@@ -650,32 +818,37 @@ function ItemForm({ item, categories, onSave, onCancel }: ItemFormProps) {
     }
   }, [selectedCategory]);
 
+  // 🔹 Fetch POS centers via Redux thunk
   useEffect(() => {
-    const fetchPosCenters = async () => {
-      const tokens = JSON.parse(
-        localStorage.getItem("hotelmateTokens") || "{}"
-      );
-      const accessToken = tokens.accessToken;
-      const property = JSON.parse(
-        localStorage.getItem("selectedProperty") || "{}"
-      );
-      const hotelID = property.id;
+    const property = JSON.parse(
+      localStorage.getItem("selectedProperty") || "{}"
+    );
 
-      if (!accessToken || !hotelID) return;
+    // Use whatever your property shape has – adjust if needed
+    const hotelCode =
+      property.hotelCode ||
+      property.code ||
+      (property.id ? String(property.id) : undefined);
 
-      try {
-        const data = await getPosCenter({
-          token: accessToken,
-          hotelId: hotelID,
-        });
-        setPosCenters(data || []);
-      } catch (err) {
-        console.error("Failed to fetch POS centers:", err);
-      }
-    };
+    // Dispatch with or without params depending on hotelCode
+    if (hotelCode) {
+      dispatch(fetchHotelPOSCenterMas({ hotelCode }));
+    } else {
+      dispatch(fetchHotelPOSCenterMas());
+    }
+  }, [dispatch]);
 
-    fetchPosCenters();
-  }, []);
+  // 🔹 Map Redux data -> local PosCenter[]
+  useEffect(() => {
+    if (!hotelPosCenters) return;
+
+    const mapped: PosCenter[] = hotelPosCenters.map((c) => ({
+      hotelPosCenterId: c.posCenterID,
+      posCenter: c.posCenterName,
+    }));
+
+    setPosCenters(mapped);
+  }, [hotelPosCenters]);
 
   const handleChange = (field: keyof Item, value: string | number) => {
     setFormData({ ...formData, [field]: value });
